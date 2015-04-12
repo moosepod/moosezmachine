@@ -3,7 +3,31 @@
 import unittest
 import os
 
-from interpreter import ZMachine
+from interpreter import ZMachine,StoryFileException
+
+class TestValidation(unittest.TestCase):
+    def test_size(self):
+        zmachine = ZMachine()
+        try:
+            zmachine.raw_data = ''
+            self.fail('Should have thrown exception')
+        except StoryFileException, e:
+            self.assertEquals(u'Story file is too short', unicode(e))
+
+    def test_version(self):
+        zmachine = ZMachine()
+        raw_data =['\x00'] * 1000
+        for version in (0x01,0x02,0x03):
+            raw_data[0] = version
+            zmachine.raw_data = raw_data
+        for version in (0x04,0x05,0x06,0x07,0x08):
+            raw_data[0] = version
+            try:
+                zmachine.raw_data = raw_data
+                self.fail('Should have thrown exception.')
+            except StoryFileException, e:
+                self.assertEquals('This story file version is not supported.',unicode(e))
+            
 
 class TestSampleFile(unittest.TestCase):
     def setUp(self):

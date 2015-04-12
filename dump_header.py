@@ -3,12 +3,17 @@
 #
 
 import sys
-from zmachine.interpreter import ZMachine
+from zmachine.interpreter import ZMachine,StoryFileException
 
 def dump(path):
     with open(path,'rb') as f:
         zmachine = ZMachine()
-        zmachine.raw_data = f.read()
+        try:
+            zmachine.raw_data = f.read()
+        except StoryFileException, e:
+            print 'Unable to load story file. %s' % e
+            return 
+
         header = zmachine.header
        
         print 'Version:                  %d' % (header.version)

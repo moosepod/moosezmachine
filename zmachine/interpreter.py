@@ -5,10 +5,18 @@
 ### These helper methods are for working with "memory" as bytes. There is probably a better/existing
 ### way of doing this
 def get_byte_as_int(data, index):
-    return ord(data[index])
+    # Support string or int versions of data
+    try:
+        return ord(data[index])
+    except TypeError, e:
+        return int(data[index])
 
 def get_address(data,index):
     return ord(data[index])*256 + ord(data[index+1])
+
+class StoryFileException(Exception):
+    """ Thrown in cases where a story file is invalid """
+    pass
 
 class Header(object):
     VERSION = 0x00
@@ -19,12 +27,15 @@ class Header(object):
     GLOBAL_VARIABLES = 0x0C
     STATIC_MEMORY = 0x0E
 
+    MAX_VERSION = 0x03   # Max ZCode version we support
+
     """ Represents the header of a ZCode file, bytes 0x00 through 0x36. The usage of the data will vary
         based on the version of the file. Most of the memory is read-only for a game. Some of the remainder
         is set by the game, other by the interpreter itself. """
     def __init__(self,raw_data):
         self._raw_data = raw_data
-
+        if self.version > Header.MAX_VERSION:
+            raise StoryFileException('This story file version is not supported.')
     @property
     def version(self):
         return get_byte_as_int(self._raw_data, Header.VERSION)
@@ -77,7 +88,7 @@ class ZMachine(object):
         """ Set the story data for this file. This will reset the header. """
         self._raw_data = bytearray(value)
         if len(value) < 36:
-            raise Exception('Story file is too short')
+            raise StoryFileException('Story file is too short')
         self.header = Header(value[0:36])
-
+    
 

@@ -4,7 +4,7 @@ moosezmachine is a Python implementation of a Z-Machine (Z-code interpreter) bas
 
 This project is a reference implementation -- no effort has been put into optimizations. 
 
-Currently it only handles through v5.
+Currently it only handles zcode versions 1 through 3.
 
 ## Architecture
 
@@ -21,3 +21,5 @@ python dump_header.py story_file_path: this will load the story file and if vali
 MooseZMachine is licensed under the MIT license.
 
 I used ZILF to create sample zcode files for testing (http://sourceforge.net/p/zilf/_list/tickets?source=navbar)
+
+ZTools was very helpful for debugging (http://inform-fiction.org/zmachine/ztools.html)
