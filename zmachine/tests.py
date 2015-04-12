@@ -22,7 +22,6 @@ class TestMemory(unittest.TestCase):
         self.assertEquals(2,mem[1])
         self.assertEquals(3,mem[2])
 
-
     def test_address(self):
         mem = Memory([0,1])
         self.assertEquals(0x00, mem[0])
@@ -34,6 +33,14 @@ class TestMemory(unittest.TestCase):
         self.assertTrue(mem.flag(0,0))
         self.assertFalse(mem.flag(0,1))
         self.assertFalse(mem.flag(0,2))
+
+    def test_set_flag(self):
+        mem = Memory([0])
+        self.assertFalse(mem.flag(0,1))
+        mem.set_flag(0,1,1)
+        self.assertTrue(mem.flag(0,1))
+        mem.set_flag(0,1,0)
+        self.assertFalse(mem.flag(0,1))
 
 class TestValidation(unittest.TestCase):
     def test_size(self):

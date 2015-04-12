@@ -26,7 +26,7 @@ def dump(path):
         print 'Abbrev table address:     0x%04x' % (header.abbrev_address)
         print 'File length:              0x%08x' % (header.file_length)
         print 'Checksum:                 0x%08x' % (header.checksum)
-
+        print 'Revision number:          0x%04x' % (header.revision_number)
         print 'Flags:'
         if header.flag_status_line_type == 0: print '   score/turns'
         if header.flag_status_line_type == 1: print '   hours:mins'

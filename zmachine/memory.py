@@ -20,7 +20,15 @@ class Memory(object):
         """ Return True or False based on the bit at the given index """
         data = self[idx]
         data = data >> bit
-        return data & 0x00000001 == 1        
+        return data & 0x00000001 == 1
+        
+    def set_flag(self,idx,bit,value):
+        data = self[idx]
+        new_data = 0x1 << bit
+        if value:
+            self[idx] = data | new_data        
+        else:
+            self[idx] = (~new_data) & data
 
     def integer(self,idx):
         """ Return the two-byte integer at the given index """

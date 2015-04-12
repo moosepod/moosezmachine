@@ -11,6 +11,8 @@ class StoryFileException(Exception):
 class Header(Memory):
     VERSION = 0x00
     FLAGS_1 = 0x01
+    FLAGS_2 = 0x10
+    FLAGS_2_1 = 0x11
     HIMEM = 0x04
     PROGRAM_COUNTER = 0x06
     DICTIONARY = 0x08
@@ -20,10 +22,13 @@ class Header(Memory):
     ABBREV_TABLE = 0x18
     FILE_LENGTH = 0x1A
     CHECKSUM    = 0x1C
+    INTERPRETER_NUMBER = 0x1E
+    INTERPRETER_VERSION = 0x1F
+    REVISION_NUMBER = 0x32
 
     MAX_VERSION = 0x03   # Max ZCode version we support
 
-    """ Represents the header of a ZCode file, bytes 0x00 through 0x36. The usage of the data will vary
+    """ Represents the header of a ZCode file, bytes 0x00 through 0x40. The usage of the data will vary
         based on the version of the file. Most of the memory is read-only for a game. Some of the remainder
         is set by the game, other by the interpreter itself. """
     def __init__(self,data):
@@ -73,6 +78,10 @@ class Header(Memory):
         return self.integer(Header.CHECKSUM)
 
     @property
+    def revision_number(self):
+        return self.integer(Header.REVISION_NUMBER)
+
+    @property
     def flag_status_line_type(self):
         """ Return 0 if score/turn, 1 if hours:mins """
         return self.flag(Header.FLAGS_1, 1)
@@ -94,10 +103,31 @@ class Header(Memory):
     def flag_variable_pitch_default(self):
         """ Return True if a variable pitch font is default """
         return self.flag(Header.FLAGS_1,6)
+ 
+    def reset(self):
+        """ Reset appropriate flags after an initialization or load """
+        self.set_flag(Header.FLAGS_1,4,0) # Status line is available
+        self.set_flag(Header.FLAGS_1,5,0) # Screen splitting not available
+        self.set_flag(Header.FLAGS_1,6,0) # Font is not variable width
         
+        self.set_flag(Header.FLAGS_2,0,0) # Transcripting is off
+        self.set_flag(Header.FLAGS_2,1,0) # Fixed-pitch printing off
+        self.set_flag(Header.FLAGS_2,2,0) # Screen redraw flag off
+        self.set_flag(Header.FLAGS_2,3,0) # Game requests pictures
+        self.set_flag(Header.FLAGS_2,4,0) # Game requests UNDO
+        self.set_flag(Header.FLAGS_2,5,0) # Game requests mouse
+        self.set_flag(Header.FLAGS_2,7,0) # Game requests sound
+        self.set_flag(Header.FLAGS_2_1,0,0) # Game requests menu
+    
+        # We aren't fully implementing the zcode spec yet, so set to 0, as per spec
+        self[Header.INTERPRETER_NUMBER] = 0
+        self[Header.INTERPRETER_VERSION] = 0
+
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
         is divided into multiple objects """
+    MIN_FILE_SIZE = 64  # Minimum size of a story file, in bytes
+
     def __init__(self):
         self.header = None
         self.global_variables = None
@@ -116,13 +146,16 @@ class ZMachine(object):
     def raw_data(self,value):
         """ Set the story data for this file. This will reset the header. """
         self._raw_data = Memory(bytearray(value))
-        if len(value) < 36:
+        if len(value) < ZMachine.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
-        self.header = Header(self._raw_data[0:36])
-    
+        self.header = Header(self._raw_data[0:ZMachine.MIN_FILE_SIZE])
+        self.header.reset()
+
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
+        
+        
 
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
