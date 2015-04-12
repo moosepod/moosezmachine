@@ -3,7 +3,7 @@
 #
 
 import sys
-from zmachine import ZMachine
+from zmachine.interpreter import ZMachine
 
 def dump(path):
     with open(path,'rb') as f:
