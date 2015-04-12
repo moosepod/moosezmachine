@@ -7,9 +7,11 @@ class Memory(object):
         try:
             self._raw_data = [int(x) for x in data]
         except ValueError, e:
-            if u'invalid literal for int()' in e:
+            if u'invalid literal for int()' in unicode(e):
                 self._raw_data = [ord(x) for x in data]
-    
+            else:
+                raise e
+
     def address(self, idx):
         """ Return the two-byte address (as an unsigned int) at the given index """
         return (self[idx]*256) + self[idx+1]

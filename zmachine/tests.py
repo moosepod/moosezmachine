@@ -14,6 +14,14 @@ class TestMemory(unittest.TestCase):
         self.assertEquals(2,mem[1])
         self.assertEquals(3,mem[2])     
 
+    def test_from_chars(self):
+        mem = Memory('\x01\x02\x03')
+        self.assertEquals(3, len(mem))
+        self.assertEquals(1,mem[0])
+        self.assertEquals(2,mem[1])
+        self.assertEquals(3,mem[2])
+
+
     def test_address(self):
         mem = Memory([0,1])
         self.assertEquals(0x00, mem[0])
