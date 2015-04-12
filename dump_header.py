@@ -12,7 +12,12 @@ def dump(path):
         header = zmachine.header
        
         print 'Version:                  %d' % (header.version)
-
+        print 'Himem adddress:           0x%04x' % (header.himem_address)
+        print 'PC Address:               0x%04x' % (header.program_counter_address)
+        print 'Dictionary address:       0x%04x' % (header.dictionary_address)
+        print 'Object table address:     0x%04x' % (header.object_table_address)
+        print 'Global variables address: 0x%04x' % (header.global_variables_address)
+        print 'Static memory address:    0x%04x' % (header.static_memory_address)
 
 def main():
     if len(sys.argv) < 2:

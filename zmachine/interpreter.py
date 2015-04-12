@@ -2,7 +2,23 @@
     See README.md for a summary of architecture 
 """
 
+### These helper methods are for working with "memory" as bytes. There is probably a better/existing
+### way of doing this
+def get_byte_as_int(data, index):
+    return ord(data[index])
+
+def get_address(data,index):
+    return ord(data[index])*256 + ord(data[index+1])
+
 class Header(object):
+    VERSION = 0x00
+    HIMEM = 0x04
+    PROGRAM_COUNTER = 0x06
+    DICTIONARY = 0x08
+    OBJECT_TABLE = 0x0A
+    GLOBAL_VARIABLES = 0x0C
+    STATIC_MEMORY = 0x0E
+
     """ Represents the header of a ZCode file, bytes 0x00 through 0x36. The usage of the data will vary
         based on the version of the file. Most of the memory is read-only for a game. Some of the remainder
         is set by the game, other by the interpreter itself. """
@@ -11,9 +27,34 @@ class Header(object):
 
     @property
     def version(self):
-        """ Return the version of the story file, stored at location 0 """
-        return ord(self._raw_data[0])
+        return get_byte_as_int(self._raw_data, Header.VERSION)
 
+    @property
+    def himem_address(self):
+        return get_address(self._raw_data,Header.HIMEM)
+
+    @property
+    def program_counter_address(self):
+        return get_address(self._raw_data,Header.PROGRAM_COUNTER)
+
+    @property
+    def dictionary_address(self):
+        return get_address(self._raw_data,Header.DICTIONARY)
+
+    @property
+    def object_table_address(self):
+        return get_address(self._raw_data,Header.OBJECT_TABLE)
+
+    @property
+    def global_variables_address(self):
+        return get_address(self._raw_data,Header.GLOBAL_VARIABLES)
+
+    @property
+    def static_memory_address(self):
+        return get_address(self._raw_data,Header.STATIC_MEMORY)
+
+ 
+        
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
         is divided into multiple objects """

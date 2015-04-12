@@ -15,7 +15,14 @@ class TestSampleFile(unittest.TestCase):
             self.zmachine.raw_data = f.read()
 
     def test_header(self):
-        self.assertEquals(3,self.zmachine.header.version)
+        header = self.zmachine.header
+        self.assertEquals(3,header.version)
+        self.assertEquals(0x0cd4,header.himem_address)
+        self.assertEquals(0x0cd5,header.program_counter_address)
+        self.assertEquals(0x0835,header.dictionary_address)
+        self.assertEquals(0x0146,header.object_table_address)
+        self.assertEquals(0x0102,header.global_variables_address)
+        self.assertEquals(0x0835,header.static_memory_address)
 
 if __name__ == '__main__':
     unittest.main()
