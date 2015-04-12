@@ -23,6 +23,9 @@ def dump(path):
         print 'Object table address:     0x%04x' % (header.object_table_address)
         print 'Global variables address: 0x%04x' % (header.global_variables_address)
         print 'Static memory address:    0x%04x' % (header.static_memory_address)
+        print 'Abbrev table address:     0x%04x' % (header.abbrev_address)
+        print 'File length:              0x%08x' % (header.file_length)
+        print 'Checksum:                 0x%08x' % (header.checksum)
 
         print 
         print 'Raw memory\n---------\n'

@@ -16,6 +16,9 @@ class Header(Memory):
     OBJECT_TABLE = 0x0A
     GLOBAL_VARIABLES = 0x0C
     STATIC_MEMORY = 0x0E
+    ABBREV_TABLE = 0x18
+    FILE_LENGTH = 0x1A
+    CHECKSUM    = 0x1C
 
     MAX_VERSION = 0x03   # Max ZCode version we support
 
@@ -55,6 +58,18 @@ class Header(Memory):
     def static_memory_address(self):
         return self.address(Header.STATIC_MEMORY)
 
+    @property
+    def abbrev_address(self):
+        return self.address(Header.ABBREV_TABLE)
+
+    @property
+    def file_length(self):
+        # This length is divided by a constant that varies based on version. V1-3 has a constant of 2
+        return self.integer(Header.FILE_LENGTH)*2
+
+    @property 
+    def checksum(self):
+        return self.integer(Header.CHECKSUM)
         
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
@@ -81,4 +96,7 @@ class ZMachine(object):
             raise StoryFileException('Story file is too short')
         self.header = Header(self._raw_data[0:36])
     
-
+    def calculate_checksum(self):
+        """ Return the calculated checksum, which is the unsigned sum, mod 65536
+            of all bytes past 0x0040 """
+        return sum(self._raw_data[0x40:]) % 65536

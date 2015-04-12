@@ -71,6 +71,12 @@ class TestSampleFile(unittest.TestCase):
         self.assertEquals(0x0146,header.object_table_address)
         self.assertEquals(0x0102,header.global_variables_address)
         self.assertEquals(0x0835,header.static_memory_address)
+        self.assertEquals(0x0042,header.abbrev_address)
+        self.assertEquals(0x0326a,header.file_length)
+        self.assertEquals(0xf3a4,header.checksum)
+
+    def test_checksum(self):
+        self.assertEquals(0xf3a4,self.zmachine.calculate_checksum())
 
 if __name__ == '__main__':
     unittest.main()
