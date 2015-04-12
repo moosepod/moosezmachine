@@ -13,6 +13,7 @@ class TestMemory(unittest.TestCase):
         self.assertEquals(1,mem[0])
         self.assertEquals(2,mem[1])
         self.assertEquals(3,mem[2])     
+        self.assertEquals([1,2], mem[0:2])
 
     def test_from_chars(self):
         mem = Memory('\x01\x02\x03')
