@@ -3,10 +3,10 @@
 import unittest
 import os
 
-from interpreter import ZMachine,StoryFileException
+from interpreter import ZMachine,StoryFileException,MemoryAccessException
 from memory import Memory
 
-class TestMemory(unittest.TestCase):
+class MemoryTests(unittest.TestCase):
     def test_from_integers(self):
         mem = Memory([1,2,3])
         self.assertEquals(3, len(mem))
@@ -42,7 +42,38 @@ class TestMemory(unittest.TestCase):
         mem.set_flag(0,1,0)
         self.assertFalse(mem.flag(0,1))
 
-class TestValidation(unittest.TestCase):
+class GameMemoryTests(unittest.TestCase):
+    def setUp(self):
+        path = 'testdata/test.z3'
+        if not os.path.exists(path):
+            self.fail('Could not find test file test.z3')
+        with open(path, 'rb') as f:
+            self.zmachine = ZMachine()
+            self.zmachine.raw_data = f.read()
+
+    def test_header(self):
+        self.zmachine.game_memory[0]
+        try:
+            self.zmachine.game_memory[0] = 1
+            self.fail('Should have thrown exception')
+        except MemoryAccessException:
+            pass
+        self.zmachine.game_memory.set_flag(0x10,0,1)        
+        self.zmachine.game_memory.set_flag(0x10,1,1)        
+        self.zmachine.game_memory.set_flag(0x10,2,1)        
+        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,3,1)
+        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,4,1)
+        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,5,1)
+        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,6,1)
+        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,7,1)
+
+    def test_highmem_access(self):
+        self.fail()
+
+    def test_dynamic_memory_access(self):
+        self.fail()
+
+class ValidationTests(unittest.TestCase):
     def test_size(self):
         zmachine = ZMachine()
         try:
@@ -66,7 +97,7 @@ class TestValidation(unittest.TestCase):
                 self.assertEquals('This story file version is not supported.',unicode(e))
             
 
-class TestSampleFile(unittest.TestCase):
+class SampleFileTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'
         if not os.path.exists(path):

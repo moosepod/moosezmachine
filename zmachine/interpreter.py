@@ -8,6 +8,10 @@ class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
     pass
 
+class MemoryAccessException(Exception):
+    """ Thrown in cases where a game attempts to access memory it shouldn't """
+    pass
+
 class Header(Memory):
     VERSION = 0x00
     FLAGS_1 = 0x01
@@ -26,6 +30,7 @@ class Header(Memory):
     INTERPRETER_VERSION = 0x1F
     REVISION_NUMBER = 0x32
 
+    HEADER_SIZE = 0x40
     MAX_VERSION = 0x03   # Max ZCode version we support
 
     """ Represents the header of a ZCode file, bytes 0x00 through 0x40. The usage of the data will vary
@@ -123,6 +128,21 @@ class Header(Memory):
         self[Header.INTERPRETER_NUMBER] = 0
         self[Header.INTERPRETER_VERSION] = 0
 
+class GameMemory(Memory):
+    """ Wrapper around the memory that restricts access to valid locations """
+    def __init__(self,memory):
+        self._raw_data = memory._raw_data
+
+    def __setitem__(self,idx,value):
+        if idx < Header.HEADER_SIZE and idx != Header.FLAGS_2:
+            raise MemoryAccessException('Index %d in header not writeable to game' % idx)
+        super(GameMemory,self).__setitem__(idx,value)        
+
+    def set_flag(self,idx,bit,value):
+        if idx == Header.FLAGS_2 and bit > 2:
+            raise MemoryAccessException('Bit %d of index %d not writeable to game' % (bit,idx))
+        super(GameMemory,self).set_flag(idx,bit,value)
+
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
         is divided into multiple objects """
@@ -133,9 +153,10 @@ class ZMachine(object):
         self.global_variables = None
         self.dictionary = None
         self.object_tree = None
-        self.program_counter = 0 # Address of the current routine.
-        self.stack = []          # Global stack, represented as a list
+        self.program_counter = 0   # Address of the current routine.
+        self.stack = []            # Global stack, represented as a list
         self._raw_data = []
+        self.game_memory = None # Protected memory interface for use by game
 
     @property
     def raw_data(self):
@@ -150,13 +171,12 @@ class ZMachine(object):
             raise StoryFileException('Story file is too short')
         self.header = Header(self._raw_data[0:ZMachine.MIN_FILE_SIZE])
         self.header.reset()
+        self.game_memory = GameMemory(self._raw_data)
 
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
         
-        
-
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """
