@@ -29,6 +29,12 @@ class TestMemory(unittest.TestCase):
         self.assertEquals(0x01,mem[1])
         self.assertEquals(0x01,mem.address(0))
 
+    def test_flag(self):
+        mem = Memory([1])
+        self.assertTrue(mem.flag(0,0))
+        self.assertFalse(mem.flag(0,1))
+        self.assertFalse(mem.flag(0,2))
+
 class TestValidation(unittest.TestCase):
     def test_size(self):
         zmachine = ZMachine()
@@ -74,6 +80,12 @@ class TestSampleFile(unittest.TestCase):
         self.assertEquals(0x0042,header.abbrev_address)
         self.assertEquals(0x0326a,header.file_length)
         self.assertEquals(0xf3a4,header.checksum)
+
+        self.assertEquals(0,header.flag_status_line_type)
+        self.assertFalse(header.flag_story_two_disk)
+        self.assertFalse(header.flag_status_line_not_available)
+        self.assertFalse(header.flag_screen_splitting_available)
+        self.assertFalse(header.flag_variable_pitch_default)
 
     def test_checksum(self):
         self.assertEquals(0xf3a4,self.zmachine.calculate_checksum())

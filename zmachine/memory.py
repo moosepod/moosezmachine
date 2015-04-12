@@ -16,6 +16,12 @@ class Memory(object):
             else:
                 raise e
 
+    def flag(self,idx,bit):
+        """ Return True or False based on the bit at the given index """
+        data = self[idx]
+        data = data >> bit
+        return data & 0x00000001 == 1        
+
     def integer(self,idx):
         """ Return the two-byte integer at the given index """
         return self.address(idx)

@@ -27,6 +27,14 @@ def dump(path):
         print 'File length:              0x%08x' % (header.file_length)
         print 'Checksum:                 0x%08x' % (header.checksum)
 
+        print 'Flags:'
+        if header.flag_status_line_type == 0: print '   score/turns'
+        if header.flag_status_line_type == 1: print '   hours:mins'
+        if header.flag_story_two_disk: print '   two disk'
+        if header.flag_status_line_not_available: print '   no status line'
+        if header.flag_screen_splitting_available: print '   screen split available'
+        if header.flag_variable_pitch_default: print '  variable pitch is default'
+
         print 
         print 'Raw memory\n---------\n'
         header.dump()

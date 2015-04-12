@@ -10,6 +10,7 @@ class StoryFileException(Exception):
 
 class Header(Memory):
     VERSION = 0x00
+    FLAGS_1 = 0x01
     HIMEM = 0x04
     PROGRAM_COUNTER = 0x06
     DICTIONARY = 0x08
@@ -70,6 +71,29 @@ class Header(Memory):
     @property 
     def checksum(self):
         return self.integer(Header.CHECKSUM)
+
+    @property
+    def flag_status_line_type(self):
+        """ Return 0 if score/turn, 1 if hours:mins """
+        return self.flag(Header.FLAGS_1, 1)
+
+    @property
+    def flag_story_two_disk(self):
+        """ Is this story file on two disks? """
+        return self.flag(Header.FLAGS_1,2)
+
+    @property
+    def flag_status_line_not_available(self):
+        return self.flag(Header.FLAGS_1,4)
+    
+    @property
+    def flag_screen_splitting_available(self):
+        return self.flag(Header.FLAGS_1,5)
+    
+    @property
+    def flag_variable_pitch_default(self):
+        """ Return True if a variable pitch font is default """
+        return self.flag(Header.FLAGS_1,6)
         
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
@@ -96,6 +120,10 @@ class ZMachine(object):
             raise StoryFileException('Story file is too short')
         self.header = Header(self._raw_data[0:36])
     
+        # some early files have no checksum -- skip the check in that case
+        if self.header.checksum and self.header.checksum != self.calculate_checksum():
+            raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
+
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """
