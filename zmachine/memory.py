@@ -24,3 +24,22 @@ class Memory(object):
 
     def __setitem__(self,idx,val):
         self._raw_data[idx] = val
+
+    def dump(self, width=16):
+        """ Dump all memory in a convienient format """
+        counter = 0
+        length = len(self)
+        while counter < length:
+            row = []
+            if width + counter > length:
+                width = length-counter
+            for i in range(0,width):
+                row.append('%.2x' % self[counter+i])
+            print '%s %s' % ('%.8x' % counter, ' '.join(row))
+            counter += width
+
+       
+                
+                       
+        
+

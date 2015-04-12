@@ -10,6 +10,8 @@ Currently it only handles zcode versions 1 through 3.
 
 The zcode itself is handled by zmachine.interpreter.ZMachine. Story data is loaded into the interpreter by setting raw_data -- note this will throw an exception if the data is too short.
 
+A wrapper object, memory.Memory, is used to intermediate the raw data. This makes it easy to pull out the various ZCode data types (address, single-byte integer, etc)
+
 When zmachine.raw_data is set, zmachine.header is set as well. This object provides convienence methods for the accessing the header data. 
 
 ## Scripts

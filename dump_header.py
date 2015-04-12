@@ -24,6 +24,11 @@ def dump(path):
         print 'Global variables address: 0x%04x' % (header.global_variables_address)
         print 'Static memory address:    0x%04x' % (header.static_memory_address)
 
+        print 
+        print 'Raw memory\n---------\n'
+        header.dump()
+        print
+
 def main():
     if len(sys.argv) < 2:
         print 'Usage: python dump_header.py path_to_story_file'
