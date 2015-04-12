@@ -1,8 +1,6 @@
-#
-# See http://inform-fiction.org/zmachine/standards/z1point1/index.html for a definition of the Z-Machine
-#
-# See README.md for a summary of architecture 
-#
+""" See http://inform-fiction.org/zmachine/standards/z1point1/index.html for a definition of the Z-Machine
+    See README.md for a summary of architecture 
+"""
 
 class Header(object):
     """ Represents the header of a ZCode file, bytes 0x00 through 0x36. The usage of the data will vary
