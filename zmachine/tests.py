@@ -68,10 +68,39 @@ class GameMemoryTests(unittest.TestCase):
         self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,7,1)
 
     def test_highmem_access(self):
-        self.fail()
+        himem_address = self.zmachine.header.himem_address
+        for i in range(0,2):
+            memory = self.zmachine.game_memory
+            try:
+                memory[himem_address+i]
+                self.fail('Should have thrown exception')
+            except MemoryAccessException:
+                pass
+    
+            try:
+                memory[himem_address+i] = 1
+                self.fail('Should have thrown exception')
+            except MemoryAccessException:
+                pass
+    
+            self.assertRaises(MemoryAccessException, memory.flag,himem_address+1,1)
+            self.assertRaises(MemoryAccessException, memory.set_flag,himem_address+1,1,1)
 
-    def test_dynamic_memory_access(self):
-        self.fail()
+    def test_static_memory_access(self):
+        static_address = self.zmachine.header.static_memory_address
+        for i in range(0,2):
+            memory = self.zmachine.game_memory
+            memory[static_address+i]
+
+            try:
+                memory[static_address+i] = 1
+                self.fail('Should have thrown exception')
+            except MemoryAccessException:
+                pass
+
+            memory.flag(static_address+i,2)
+            self.assertRaises(MemoryAccessException, memory.set_flag,static_address+1,1,1)
+
 
 class ValidationTests(unittest.TestCase):
     def test_size(self):

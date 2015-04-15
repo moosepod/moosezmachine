@@ -130,11 +130,18 @@ class Header(Memory):
 
 class GameMemory(Memory):
     """ Wrapper around the memory that restricts access to valid locations """
-    def __init__(self,memory):
+    def __init__(self,memory, static_address,himem_address):
         self._raw_data = memory._raw_data
+        self._himem_address = himem_address
+        self._static_address = static_address
+
+    def __getitem__(self,idx):
+        if idx >= self._himem_address:
+            raise MemoryAccessException('Index %d in himem not readable' % idx)
+        return super(GameMemory,self).__getitem__(idx)
 
     def __setitem__(self,idx,value):
-        if idx < Header.HEADER_SIZE and idx != Header.FLAGS_2:
+        if idx >= self._static_address or (idx < Header.HEADER_SIZE and idx != Header.FLAGS_2):
             raise MemoryAccessException('Index %d in header not writeable to game' % idx)
         super(GameMemory,self).__setitem__(idx,value)        
 
@@ -157,6 +164,7 @@ class ZMachine(object):
         self.stack = []            # Global stack, represented as a list
         self._raw_data = []
         self.game_memory = None # Protected memory interface for use by game
+        self.himem_address = 0
 
     @property
     def raw_data(self):
@@ -171,7 +179,9 @@ class ZMachine(object):
             raise StoryFileException('Story file is too short')
         self.header = Header(self._raw_data[0:ZMachine.MIN_FILE_SIZE])
         self.header.reset()
-        self.game_memory = GameMemory(self._raw_data)
+        self.game_memory = GameMemory(self._raw_data,
+                                      self.header.static_memory_address,
+                                      self.header.himem_address)
 
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
