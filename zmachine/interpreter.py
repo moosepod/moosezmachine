@@ -47,44 +47,44 @@ class Header(Memory):
 
     @property
     def himem_address(self):
-        return self.address(Header.HIMEM)
+        return self.word(Header.HIMEM)
 
     @property
     def program_counter_address(self):
-        return self.address(Header.PROGRAM_COUNTER)
+        return self.word(Header.PROGRAM_COUNTER)
 
     @property
     def dictionary_address(self):
-        return self.address(Header.DICTIONARY)
+        return self.word(Header.DICTIONARY)
 
     @property
     def object_table_address(self):
-        return self.address(Header.OBJECT_TABLE)
+        return self.word(Header.OBJECT_TABLE)
 
     @property
     def global_variables_address(self):
-        return self.address(Header.GLOBAL_VARIABLES)
+        return self.word(Header.GLOBAL_VARIABLES)
 
     @property
     def static_memory_address(self):
-        return self.address(Header.STATIC_MEMORY)
+        return self.word(Header.STATIC_MEMORY)
 
     @property
     def abbrev_address(self):
-        return self.address(Header.ABBREV_TABLE)
+        return self.word(Header.ABBREV_TABLE)
 
     @property
     def file_length(self):
         # This length is divided by a constant that varies based on version. V1-3 has a constant of 2
-        return self.integer(Header.FILE_LENGTH)*2
+        return self.word(Header.FILE_LENGTH)*2
 
     @property 
     def checksum(self):
-        return self.integer(Header.CHECKSUM)
+        return self.word(Header.CHECKSUM)
 
     @property
     def revision_number(self):
-        return self.integer(Header.REVISION_NUMBER)
+        return self.word(Header.REVISION_NUMBER)
 
     @property
     def flag_status_line_type(self):

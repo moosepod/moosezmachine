@@ -26,7 +26,7 @@ class MemoryTests(unittest.TestCase):
         mem = Memory([0,1])
         self.assertEquals(0x00, mem[0])
         self.assertEquals(0x01,mem[1])
-        self.assertEquals(0x01,mem.address(0))
+        self.assertEquals(0x01,mem.word(0))
 
     def test_flag(self):
         mem = Memory([1])

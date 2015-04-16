@@ -30,12 +30,8 @@ class Memory(object):
         else:
             self[idx] = (~new_data) & data
 
-    def integer(self,idx):
-        """ Return the two-byte integer at the given index """
-        return self.address(idx)
-
-    def address(self, idx):
-        """ Return the two-byte address (as an unsigned int) at the given index """
+    def word(self, idx):
+        """ Return the word at the provided address """
         return (self[idx]*256) + self[idx+1]
 
     def _zchar_to_zscii(self, zchar,alphabet=0):
@@ -47,9 +43,11 @@ class Memory(object):
         return len(self._raw_data)
 
     def __getitem__(self,idx):
+        """ Return byte at the provided address """
         return self._raw_data[idx]
 
     def __setitem__(self,idx,val):
+        """ Set byte at provided address """
         self._raw_data[idx] = val
 
     def dump(self, width=16):
