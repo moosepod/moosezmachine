@@ -42,6 +42,10 @@ class MemoryTests(unittest.TestCase):
         mem.set_flag(0,1,0)
         self.assertFalse(mem.flag(0,1))
 
+    def test_packed(self):
+        mem = Memory([1,2,3,4])
+        self.assertEquals(mem.word(2),mem.packed_address(1,2))
+
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'
@@ -66,6 +70,9 @@ class GameMemoryTests(unittest.TestCase):
         self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,5,1)
         self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,6,1)
         self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,7,1)
+
+    def test_packed(self):
+        self.assertEquals(self.zmachine._raw_data[3],self.zmachine.packed_address(1))
 
     def test_highmem_access(self):
         himem_address = self.zmachine.header.himem_address

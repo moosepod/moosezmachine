@@ -30,6 +30,11 @@ class Memory(object):
         else:
             self[idx] = (~new_data) & data
 
+    def packed_address(self,idx,multiplier):
+        """ Packed addresses are stored as multiplier * idx. Multiplier varies
+            based on version """
+        return self.word(idx*multiplier)
+
     def word(self, idx):
         """ Return the word at the provided address """
         return (self[idx]*256) + self[idx+1]

@@ -191,3 +191,8 @@ class ZMachine(object):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """
         return sum(self._raw_data[0x40:]) % 65536
+
+    def packed_address(self,idx):
+        if self.header.version > 3:
+            return self._raw_data.packed_address(idx,4)
+        return self._raw_data.packed_address(idx,2)
