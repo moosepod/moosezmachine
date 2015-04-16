@@ -17,7 +17,7 @@ def dump(path):
         header = zmachine.header
        
         print 'Version:                  %d' % (header.version)
-        print 'Himem address:           0x%04x' % (header.himem_address)
+        print 'Himem address:            0x%04x' % (header.himem_address)
         print 'PC Address:               0x%04x' % (header.program_counter_address)
         print 'Dictionary address:       0x%04x' % (header.dictionary_address)
         print 'Object table address:     0x%04x' % (header.object_table_address)
