@@ -1,7 +1,8 @@
 """ See http://inform-fiction.org/zmachine/standards/z1point1/index.html for a definition of the Z-Machine
     See README.md for a summary of architecture 
 """
-
+import random
+import os
 from memory import Memory
 
 class StoryFileException(Exception):
@@ -11,6 +12,28 @@ class StoryFileException(Exception):
 class MemoryAccessException(Exception):
     """ Thrown in cases where a game attempts to access memory it shouldn't """
     pass
+
+class RNG(object):
+    """ The random number generator, as specced in section 2.4
+        Note that it toggles between a predicatable and random mode """
+    def __init__(self):
+        self.enter_random_mode()
+        self.seed = 0
+
+    def enter_random_mode(self):
+        self.seed = os.urandom(8)
+        self._reseed()
+
+    def enter_predictable_mode(self, seed):
+        self.seed = seed
+        self._reseed()
+
+    def _reseed(self):
+        random.seed(self.seed)
+
+    def randint(self,n):       
+        """ Return random integer r such that 1 <= r <= n """
+        return random.randint(1,n)
 
 class Header(Memory):
     VERSION = 0x00
@@ -134,7 +157,8 @@ class GameMemory(Memory):
         self._raw_data = memory._raw_data
         self._himem_address = himem_address
         self._static_address = static_address
-
+        self.header = None
+    
     def __getitem__(self,idx):
         if idx >= self._himem_address:
             raise MemoryAccessException('Index %d in himem not readable' % idx)
@@ -165,6 +189,13 @@ class ZMachine(object):
         self._raw_data = []
         self.game_memory = None # Protected memory interface for use by game
         self.himem_address = 0
+        self.rng = RNG()
+        self.reset()
+
+    def reset(self):
+        self.rng.enter_random_mode()
+        if self.header:
+            self.header.reset()
 
     @property
     def raw_data(self):

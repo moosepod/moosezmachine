@@ -65,6 +65,7 @@ class MemoryTests(unittest.TestCase):
         self.assertEquals(1, mem.word(0))
         mem.set_signed_int(0,-1)
         self.assertEquals(65535, mem.word(0))
+
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'
@@ -160,7 +161,26 @@ class SampleFileTests(unittest.TestCase):
         with open(path, 'rb') as f:
             self.zmachine = ZMachine()
             self.zmachine.raw_data = f.read()
+    
+    def test_randomizer(self):
+        # This really isn't a "unit" test. It's more of a smoke test,
+        # just to see if the RNG is totally failing
+        rng = self.zmachine.rng
+        for i in range(0,100):
+            x = rng.randint(i+1)
+            self.assertTrue(x >= 1)
+            self.assertTrue(x <= i+1)
 
+        # In predictable mode, should return same value
+        rng.enter_predictable_mode(0)
+        x = rng.randint(100)
+        rng.enter_predictable_mode(0)
+        self.assertEquals(x, rng.randint(100))
+
+        # Reset should enter random mode
+        self.assertEquals(0,rng.seed)        
+        self.zmachine.reset()
+        self.assertFalse(rng.seed == 0)
     def test_header(self):
         header = self.zmachine.header
         self.assertEquals(3,header.version)
