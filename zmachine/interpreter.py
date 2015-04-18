@@ -35,6 +35,34 @@ class RNG(object):
         """ Return random integer r such that 1 <= r <= n """
         return random.randint(1,n)
 
+class ZText(object):
+    """ Abstraction for handling Z-Machine text """
+    def __init__(self):
+        self._current_alphabet = 0
+        self._shift_alphabet = None
+        
+    @property
+    def alphabet(self):
+        if self._shift_alphabet != None:    
+            return self._shift_alphabet
+        return self._current_alphabet
+
+    def shift(self,reverse=False,permanent=False):
+        """ Shift the current alphabet. 0 shifts it "right" (A0->A1->A2)
+            and 1 shifts left (A2->A0->A1). Permanent will store the new alphabet,
+            and is only used for versions 1 and 2 """
+        if reverse:
+            self._shift_alphabet = self._current_alphabet - 1
+            if self._shift_alphabet < 0:
+                self._shift_alphabet = 2
+        else:
+            self._shift_alphabet = self._current_alphabet + 1
+            if self._shift_alphabet > 2:
+                self._shift_alphabet = 0
+        if permanent:
+            self._current_alphabet = self._shift_alphabet
+            self._shift_alphabet = None
+
 class Header(Memory):
     VERSION = 0x00
     FLAGS_1 = 0x01

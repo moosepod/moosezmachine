@@ -3,7 +3,7 @@
 import unittest
 import os
 
-from interpreter import ZMachine,StoryFileException,MemoryAccessException
+from interpreter import ZMachine,StoryFileException,MemoryAccessException,ZText
 from memory import Memory
 
 class MemoryTests(unittest.TestCase):
@@ -65,6 +65,30 @@ class MemoryTests(unittest.TestCase):
         self.assertEquals(1, mem.word(0))
         mem.set_signed_int(0,-1)
         self.assertEquals(65535, mem.word(0))
+
+class ZTextTests(unittest.TestCase):
+    def test_shift(self):
+        ztext = ZText()
+        self.assertEquals(0,ztext._current_alphabet)
+        self.assertEquals(None,ztext._shift_alphabet)
+        self.assertEquals(0,ztext.alphabet)
+
+        ztext.shift()
+        self.assertEquals(0,ztext._current_alphabet)
+        self.assertEquals(1,ztext._shift_alphabet)
+        self.assertEquals(1,ztext.alphabet)
+
+        ztext.shift(reverse=False,permanent=True)
+        self.assertEquals(1,ztext._current_alphabet)
+        self.assertEquals(None,ztext._shift_alphabet)
+        self.assertEquals(1,ztext.alphabet)
+
+        ztext.shift(reverse=True)
+        self.assertEquals(1,ztext._current_alphabet)
+        self.assertEquals(0,ztext._shift_alphabet)
+        self.assertEquals(0,ztext.alphabet)
+
+
 
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
