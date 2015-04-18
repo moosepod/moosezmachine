@@ -46,6 +46,25 @@ class MemoryTests(unittest.TestCase):
         mem = Memory([1,2,3,4])
         self.assertEquals(mem.word(2),mem.packed_address(1,2))
 
+    def test_signed_int(self):
+        mem = Memory([0,0])
+        self.assertEquals(0, mem.signed_int(0))
+        mem[1] = 1
+        self.assertEquals(1, mem.signed_int(0))
+        mem[1] = 0xFF
+        mem[0] = 0x7F
+        self.assertEquals(32767, mem.signed_int(0))
+        mem[0] = 0xFF
+        self.assertEquals(-1, mem.signed_int(0))
+
+    def test_set_signed_int(self):
+        mem = Memory([0,0])
+        mem.set_signed_int(0,0)
+        self.assertEquals(0, mem.word(0))
+        mem.set_signed_int(0,1)
+        self.assertEquals(1, mem.word(0))
+        mem.set_signed_int(0,-1)
+        self.assertEquals(65535, mem.word(0))
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'

@@ -1,9 +1,14 @@
 """ Support classes around working with virtual "memory" in the ZMachine VM """
 
+class MemoryException(Exception):
+    pass
+
 class Memory(object):
     ZCHARS = [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
               ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
               [' ', '^', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ',', '!', '?', '_', '#', "'", '"', '/', '\\', '-', ':', '(', ')']]
+    SIGNED_INT_MIN = -32768
+    SIGNED_INT_MAX = 32767
 
     def __init__(self, data):
         """ This can take an array of chars, or an list of ints. Either way it will store internally
@@ -15,6 +20,22 @@ class Memory(object):
                 self._raw_data = [ord(x) for x in data]
             else:
                 raise e
+
+    def signed_int(self,idx):
+        """ Return the memory value at IDX as a signed integer. Per spec, this means
+            values > 32767 are stored as 65536 (0x10000) - n """
+        d = self.word(idx)
+        if d > Memory.SIGNED_INT_MAX:
+            return -1 * (0x10000 - d)
+        return d
+
+    def set_signed_int(self,idx,val):
+        if val < Memory.SIGNED_INT_MIN or val > Memory.SIGNED_INT_MAX:
+            raise MemoryException('Storing too large signed int %d to %d' % (val, idx))      
+        if val < 0:
+            self.set_word(idx, 0x10000 + val)
+        else:
+            self.set_word(idx, val)
 
     def flag(self,idx,bit):
         """ Return True or False based on the bit at the given index """
@@ -38,6 +59,11 @@ class Memory(object):
     def word(self, idx):
         """ Return the word at the provided address """
         return (self[idx]*256) + self[idx+1]
+
+    def set_word(self,idx,val):
+        """ Set the two-byte word at the given index to the (unsigned) integer value """
+        self[idx] = val & 0xFFFF0000
+        self[idx+1] = val & 0x0000FFFF
 
     def _zchar_to_zscii(self, zchar,alphabet=0):
         if (alphabet < 0 or alphabet > 2):
