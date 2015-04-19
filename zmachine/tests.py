@@ -41,6 +41,22 @@ class MemoryTests(unittest.TestCase):
         self.assertTrue(mem.flag(0,1))
         mem.set_flag(0,1,0)
         self.assertFalse(mem.flag(0,1))
+    
+    def test_set_word(self):
+        mem = Memory([0,0])
+        self.assertEquals(0,mem.word(0))
+        self.assertEquals(0, mem[0])
+        self.assertEquals(0, mem[1])
+
+        mem.set_word(0,0xFFFF)
+        self.assertEquals(0xFFFF,mem.word(0))
+        self.assertEquals(0xFF, mem[0])
+        self.assertEquals(0xFF, mem[1])
+
+        mem.set_word(0,0xFF00)
+        self.assertEquals(0xFF00,mem.word(0))
+        self.assertEquals(0xFF,mem[0])
+        self.assertEquals(0,mem[1])
 
     def test_packed(self):
         mem = Memory([1,2,3,4])
@@ -88,8 +104,15 @@ class ZTextTests(unittest.TestCase):
         self.assertEquals(0,ztext._shift_alphabet)
         self.assertEquals(0,ztext.alphabet)
 
-
-
+    def test_zchars(self):
+        ztext = ZText()
+        memory = Memory([0,0,0,0])
+        self.assertEquals((0,0,0), ztext.get_zchars_from_memory(memory,0))
+        memory.set_word(0,0xFFFF)
+        self.assertEquals((31,31,31), ztext.get_zchars_from_memory(memory,0))
+        memory.set_word(2,0xFFF0)
+        self.assertEquals((31, 31,16), ztext.get_zchars_from_memory(memory,2))
+        
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'

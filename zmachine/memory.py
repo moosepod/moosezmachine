@@ -62,8 +62,8 @@ class Memory(object):
 
     def set_word(self,idx,val):
         """ Set the two-byte word at the given index to the (unsigned) integer value """
-        self[idx] = val & 0xFFFF0000
-        self[idx+1] = val & 0x0000FFFF
+        self[idx] = (val & 0xFF00) >> 8
+        self[idx+1] = val & 0x00FF
 
     def _zchar_to_zscii(self, zchar,alphabet=0):
         if (alphabet < 0 or alphabet > 2):

@@ -36,7 +36,7 @@ class RNG(object):
         return random.randint(1,n)
 
 class ZText(object):
-    """ Abstraction for handling Z-Machine text """
+    """ Abstraction for handling Z-Machine text. """
     def __init__(self):
         self._current_alphabet = 0
         self._shift_alphabet = None
@@ -46,6 +46,17 @@ class ZText(object):
         if self._shift_alphabet != None:    
             return self._shift_alphabet
         return self._current_alphabet
+
+    def get_zchars_from_memory(self,memory,idx):    
+        """ Return the three zchars at the word at index idx of memory.
+            Each word has 3 5-bit zchars, starting at bit E.
+            Bit   F E D C B A 9 8 7 6 5 4 3 2 1 0
+            ZChar   1 1 1 1 1 2 2 2 2 2 3 3 3 3 3
+            """
+        b0 = memory[idx]
+        b1 = memory[idx+1]
+        # Use masks and shifts to filter out the three 5-bit chars we want
+        return ((b0 & 0x7C)>>2,((0x03 & b0) << 3) | ((0xE0 & b1)>>5), int(b1 & 0x1F))
 
     def shift(self,reverse=False,permanent=False):
         """ Shift the current alphabet. 0 shifts it "right" (A0->A1->A2)
