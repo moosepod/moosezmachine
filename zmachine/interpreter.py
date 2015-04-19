@@ -13,6 +13,10 @@ class MemoryAccessException(Exception):
     """ Thrown in cases where a game attempts to access memory it shouldn't """
     pass
 
+class ZTextException(Exception):
+    """ Thrown when ztext is invalid in some way """
+    pass
+
 class RNG(object):
     """ The random number generator, as specced in section 2.4
         Note that it toggles between a predicatable and random mode """
@@ -35,12 +39,57 @@ class RNG(object):
         """ Return random integer r such that 1 <= r <= n """
         return random.randint(1,n)
 
+class Screen(object):
+    """ Abstraction of a screen for display """
+    def print_ascii(self,msg):
+        """ Print the given ASCII string to the screen """
+        print msg  
+
+class ZTextState(object):
+    DEFAULT                   = 0 # Default state
+    WAITING_FOR_ABBREVIATION  = 1 # Waiting for an abbreviation. Triggered by zchars 1-3
+
 class ZText(object):
     """ Abstraction for handling Z-Machine text. """
-    def __init__(self):
+    def __init__(self,version,screen,get_abbrev_f):
+        self.version = version
+        self.screen = screen
+        self.get_abbrev_f = get_abbrev_f
+        self.reset()
+
+    def reset(self):
         self._current_alphabet = 0
         self._shift_alphabet = None
-        
+        self.state = ZTextState.DEFAULT
+        self._previous_zchar = None
+
+    def output(self, memory):
+        """ Print the zchar string in the provided memory """
+        pass
+
+    def handle_zchar(self,zchar):
+        """ Handle the given zcode based on our state and other information.
+        """
+        try:
+            if self.state == ZTextState.WAITING_FOR_ABBREVIATION:
+                self._waiting_for_abbreviation(zchar)
+                return
+
+            if zchar < 4:
+                if self.get_abbrev_f == None:
+                    raise ZTextException('Attempt to print abbreviation text that contains abbreviation') 
+                if self.version < 2:
+                    return
+                if zchar == 1 or self.version > 2:
+                    self.state = ZTextState.WAITING_FOR_ABBREVIATION        
+        finally:
+            self._previous_zchar = zchar
+
+    def _waiting_for_abbreviation(self,zchar):
+        ztext = ZText(version=self.version,screen=self.screen,get_abbrev_f=None)
+        ztext.output(self.get_abbrev_f((32 * self._previous_zchar-1) + zchar)) 
+        self.state = ZTextState.DEFAULT
+
     @property
     def alphabet(self):
         if self._shift_alphabet != None:    

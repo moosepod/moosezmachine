@@ -3,7 +3,8 @@
 import unittest
 import os
 
-from interpreter import ZMachine,StoryFileException,MemoryAccessException,ZText
+from interpreter import ZMachine,StoryFileException,MemoryAccessException
+from interpreter import ZText,ZTextState
 from memory import Memory
 
 class MemoryTests(unittest.TestCase):
@@ -82,9 +83,25 @@ class MemoryTests(unittest.TestCase):
         mem.set_signed_int(0,-1)
         self.assertEquals(65535, mem.word(0))
 
+class ScreenStub(object):
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.print_called = False
+        self.printed_string = None
+
+    def print_ascii(self,msg_ascii):
+        self.printed_string = msg_ascii
+        self.print_called = True
+
 class ZTextTests(unittest.TestCase):
+    def setUp(self):
+        self.screen = ScreenStub()
+        self.get_abbrev_f = lambda x: Memory([0x80,0]) # Empty end char
+
     def test_shift(self):
-        ztext = ZText()
+        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         self.assertEquals(0,ztext._current_alphabet)
         self.assertEquals(None,ztext._shift_alphabet)
         self.assertEquals(0,ztext.alphabet)
@@ -105,14 +122,46 @@ class ZTextTests(unittest.TestCase):
         self.assertEquals(0,ztext.alphabet)
 
     def test_zchars(self):
-        ztext = ZText()
+        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         memory = Memory([0,0,0,0])
         self.assertEquals((0,0,0), ztext.get_zchars_from_memory(memory,0))
         memory.set_word(0,0xFFFF)
         self.assertEquals((31,31,31), ztext.get_zchars_from_memory(memory,0))
         memory.set_word(2,0xFFF0)
         self.assertEquals((31, 31,16), ztext.get_zchars_from_memory(memory,2))
+
+    def test_handle_zchar_general(self):
+        self.fail()
+
+    def test_handle_zchar_v1(self):
+        # V1 does not handle abbreviations
+        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        for i in range(1,4):
+            ztext.handle_zchar(i,)          
+            self.assertEquals(ZTextState.DEFAULT, ztext.state)
+
+    def test_handle_zchar_v2(self): 
+        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        ztext.handle_zchar(1)
+        self.assertEquals(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
+        ztext.reset()
+
+        for i in range(2,4):
+            ztext.handle_zchar(i)          
+            self.assertEquals(ZTextState.DEFAULT, ztext.state)
         
+    def test_handle_zchar_v3(self):
+        ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        for i in range(1,4):
+            ztext.reset()
+            self.screen.reset()
+            ztext.handle_zchar(i)          
+            self.assertEquals(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
+            ztext.handle_zchar(5)   
+ 
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'
