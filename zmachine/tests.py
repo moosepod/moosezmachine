@@ -3,9 +3,9 @@
 import unittest
 import os
 
-from interpreter import ZMachine,StoryFileException,MemoryAccessException
-from interpreter import ZText,ZTextState
-from memory import Memory
+from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException
+from zmachine.interpreter import ZText,ZTextState
+from zmachine.memory import Memory
 
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):
@@ -14,10 +14,10 @@ class MemoryTests(unittest.TestCase):
         self.assertEquals(1,mem[0])
         self.assertEquals(2,mem[1])
         self.assertEquals(3,mem[2])     
-        self.assertEquals([1,2], mem[0:2])
+        self.assertEquals(bytearray([1,2]), mem[0:2])
 
     def test_from_chars(self):
-        mem = Memory('\x01\x02\x03')
+        mem = Memory(b'\x01\x02\x03')
         self.assertEquals(3, len(mem))
         self.assertEquals(1,mem[0])
         self.assertEquals(2,mem[1])
@@ -229,14 +229,14 @@ class ValidationTests(unittest.TestCase):
     def test_size(self):
         zmachine = ZMachine()
         try:
-            zmachine.raw_data = ''
+            zmachine.raw_data = b''
             self.fail('Should have thrown exception')
-        except StoryFileException, e:
-            self.assertEquals(u'Story file is too short', unicode(e))
+        except StoryFileException as e:
+            self.assertEquals(u'Story file is too short',str(e))
 
     def test_version(self):
         zmachine = ZMachine()
-        raw_data =['\x00'] * 1000
+        raw_data = bytearray([0] * 1000)
         for version in (0x01,0x02,0x03):
             raw_data[0] = version
             zmachine.raw_data = raw_data
@@ -245,8 +245,8 @@ class ValidationTests(unittest.TestCase):
             try:
                 zmachine.raw_data = raw_data
                 self.fail('Should have thrown exception.')
-            except StoryFileException, e:
-                self.assertEquals('This story file version is not supported.',unicode(e))
+            except StoryFileException as e:
+                self.assertEquals('This story file version is not supported.',str(e))
             
 
 class SampleFileTests(unittest.TestCase):
@@ -277,6 +277,7 @@ class SampleFileTests(unittest.TestCase):
         self.assertEquals(0,rng.seed)        
         self.zmachine.reset()
         self.assertFalse(rng.seed == 0)
+
     def test_header(self):
         header = self.zmachine.header
         self.assertEquals(3,header.version)

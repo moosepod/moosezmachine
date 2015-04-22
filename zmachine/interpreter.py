@@ -3,7 +3,7 @@
 """
 import random
 import os
-from memory import Memory
+from zmachine.memory import Memory
 
 class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
@@ -43,7 +43,7 @@ class Screen(object):
     """ Abstraction of a screen for display """
     def print_ascii(self,msg):
         """ Print the given ASCII string to the screen """
-        print msg  
+        print(msg)
 
 class ZTextState(object):
     DEFAULT                   = 0 # Default state
@@ -293,7 +293,7 @@ class ZMachine(object):
     @raw_data.setter
     def raw_data(self,value):
         """ Set the story data for this file. This will reset the header. """
-        self._raw_data = Memory(bytearray(value))
+        self._raw_data = Memory(value)
         if len(value) < ZMachine.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
         self.header = Header(self._raw_data[0:ZMachine.MIN_FILE_SIZE])

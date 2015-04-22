@@ -11,15 +11,7 @@ class Memory(object):
     SIGNED_INT_MAX = 32767
 
     def __init__(self, data):
-        """ This can take an array of chars, or an list of ints. Either way it will store internally
-            as a list of ints """
-        try:
-            self._raw_data = [int(x) for x in data]
-        except ValueError, e:
-            if u'invalid literal for int()' in unicode(e):
-                self._raw_data = [ord(x) for x in data]
-            else:
-                raise e
+        self._raw_data = bytearray(data) 
 
     def signed_int(self,idx):
         """ Return the memory value at IDX as a signed integer. Per spec, this means
@@ -91,7 +83,7 @@ class Memory(object):
                 width = length-counter
             for i in range(0,width):
                 row.append('%.2x' % self[counter+i])
-            print '%s %s' % ('%.8x' % counter, ' '.join(row))
+            print('%s %s' % ('%.8x' % counter, ' '.join(row)))
             counter += width
 
        
