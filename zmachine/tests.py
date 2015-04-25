@@ -134,7 +134,31 @@ class ZTextTests(unittest.TestCase):
         self.fail()
 
     def test_map_zchar(self):
-        self.fail()
+        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals(' ', ztext._map_zchar(0))
+        for i in range(1,6):
+            self.assertEquals('',ztext._map_zchar(i))
+        for i in range(6,32):
+            self.assertEquals(chr(ord('a') + (i-6)), ztext._map_zchar(i))
+        ztext.shift(permanent=True)
+        for i in range(6,32):
+            self.assertEquals(chr(ord('A') + (i-6)), ztext._map_zchar(i))
+        ztext.shift(permanent=True)
+        target_chars = '       \n0123456789.,!?_#\'"/\-:()'
+        for i in range(7,32):   
+            # Skip char 6 of alphabet 2, it is special case, see 3.4
+            self.assertEquals(target_chars[i],ztext._map_zchar(i))
+
+    def test_map_zchar_v1(self):
+        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals('\n',ztext._map_zchar(1))
+        ztext.shift(permanent=True)
+        ztext.shift(permanent=True)
+        target_chars='       0123456789.,!?_#\'"/\<-:()'
+        for i in range(7,32):
+            # Skip char 6 of alphabet 2, it is special case, see 3.4
+            self.assertEquals(target_chars[i],ztext._map_zchar(i))
+
 
     def test_handle_zchar_output(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)

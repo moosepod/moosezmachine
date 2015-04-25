@@ -53,6 +53,12 @@ class ZTextState(object):
 
 class ZText(object):
     """ Abstraction for handling Z-Machine text. """
+    ZCHARS    = [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
+                 ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
+                 [' ', '\n', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ',', '!', '?', '_', '#', "'", '"', '/', '\\', '-', ':', '(', ')']]
+    ZCHARS_V1 = [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
+                 ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
+                 [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ',', '!', '?', '_', '#', "'", '"', '/', '\\', '<', '-', ':', '(', ')']]
     def __init__(self,version,screen,get_abbrev_f):
         self.version = version
         self.screen = screen
@@ -109,7 +115,20 @@ class ZText(object):
 
     def _map_zchar(self,zchar):
         """ Map a zchar code to an ASCII code (only valid for a subrange of zchars """
-        return ' '
+        # 3.5.1
+        if zchar == 0:
+            return ' '
+        # 3.5.2
+        if zchar == 1 and self.version == 1:
+            return '\n'
+        # 3.5.3
+        if zchar >= 6 and zchar < 32:
+            mapping = ZText.ZCHARS
+            if self.version == 1:
+                mapping = ZText.ZCHARS_V1
+            return mapping[self.alphabet][zchar-6]
+
+        return ''
 
     def _map_zscii(self,zascii):
         """ Map a zasii code to an ascii code. ZAscii is referenced by zchar 6 
