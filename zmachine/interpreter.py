@@ -46,8 +46,10 @@ class Screen(object):
         print(msg)
 
 class ZTextState(object):
-    DEFAULT                   = 0 # Default state
-    WAITING_FOR_ABBREVIATION  = 1 # Waiting for an abbreviation. Triggered by zchars 1-3
+    DEFAULT                         = 0 # Default state
+    WAITING_FOR_ABBREVIATION        = 1 # Waiting for an abbreviation. Triggered by zchars 1-3
+    GETTING_10BIT_ZCHAR_CHAR1       = 2 # See 3.4. Zchar 6 uses next two chars to make a 10-bit character
+    GETTING_10BIT_ZCHAR_CHAR2       = 3 # Second char for 2-character zchar
 
 class ZText(object):
     """ Abstraction for handling Z-Machine text. """
@@ -65,25 +67,54 @@ class ZText(object):
 
     def output(self, memory):
         """ Print the zchar string in the provided memory """
-        pass
+        l = len(memory)
+        idx = 0
+        while idx < l:
+            zchars = self.get_zchars_from_memory(memory,idx)
+            for zchar in zchars:
+                ascii_char = self.handle_zchar(zchar)
+                if ascii_char:
+                    self.screen.print_ascii(ascii_char)
+            idx+=2       
 
     def handle_zchar(self,zchar):
-        """ Handle the given zcode based on our state and other information.
+        """ Handle the given zcode based on our state and other information. 
+            Returns an ASCII char to print, or None if no print should cocur
         """
         try:
             if self.state == ZTextState.WAITING_FOR_ABBREVIATION:
                 self._waiting_for_abbreviation(zchar)
-                return
+                return None 
+            if self.state == ZTextState.GETTING_10BIT_ZCHAR_CHAR1:
+                self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR2
+                return None
+            if self.state == ZTextState.GETTING_10BIT_ZCHAR_CHAR2:
+                zchar = (self._previous_zchar << 5) | zchar                
+                self.state = ZTextState.DEFAULT
+                return self._map_zscii(zchar)
 
-            if zchar < 4:
+            if zchar >= 1 and zchar < 4:
                 if self.get_abbrev_f == None:
                     raise ZTextException('Attempt to print abbreviation text that contains abbreviation') 
                 if self.version < 2:
-                    return
+                    return zchar
                 if zchar == 1 or self.version > 2:
                     self.state = ZTextState.WAITING_FOR_ABBREVIATION        
+            elif zchar == 6:
+                self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR1
+            else:
+                return self._map_zchar(zchar)
         finally:
             self._previous_zchar = zchar
+
+    def _map_zchar(self,zchar):
+        """ Map a zchar code to an ASCII code (only valid for a subrange of zchars """
+        return ''
+
+    def _map_zscii(self,zascii):
+        """ Map a zasii code to an ascii code. ZAscii is referenced by zchar 6 
+            followed by two more 5-bit units to form the code """
+        return ''
 
     def _waiting_for_abbreviation(self,zchar):
         ztext = ZText(version=self.version,screen=self.screen,get_abbrev_f=None)

@@ -130,9 +130,17 @@ class ZTextTests(unittest.TestCase):
         memory.set_word(2,0xFFF0)
         self.assertEquals((31, 31,16), ztext.get_zchars_from_memory(memory,2))
 
-    def test_handle_zchar_general(self):
+    def test_map_zscii(self):
         self.fail()
 
+    def test_map_zchar(self):
+        self.fail()
+
+    def test_handle_zchar_output(self):
+        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext.output(Memory([0,0]))
+        self.fail()
+            
     def test_handle_zchar_v1(self):
         # V1 does not handle abbreviations
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
@@ -161,7 +169,19 @@ class ZTextTests(unittest.TestCase):
             ztext.handle_zchar(i)          
             self.assertEquals(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
             ztext.handle_zchar(5)   
- 
+
+    def test_handle_zchar_6(self):
+        # Zchar 6 means the next two chars are used to make a single 10-bit char
+        ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        ztext.handle_zchar(6)
+        self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR1,ztext.state)
+        ztext.handle_zchar(1)
+        self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR2,ztext.state)
+        zchar = ztext.handle_zchar(1)
+        self.assertEquals(33,zchar)
+        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
         path = 'testdata/test.z3'
