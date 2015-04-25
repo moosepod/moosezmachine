@@ -109,12 +109,12 @@ class ZText(object):
 
     def _map_zchar(self,zchar):
         """ Map a zchar code to an ASCII code (only valid for a subrange of zchars """
-        return ''
+        return ' '
 
     def _map_zscii(self,zascii):
         """ Map a zasii code to an ascii code. ZAscii is referenced by zchar 6 
             followed by two more 5-bit units to form the code """
-        return ''
+        return chr(zascii)
 
     def _waiting_for_abbreviation(self,zchar):
         ztext = ZText(version=self.version,screen=self.screen,get_abbrev_f=None)

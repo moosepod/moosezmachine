@@ -86,13 +86,13 @@ class MemoryTests(unittest.TestCase):
 class ScreenStub(object):
     def __init__(self):
         self.reset()
-
+    
     def reset(self):
         self.print_called = False
-        self.printed_string = None
+        self.printed_string = ''
 
     def print_ascii(self,msg_ascii):
-        self.printed_string = msg_ascii
+        self.printed_string = self.printed_string + msg_ascii
         self.print_called = True
 
 class ZTextTests(unittest.TestCase):
@@ -139,7 +139,7 @@ class ZTextTests(unittest.TestCase):
     def test_handle_zchar_output(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         ztext.output(Memory([0,0]))
-        self.fail()
+        self.assertEquals('   ',ztext.screen.printed_string)
             
     def test_handle_zchar_v1(self):
         # V1 does not handle abbreviations
@@ -179,7 +179,7 @@ class ZTextTests(unittest.TestCase):
         ztext.handle_zchar(1)
         self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR2,ztext.state)
         c = ztext.handle_zchar(1)
-        self.assertEquals(ord(33),c)
+        self.assertEquals('!',c)
         self.assertEquals(ZTextState.DEFAULT,ztext.state)
 
 class GameMemoryTests(unittest.TestCase):
