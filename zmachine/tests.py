@@ -178,8 +178,8 @@ class ZTextTests(unittest.TestCase):
         self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR1,ztext.state)
         ztext.handle_zchar(1)
         self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR2,ztext.state)
-        zchar = ztext.handle_zchar(1)
-        self.assertEquals(33,zchar)
+        c = ztext.handle_zchar(1)
+        self.assertEquals(ord(33),c)
         self.assertEquals(ZTextState.DEFAULT,ztext.state)
 
 class GameMemoryTests(unittest.TestCase):
