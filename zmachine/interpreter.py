@@ -76,12 +76,49 @@ class ZText(object):
         l = len(memory)
         idx = 0
         while idx < l:
-            zchars = self.get_zchars_from_memory(memory,idx)
+            zchars,is_last_char = self.get_zchars_from_memory(memory,idx)
             for zchar in zchars:
                 ascii_char = self.handle_zchar(zchar)
                 if ascii_char:
                     self.screen.print_ascii(ascii_char)
-            idx+=2       
+            idx+=2
+            if is_last_char:
+                break       
+
+    def encrypt(self,text):
+        """ Encrypt a string for dictionary matching to a six-zchar string, returned as a
+            bytearray. See 3.7
+            I'm not 100% sure I've implemented this correctly due to the shift characters
+            and 3.7.1
+            """
+        if text == None: text = ''
+        text = text.lower()
+        results = [5] * 6
+        i = 0
+        idx = 0
+        mapping = ZText.ZCHARS
+        if self.version == 1:
+            mapping = ZText.ZCHARS_V1
+        previous_alphabet = 0
+        while i < min(len(text),6):
+            c = text[i]
+            for alphabet in (0,1,2):
+                try:
+                    pos = mapping[alphabet].index(c)
+                    if alphabet == 2:
+                        # 3.7.1
+                        if self.version < 3 and previous_alphabet == alphabet:
+                            results[idx-2] = 4
+                        else:
+                            results[idx]=3 # Shift
+                            idx+=1
+                    results[idx] = pos+6
+                    previous_alphabet = alphabet
+                except ValueError:
+                   pass 
+            i+=1
+            idx+=1
+        return bytearray(results)
 
     def handle_zchar(self,zchar):
         """ Handle the given zcode based on our state and other information. 
@@ -147,15 +184,19 @@ class ZText(object):
         return self._current_alphabet
 
     def get_zchars_from_memory(self,memory,idx):    
-        """ Return the three zchars at the word at index idx of memory.
+        """ Return the three zchars at the word at index idx of memory, as well
+            as whether or not this has the end bit set.
+
             Each word has 3 5-bit zchars, starting at bit E.
             Bit   F E D C B A 9 8 7 6 5 4 3 2 1 0
             ZChar   1 1 1 1 1 2 2 2 2 2 3 3 3 3 3
             """
         b0 = memory[idx]
         b1 = memory[idx+1]
-        # Use masks and shifts to filter out the three 5-bit chars we want
-        return ((b0 & 0x7C)>>2,((0x03 & b0) << 3) | ((0xE0 & b1)>>5), int(b1 & 0x1F))
+
+        # Use masks and shifts to filter out the three 5-bit chars we want, as well as whether
+        # end bit is set
+        return ((b0 & 0x7C)>>2,((0x03 & b0) << 3) | ((0xE0 & b1)>>5), int(b1 & 0x1F)), (b0 & 0x80) == 0x80
 
     def shift(self,reverse=False,permanent=False):
         """ Shift the current alphabet. 0 shifts it "right" (A0->A1->A2)
