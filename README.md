@@ -4,7 +4,9 @@ moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) b
 
 This project is a reference implementation -- no effort has been put into optimizations. 
 
-Currently it only handles zcode versions 1 through 3.
+Currently it only handles zcode versions 1 through 3. 
+
+For simplicity, the unicode mappings map to textual equivalents (per 3.8.5.4.1)
 
 ## Architecture
 

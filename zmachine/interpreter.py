@@ -59,6 +59,10 @@ class ZText(object):
     ZCHARS_V1 = [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
                  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
                  [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ',', '!', '?', '_', '#', "'", '"', '/', '\\', '<', '-', ':', '(', ')']]
+    ZASCII_UNICODE = ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss', '>>', '<<', 'e', 'i', 'y', 'E', 'I', 'a', 'e', 'i', 'o', 'u', 'y', 'A', 'E', 'I', 'O', 
+                      'U', 'Y', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'A', 'o', 'O', 
+                      'a', 'n', 'o', 'A', 'N', 'O', 'ae', 'AE', 'c', 'C', 'th', 'th', 'Th', 'Th', 'L', 'oe', 'OE', '!', '?']
+
     def __init__(self,version,screen,get_abbrev_f):
         self.version = version
         self.screen = screen
@@ -176,9 +180,11 @@ class ZText(object):
             return '\r'
         if zascii >= 32 and zascii <= 126:
             return chr(zascii)
+        if zascii >= 155 and zascii < 155+len(ZText.ZASCII_UNICODE):
+            return ZText.ZASCII_UNICODE[zascii - 155]
+
         raise ZTextException('Character %d invalid for ZSCII output' % zascii)
 
-        return chr(zascii)
 
     def _waiting_for_abbreviation(self,zchar):
         ztext = ZText(version=self.version,screen=self.screen,get_abbrev_f=None)

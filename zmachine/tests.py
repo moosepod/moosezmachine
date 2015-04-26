@@ -137,10 +137,17 @@ class ZTextTests(unittest.TestCase):
         chars = ' !"#$%&\'()*+,-./0123456789:;<=>?' + \
                       '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_' + \
                       '`abcdefghijklmnopqrstuvwxyz{|}~'
+
+        unicode_chars = ('ae oe ue Ae Oe Ue ss >> << e i y E I a e i o u y A E I O U Y ' +
+                         'a e i o u A E I O U a e i o u A E I O U a A o O a n o A N O ae AE ' +
+                         'c C th th Th Th L oe OE ! ?').split(' ')
+
         for i in range(0,len(chars)):
             correct_mapping[i+32] = chars[i]
+        for i in range(0, len(unicode_chars)):
+            correct_mapping[155+i] = unicode_chars[i]
         
-        for i in range(0,155):
+        for i in range(0,255):
             if correct_mapping.get(i) != None:
                 self.assertEquals(correct_mapping[i],ztext._map_zscii(i))
             else:
