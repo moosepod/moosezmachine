@@ -75,10 +75,10 @@ class ZText(object):
         self.state = ZTextState.DEFAULT
         self._previous_zchar = None
 
-    def output(self, memory):
-        """ Print the zchar string in the provided memory """
+    def output(self, memory,start_at=0):
+        """ Print the zchar string in the provided memory, and return the final index """
         l = len(memory)
-        idx = 0
+        idx = start_at
         while idx < l:
             zchars,is_last_char = self.get_zchars_from_memory(memory,idx)
             for zchar in zchars:
@@ -87,7 +87,8 @@ class ZText(object):
                     self.screen.print_ascii(ascii_char)
             idx+=2
             if is_last_char:
-                break       
+                break 
+        return idx      
 
     def encrypt(self,text):
         """ Encrypt a string for dictionary matching to a six-zchar string, returned as a
@@ -410,11 +411,21 @@ class ZMachine(object):
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
-        
+    
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """
         return sum(self._raw_data[0x40:]) % 65536
+
+    def get_ztext(self,screen):
+        """ Return the a ztext processor for this interpreter """
+        return ZText(version=self.header.version,screen=screen,get_abbrev_f=lambda x:Memory([0x80,0]))
+
+    def get_memory(self,start_addr,end_addr):
+        """ Return a chunk of memory """
+        if end_addr < start_addr:
+            raise ZMachineException('get_memory called with end_addr %s smaller than start_addr %s' % (end_addr,start_addr))
+        return Memory(self._raw_data[start_addr:end_addr])
 
     def packed_address(self,idx):
         if self.header.version > 3:

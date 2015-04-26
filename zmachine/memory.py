@@ -70,7 +70,7 @@ class Memory(object):
         """ Set byte at provided address """
         self._raw_data[idx] = val
 
-    def dump(self, width=16):
+    def dump(self, width=16,start_address=0):
         """ Dump all memory in a convienient format """
         counter = 0
         length = len(self)
@@ -80,9 +80,8 @@ class Memory(object):
                 width = length-counter
             for i in range(0,width):
                 row.append('%.2x' % self[counter+i])
-            print('%s %s' % ('%.8x' % counter, ' '.join(row)))
+            print('%s %s' % ('%.8x' % (counter+start_address), ' '.join(row)))
             counter += width
-
        
                 
                        

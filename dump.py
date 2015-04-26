@@ -3,14 +3,32 @@
 #
 
 import sys
-from zmachine.interpreter import ZMachine,StoryFileException
+import getopt
+from zmachine.interpreter import ZMachine,StoryFileException,ZTextException
 
-def dump(path):
+class DumpScreen(object):
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.string = []
+
+    def print_ascii(self,msg):
+        self.string.append(msg)
+
+    def done(self):
+        print(''.join(self.string))
+        self.reset()
+
+def dump_memory(data,zmachine,start_address,):
+    data.dump(start_address=start_address)
+
+def dump(path,abbrevs=False,dictionary=False):
     with open(path,'rb') as f:
         zmachine = ZMachine()
         try:
             zmachine.raw_data = f.read()
-        except StoryFileException, e:
+        except StoryFileException as e:
             print('Unable to load story file. %s' % e)
             return 
 
@@ -40,11 +58,39 @@ def dump(path):
         header.dump()
         print('')
 
+        if abbrevs:
+            print('')
+            print('Abbreviations\n------------\n')
+            data = zmachine.get_memory(header.abbrev_address,header.object_table_address)
+            dump_memory(data,zmachine,header.abbrev_address,)
+
+
+        if dictionary:
+            print ('')
+            print ('Dictionary\n--------------\n')
+            data = zmachine.get_memory(header.dictionary_address,header.himem_address)
+            dump_memory(data,zmachine,header.dictionary_address,)
+ 
+def usage() :
+    print('Usage: python dump.py [--abbrevs] path_to_story_file')
+    return 
+
 def main():
-    if len(sys.argv) < 2:
-        print('Usage: python dump_header.py path_to_story_file')
-        return
-    dump(sys.argv[1])
+    try:    
+        abbrevs = False
+        dictionary = False
+        opts, args = getopt.getopt(sys.argv[1:],'',['abbrevs','dictionary'])
+        if len(args) != 1:
+            return usage()
+        for opt,v in opts:
+            if opt == '--abbrevs':
+                abbrevs=True
+            if opt == '--dictionary':
+                dictionary = True
+    except getopt.GetoptError as err:
+        print(err)
+        return usage()
+    dump(args[0], abbrevs=abbrevs,dictionary=dictionary)
 
 if __name__ == "__main__":
     main()
