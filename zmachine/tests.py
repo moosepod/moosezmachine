@@ -4,7 +4,7 @@ import unittest
 import os
 
 from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException
-from zmachine.interpreter import ZText,ZTextState
+from zmachine.interpreter import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 
 class MemoryTests(unittest.TestCase):
@@ -130,9 +130,22 @@ class ZTextTests(unittest.TestCase):
         memory.set_word(2,0xFFF0)
         self.assertEquals(((31, 31,16),True), ztext.get_zchars_from_memory(memory,2))
 
-    def test_map_zscii(self):
-        self.fail()
-
+    def test_map_zscii(self):       
+        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        correct_mapping = {0: '', 
+                           13: '\r'}
+        chars = ' !"#$%&\'()*+,-./0123456789:;<=>?' + \
+                      '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_' + \
+                      '`abcdefghijklmnopqrstuvwxyz{|}~'
+        for i in range(0,len(chars)):
+            correct_mapping[i+32] = chars[i]
+        
+        for i in range(0,155):
+            if correct_mapping.get(i) != None:
+                self.assertEquals(correct_mapping[i],ztext._map_zscii(i))
+            else:
+                self.assertRaises(ZTextException, ztext._map_zscii,i)
+    
     def test_map_zchar(self):
         ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         self.assertEquals(' ', ztext._map_zchar(0))

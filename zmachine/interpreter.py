@@ -170,6 +170,14 @@ class ZText(object):
     def _map_zscii(self,zascii):
         """ Map a zasii code to an ascii code. ZAscii is referenced by zchar 6 
             followed by two more 5-bit units to form the code """
+        if zascii == 0:
+            return ''
+        if zascii == 13:
+            return '\r'
+        if zascii >= 32 and zascii <= 126:
+            return chr(zascii)
+        raise ZTextException('Character %d invalid for ZSCII output' % zascii)
+
         return chr(zascii)
 
     def _waiting_for_abbreviation(self,zchar):
