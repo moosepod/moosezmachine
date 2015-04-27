@@ -233,9 +233,9 @@ class ZMachine(object):
             of all bytes past 0x0040 """
         return sum(self._raw_data[0x40:]) % 65536
 
-    def get_ztext(self,screen):
+    def get_ztext(self):
         """ Return the a ztext processor for this interpreter """
-        return ZText(version=self.header.version,screen=screen,get_abbrev_f=lambda x:Memory([0x80,0]))
+        return ZText(version=self.header.version,get_abbrev_f=lambda x:Memory([0x80,0]))
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

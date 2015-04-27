@@ -22,10 +22,10 @@ class ZText(object):
                       'U', 'Y', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'A', 'o', 'O', 
                       'a', 'n', 'o', 'A', 'N', 'O', 'ae', 'AE', 'c', 'C', 'th', 'th', 'Th', 'Th', 'L', 'oe', 'OE', '!', '?']
 
-    def __init__(self,version,screen,get_abbrev_f):
+    def __init__(self,version,get_abbrev_f,debug=False):
         self.version = version
-        self.screen = screen
         self.get_abbrev_f = get_abbrev_f
+        self.debug=debug
         self.reset()
 
     def reset(self):
@@ -44,15 +44,22 @@ class ZText(object):
             l = min(len(memory),start_at+length_in_bytes)
         idx = start_at
         chars = []
+        if self.debug:
+            print('-- start to_ascii:')
         while idx < l:
             zchars,is_last_char = self.get_zchars_from_memory(memory,idx)
             for zchar in zchars:
                 ascii_char = self.handle_zchar(zchar)
                 if ascii_char:
                     chars.append(ascii_char)
+                if self.debug:
+                    print('   %d,%s' % (zchar,ascii_char))
             idx+=2
             if length_in_bytes < 1 and is_last_char:
                 break
+        if self.debug:
+            print('-- end')
+
         return ''.join(chars)
         
     def encrypt(self,text):
@@ -112,7 +119,11 @@ class ZText(object):
                     return zchar
                 if zchar == 1 or self.version > 2:
                     self.state = ZTextState.WAITING_FOR_ABBREVIATION        
-            elif zchar == 6:
+            elif zchar == 4:
+                self.shift(False,False)
+            elif zchar == 5:
+                self.shift(True,False)
+            elif zchar == 6 and self.alphabet == 2:
                 self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR1
             else:
                 return self._map_zchar(zchar)
@@ -152,7 +163,7 @@ class ZText(object):
 
 
     def _waiting_for_abbreviation(self,zchar):
-        ztext = ZText(version=self.version,screen=self.screen,get_abbrev_f=None)
+        ztext = ZText(version=self.version,get_abbrev_f=None)
         self.state = ZTextState.DEFAULT
         return ztext.to_ascii(self.get_abbrev_f((32 * self._previous_zchar-1) + zchar),0,0)
 
@@ -181,6 +192,8 @@ class ZText(object):
         """ Shift the current alphabet. 0 shifts it "right" (A0->A1->A2)
             and 1 shifts left (A2->A0->A1). Permanent will store the new alphabet,
             and is only used for versions 1 and 2 """
+        if self.debug:
+            print('   shifting from %d - %s,%s' % (self._current_alphabet, reverse,permanent))
         if reverse:
             self._shift_alphabet = self._current_alphabet - 1
             if self._shift_alphabet < 0:

@@ -105,7 +105,7 @@ class ZTextTests(unittest.TestCase):
         self.get_abbrev_f = lambda x: Memory([0x80,0]) # Empty end char
 
     def test_shift(self):
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(0,ztext._current_alphabet)
         self.assertEqual(None,ztext._shift_alphabet)
         self.assertEqual(0,ztext.alphabet)
@@ -126,7 +126,7 @@ class ZTextTests(unittest.TestCase):
         self.assertEqual(0,ztext.alphabet)
 
     def test_zchars(self):
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         memory = Memory([0,0,0,0])
         self.assertEqual(((0,0,0),False), ztext.get_zchars_from_memory(memory,0))
         memory.set_word(0,0xFFFF)
@@ -135,7 +135,7 @@ class ZTextTests(unittest.TestCase):
         self.assertEqual(((31, 31,16),True), ztext.get_zchars_from_memory(memory,2))
 
     def test_map_zscii(self):       
-        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)
         correct_mapping = {0: '', 
                            13: '\r'}
         chars = ' !"#$%&\'()*+,-./0123456789:;<=>?' + \
@@ -158,7 +158,7 @@ class ZTextTests(unittest.TestCase):
                 self.assertRaises(ZTextException, ztext._map_zscii,i)
     
     def test_map_zchar(self):
-        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(' ', ztext._map_zchar(0))
         for i in range(1,6):
             self.assertEqual('',ztext._map_zchar(i))
@@ -174,7 +174,7 @@ class ZTextTests(unittest.TestCase):
             self.assertEqual(target_chars[i],ztext._map_zchar(i))
 
     def test_map_zchar_v1(self):
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual('\n',ztext._map_zchar(1))
         ztext.shift(permanent=True)
         ztext.shift(permanent=True)
@@ -185,7 +185,7 @@ class ZTextTests(unittest.TestCase):
 
 
     def test_to_ascii(self):
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         # Check that we terminate the output when we hit an end character
         data = Memory([0,0,0x80,0x00,0,0])
         s = ztext.to_ascii(data,0,0)
@@ -194,17 +194,21 @@ class ZTextTests(unittest.TestCase):
         # Check explicit length
         s = ztext.to_ascii(data,0,2)
         self.assertEqual('   ',s)
-            
+    
+    def test_to_ascii_shift(self):
+        ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
+        self.assertEqual('.',ztext.to_ascii(Memory([0x16,0x45,0x94,0xA5]),0,4))
+   
     def test_handle_zchar_v1(self):
         # V1 does not handle abbreviations
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(ZTextState.DEFAULT,ztext.state)
         for i in range(1,4):
             ztext.handle_zchar(i,)          
             self.assertEqual(ZTextState.DEFAULT, ztext.state)
 
     def test_handle_zchar_v2(self): 
-        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(ZTextState.DEFAULT,ztext.state)
         ztext.handle_zchar(1)
         self.assertEqual(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
@@ -215,7 +219,7 @@ class ZTextTests(unittest.TestCase):
             self.assertEqual(ZTextState.DEFAULT, ztext.state)
         
     def test_handle_zchar_v3(self):
-        ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(ZTextState.DEFAULT,ztext.state)
         for i in range(1,4):
             ztext.reset()
@@ -225,9 +229,14 @@ class ZTextTests(unittest.TestCase):
             ztext.handle_zchar(5)   
 
     def test_handle_zchar_6(self):
-        # Zchar 6 means the next two chars are used to make a single 10-bit char
-        ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        # Zchar 6 in alphabet 2 means the next two chars are used to make a single 10-bit char
+        ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(ZTextState.DEFAULT,ztext.state)
+        ztext.handle_zchar(6)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
+        
+        ztext.reset()
+        ztext.shift(True,False)
         ztext.handle_zchar(6)
         self.assertEqual(ZTextState.GETTING_10BIT_ZCHAR_CHAR1,ztext.state)
         ztext.handle_zchar(1)
@@ -239,28 +248,37 @@ class ZTextTests(unittest.TestCase):
     def test_encrypt_text(self):
         # Note this isn't any kind of real encryption, it's simply converting input text
         # to match against dictionary
-        ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(bytearray([14,5,5,5,5,5]), ztext.encrypt('i'))
         self.assertEqual(bytearray([14,15,16,17,18,19]), ztext.encrypt('ijkLMN'))
         self.assertEqual(bytearray([14,3,8,3,9,5]), ztext.encrypt('i01'))
 
     def test_encrypt_text_v1(self):
         # See 3.7.1 and 3.5.4
-        ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(bytearray([14,4,7,8,5,5]), ztext.encrypt('i01'))
         
     def test_encrypt_text_v2(self):
-        ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
+        ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(bytearray([14,4,8,9,5,5]), ztext.encrypt('i01'))
 
 class DictionaryTests(unittest.TestCase):
     def setUp(self):
-        self.dictionary = Dictionary(Memory([0x01,0x01,0x02,0x00,0x03]),0)
+        self.dictionary = Dictionary(Memory([0x01,0x01,0x02,0x00,0x03,0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]),0)
     
     def test_header(self):
         self.assertEqual([1], self.dictionary.keyboard_codes)
         self.assertEqual(2, self.dictionary.entry_length)
         self.assertEqual(3, self.dictionary.number_of_entries)
+
+    def test_index(self):
+        self.assertEqual(3, len(self.dictionary))
+        self.assertEqual(bytearray([0,1,2,3]), self.dictionary[0])
+        try:    
+            self.dictionary[4]
+            self.fail('Should have raised an IndexError')
+        except IndexError:
+            pass # What we expect
 
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):

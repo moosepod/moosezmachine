@@ -6,6 +6,7 @@ import sys
 import getopt
 from zmachine.interpreter import ZMachine,StoryFileException
 from zmachine.text import ZTextException
+from zmachine.memory import Memory
 
 class DumpScreen(object):
     def __init__(self):
@@ -62,7 +63,8 @@ def dump(path,abbrevs=False,dictionary=False):
         print('Raw memory\n---------\n')
         header.dump()
         print('')
-
+    
+        ztext = zmachine.get_ztext()
         if abbrevs:
             print('')
             print('Abbreviations\n------------\n')
@@ -73,9 +75,23 @@ def dump(path,abbrevs=False,dictionary=False):
         if dictionary:
             print ('')
             print ('Dictionary\n--------------\n')
-            data = zmachine.get_memory(header.dictionary_address,header.himem_address)
-            dump_memory(data,zmachine,header.dictionary_address,)
- 
+            dictionary = zmachine.dictionary
+        
+            print ('Entries       : %d' % len(dictionary))
+            print ('Entry length  : %d' % dictionary.entry_length)
+            print ('Keyboard codes:\n %s' % '\n '.join([ztext._map_zscii(x) for x in dictionary.keyboard_codes]))
+            for i in range(0,len(dictionary)):
+                try:
+                    ztext.reset()
+                    text = ztext.to_ascii(Memory(dictionary[i]), 0,4)
+                except ZTextException, e:  
+                    print('Error. %s' % e)
+                print(' %d: %.2X %.2X %.2X %.2X (%s)' % (i, 
+                                        dictionary[i][0],
+                                        dictionary[i][1],
+                                        dictionary[i][2],
+                                        dictionary[i][3],
+                                         text))
 def usage() :
     print('Usage: python dump.py [--abbrevs] path_to_story_file')
     return 
