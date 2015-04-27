@@ -4,30 +4,31 @@ import unittest
 import os
 
 from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException
-from zmachine.interpreter import ZText,ZTextState,ZTextException
+from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
+from zmachine.dictionary import Dictionary
 
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):
         mem = Memory([1,2,3])
-        self.assertEquals(3, len(mem))
-        self.assertEquals(1,mem[0])
-        self.assertEquals(2,mem[1])
-        self.assertEquals(3,mem[2])     
-        self.assertEquals(bytearray([1,2]), mem[0:2])
+        self.assertEqual(3, len(mem))
+        self.assertEqual(1,mem[0])
+        self.assertEqual(2,mem[1])
+        self.assertEqual(3,mem[2])     
+        self.assertEqual(bytearray([1,2]), mem[0:2])
 
     def test_from_chars(self):
         mem = Memory(b'\x01\x02\x03')
-        self.assertEquals(3, len(mem))
-        self.assertEquals(1,mem[0])
-        self.assertEquals(2,mem[1])
-        self.assertEquals(3,mem[2])
+        self.assertEqual(3, len(mem))
+        self.assertEqual(1,mem[0])
+        self.assertEqual(2,mem[1])
+        self.assertEqual(3,mem[2])
 
     def test_address(self):
         mem = Memory([0,1])
-        self.assertEquals(0x00, mem[0])
-        self.assertEquals(0x01,mem[1])
-        self.assertEquals(0x01,mem.word(0))
+        self.assertEqual(0x00, mem[0])
+        self.assertEqual(0x01,mem[1])
+        self.assertEqual(0x01,mem.word(0))
 
     def test_flag(self):
         mem = Memory([1])
@@ -45,48 +46,51 @@ class MemoryTests(unittest.TestCase):
     
     def test_set_word(self):
         mem = Memory([0,0])
-        self.assertEquals(0,mem.word(0))
-        self.assertEquals(0, mem[0])
-        self.assertEquals(0, mem[1])
+        self.assertEqual(0,mem.word(0))
+        self.assertEqual(0, mem[0])
+        self.assertEqual(0, mem[1])
 
         mem.set_word(0,0xFFFF)
-        self.assertEquals(0xFFFF,mem.word(0))
-        self.assertEquals(0xFF, mem[0])
-        self.assertEquals(0xFF, mem[1])
+        self.assertEqual(0xFFFF,mem.word(0))
+        self.assertEqual(0xFF, mem[0])
+        self.assertEqual(0xFF, mem[1])
 
         mem.set_word(0,0xFF00)
-        self.assertEquals(0xFF00,mem.word(0))
-        self.assertEquals(0xFF,mem[0])
-        self.assertEquals(0,mem[1])
+        self.assertEqual(0xFF00,mem.word(0))
+        self.assertEqual(0xFF,mem[0])
+        self.assertEqual(0,mem[1])
 
     def test_packed(self):
         mem = Memory([1,2,3,4])
-        self.assertEquals(mem.word(2),mem.packed_address(1,2))
+        self.assertEqual(mem.word(2),mem.packed_address(1,2))
 
     def test_signed_int(self):
         mem = Memory([0,0])
-        self.assertEquals(0, mem.signed_int(0))
+        self.assertEqual(0, mem.signed_int(0))
         mem[1] = 1
-        self.assertEquals(1, mem.signed_int(0))
+        self.assertEqual(1, mem.signed_int(0))
         mem[1] = 0xFF
         mem[0] = 0x7F
-        self.assertEquals(32767, mem.signed_int(0))
+        self.assertEqual(32767, mem.signed_int(0))
         mem[0] = 0xFF
-        self.assertEquals(-1, mem.signed_int(0))
+        self.assertEqual(-1, mem.signed_int(0))
 
     def test_set_signed_int(self):
         mem = Memory([0,0])
         mem.set_signed_int(0,0)
-        self.assertEquals(0, mem.word(0))
+        self.assertEqual(0, mem.word(0))
         mem.set_signed_int(0,1)
-        self.assertEquals(1, mem.word(0))
+        self.assertEqual(1, mem.word(0))
         mem.set_signed_int(0,-1)
-        self.assertEquals(65535, mem.word(0))
+        self.assertEqual(65535, mem.word(0))
 
 class ScreenStub(object):
     def __init__(self):
         self.reset()
     
+    def done(self):
+        pass
+
     def reset(self):
         self.print_called = False
         self.printed_string = ''
@@ -102,33 +106,33 @@ class ZTextTests(unittest.TestCase):
 
     def test_shift(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(0,ztext._current_alphabet)
-        self.assertEquals(None,ztext._shift_alphabet)
-        self.assertEquals(0,ztext.alphabet)
+        self.assertEqual(0,ztext._current_alphabet)
+        self.assertEqual(None,ztext._shift_alphabet)
+        self.assertEqual(0,ztext.alphabet)
 
         ztext.shift()
-        self.assertEquals(0,ztext._current_alphabet)
-        self.assertEquals(1,ztext._shift_alphabet)
-        self.assertEquals(1,ztext.alphabet)
+        self.assertEqual(0,ztext._current_alphabet)
+        self.assertEqual(1,ztext._shift_alphabet)
+        self.assertEqual(1,ztext.alphabet)
 
         ztext.shift(reverse=False,permanent=True)
-        self.assertEquals(1,ztext._current_alphabet)
-        self.assertEquals(None,ztext._shift_alphabet)
-        self.assertEquals(1,ztext.alphabet)
+        self.assertEqual(1,ztext._current_alphabet)
+        self.assertEqual(None,ztext._shift_alphabet)
+        self.assertEqual(1,ztext.alphabet)
 
         ztext.shift(reverse=True)
-        self.assertEquals(1,ztext._current_alphabet)
-        self.assertEquals(0,ztext._shift_alphabet)
-        self.assertEquals(0,ztext.alphabet)
+        self.assertEqual(1,ztext._current_alphabet)
+        self.assertEqual(0,ztext._shift_alphabet)
+        self.assertEqual(0,ztext.alphabet)
 
     def test_zchars(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         memory = Memory([0,0,0,0])
-        self.assertEquals(((0,0,0),False), ztext.get_zchars_from_memory(memory,0))
+        self.assertEqual(((0,0,0),False), ztext.get_zchars_from_memory(memory,0))
         memory.set_word(0,0xFFFF)
-        self.assertEquals(((31,31,31),True), ztext.get_zchars_from_memory(memory,0))
+        self.assertEqual(((31,31,31),True), ztext.get_zchars_from_memory(memory,0))
         memory.set_word(2,0xFFF0)
-        self.assertEquals(((31, 31,16),True), ztext.get_zchars_from_memory(memory,2))
+        self.assertEqual(((31, 31,16),True), ztext.get_zchars_from_memory(memory,2))
 
     def test_map_zscii(self):       
         ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
@@ -149,100 +153,114 @@ class ZTextTests(unittest.TestCase):
         
         for i in range(0,255):
             if correct_mapping.get(i) != None:
-                self.assertEquals(correct_mapping[i],ztext._map_zscii(i))
+                self.assertEqual(correct_mapping[i],ztext._map_zscii(i))
             else:
                 self.assertRaises(ZTextException, ztext._map_zscii,i)
     
     def test_map_zchar(self):
         ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(' ', ztext._map_zchar(0))
+        self.assertEqual(' ', ztext._map_zchar(0))
         for i in range(1,6):
-            self.assertEquals('',ztext._map_zchar(i))
+            self.assertEqual('',ztext._map_zchar(i))
         for i in range(6,32):
-            self.assertEquals(chr(ord('a') + (i-6)), ztext._map_zchar(i))
+            self.assertEqual(chr(ord('a') + (i-6)), ztext._map_zchar(i))
         ztext.shift(permanent=True)
         for i in range(6,32):
-            self.assertEquals(chr(ord('A') + (i-6)), ztext._map_zchar(i))
+            self.assertEqual(chr(ord('A') + (i-6)), ztext._map_zchar(i))
         ztext.shift(permanent=True)
         target_chars = '       \n0123456789.,!?_#\'"/\-:()'
         for i in range(7,32):   
             # Skip char 6 of alphabet 2, it is special case, see 3.4
-            self.assertEquals(target_chars[i],ztext._map_zchar(i))
+            self.assertEqual(target_chars[i],ztext._map_zchar(i))
 
     def test_map_zchar_v1(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals('\n',ztext._map_zchar(1))
+        self.assertEqual('\n',ztext._map_zchar(1))
         ztext.shift(permanent=True)
         ztext.shift(permanent=True)
         target_chars='       0123456789.,!?_#\'"/\<-:()'
         for i in range(7,32):
             # Skip char 6 of alphabet 2, it is special case, see 3.4
-            self.assertEquals(target_chars[i],ztext._map_zchar(i))
+            self.assertEqual(target_chars[i],ztext._map_zchar(i))
 
 
-    def test_handle_output(self):
+    def test_to_ascii(self):
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
         # Check that we terminate the output when we hit an end character
-        ztext.output(Memory([0,0,0x80,0x00,0,0]))
-        self.assertEquals('      ',ztext.screen.printed_string)
+        data = Memory([0,0,0x80,0x00,0,0])
+        s = ztext.to_ascii(data,0,0)
+        self.assertEqual('      ',s)
+        
+        # Check explicit length
+        s = ztext.to_ascii(data,0,2)
+        self.assertEqual('   ',s)
             
     def test_handle_zchar_v1(self):
         # V1 does not handle abbreviations
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
         for i in range(1,4):
             ztext.handle_zchar(i,)          
-            self.assertEquals(ZTextState.DEFAULT, ztext.state)
+            self.assertEqual(ZTextState.DEFAULT, ztext.state)
 
     def test_handle_zchar_v2(self): 
         ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
         ztext.handle_zchar(1)
-        self.assertEquals(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
+        self.assertEqual(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
         ztext.reset()
 
         for i in range(2,4):
             ztext.handle_zchar(i)          
-            self.assertEquals(ZTextState.DEFAULT, ztext.state)
+            self.assertEqual(ZTextState.DEFAULT, ztext.state)
         
     def test_handle_zchar_v3(self):
         ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
         for i in range(1,4):
             ztext.reset()
             self.screen.reset()
             ztext.handle_zchar(i)          
-            self.assertEquals(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
+            self.assertEqual(ZTextState.WAITING_FOR_ABBREVIATION, ztext.state)
             ztext.handle_zchar(5)   
 
     def test_handle_zchar_6(self):
         # Zchar 6 means the next two chars are used to make a single 10-bit char
         ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
         ztext.handle_zchar(6)
-        self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR1,ztext.state)
+        self.assertEqual(ZTextState.GETTING_10BIT_ZCHAR_CHAR1,ztext.state)
         ztext.handle_zchar(1)
-        self.assertEquals(ZTextState.GETTING_10BIT_ZCHAR_CHAR2,ztext.state)
+        self.assertEqual(ZTextState.GETTING_10BIT_ZCHAR_CHAR2,ztext.state)
         c = ztext.handle_zchar(1)
-        self.assertEquals('!',c)
-        self.assertEquals(ZTextState.DEFAULT,ztext.state)
+        self.assertEqual('!',c)
+        self.assertEqual(ZTextState.DEFAULT,ztext.state)
 
     def test_encrypt_text(self):
         # Note this isn't any kind of real encryption, it's simply converting input text
         # to match against dictionary
         ztext = ZText(version=3,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(bytearray([14,5,5,5,5,5]), ztext.encrypt('i'))
-        self.assertEquals(bytearray([14,15,16,17,18,19]), ztext.encrypt('ijkLMN'))
-        self.assertEquals(bytearray([14,3,8,3,9,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray([14,5,5,5,5,5]), ztext.encrypt('i'))
+        self.assertEqual(bytearray([14,15,16,17,18,19]), ztext.encrypt('ijkLMN'))
+        self.assertEqual(bytearray([14,3,8,3,9,5]), ztext.encrypt('i01'))
 
     def test_encrypt_text_v1(self):
         # See 3.7.1 and 3.5.4
         ztext = ZText(version=1,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(bytearray([14,4,7,8,5,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray([14,4,7,8,5,5]), ztext.encrypt('i01'))
         
     def test_encrypt_text_v2(self):
         ztext = ZText(version=2,screen=self.screen,get_abbrev_f=self.get_abbrev_f)
-        self.assertEquals(bytearray([14,4,8,9,5,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray([14,4,8,9,5,5]), ztext.encrypt('i01'))
+
+class DictionaryTests(unittest.TestCase):
+    def setUp(self):
+        self.dictionary = Dictionary(Memory([0x01,0x01,0x02,0x00,0x03]),0)
+    
+    def test_header(self):
+        self.assertEqual([1], self.dictionary.keyboard_codes)
+        self.assertEqual(2, self.dictionary.entry_length)
+        self.assertEqual(3, self.dictionary.number_of_entries)
 
 class GameMemoryTests(unittest.TestCase):
     def setUp(self):
@@ -270,7 +288,7 @@ class GameMemoryTests(unittest.TestCase):
         self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,7,1)
 
     def test_packed(self):
-        self.assertEquals(self.zmachine._raw_data[3],self.zmachine.packed_address(1))
+        self.assertEqual(self.zmachine._raw_data[3],self.zmachine.packed_address(1))
 
     def test_highmem_access(self):
         himem_address = self.zmachine.header.himem_address
@@ -314,7 +332,7 @@ class ValidationTests(unittest.TestCase):
             zmachine.raw_data = b''
             self.fail('Should have thrown exception')
         except StoryFileException as e:
-            self.assertEquals(u'Story file is too short',str(e))
+            self.assertEqual(u'Story file is too short',str(e))
 
     def test_version(self):
         zmachine = ZMachine()
@@ -328,7 +346,7 @@ class ValidationTests(unittest.TestCase):
                 zmachine.raw_data = raw_data
                 self.fail('Should have thrown exception.')
             except StoryFileException as e:
-                self.assertEquals('This story file version is not supported.',str(e))
+                self.assertEqual('This story file version is not supported.',str(e))
             
 
 class SampleFileTests(unittest.TestCase):
@@ -353,34 +371,40 @@ class SampleFileTests(unittest.TestCase):
         rng.enter_predictable_mode(0)
         x = rng.randint(100)
         rng.enter_predictable_mode(0)
-        self.assertEquals(x, rng.randint(100))
+        self.assertEqual(x, rng.randint(100))
 
         # Reset should enter random mode
-        self.assertEquals(0,rng.seed)        
+        self.assertEqual(0,rng.seed)        
         self.zmachine.reset()
         self.assertFalse(rng.seed == 0)
 
     def test_header(self):
         header = self.zmachine.header
-        self.assertEquals(3,header.version)
-        self.assertEquals(0x0cd4,header.himem_address)
-        self.assertEquals(0x0cd5,header.program_counter_address)
-        self.assertEquals(0x0835,header.dictionary_address)
-        self.assertEquals(0x0146,header.object_table_address)
-        self.assertEquals(0x0102,header.global_variables_address)
-        self.assertEquals(0x0835,header.static_memory_address)
-        self.assertEquals(0x0042,header.abbrev_address)
-        self.assertEquals(0x0326a,header.file_length)
-        self.assertEquals(0xf3a4,header.checksum)
+        self.assertEqual(3,header.version)
+        self.assertEqual(0x0cd4,header.himem_address)
+        self.assertEqual(0x0cd5,header.program_counter_address)
+        self.assertEqual(0x0835,header.dictionary_address)
+        self.assertEqual(0x0146,header.object_table_address)
+        self.assertEqual(0x0102,header.global_variables_address)
+        self.assertEqual(0x0835,header.static_memory_address)
+        self.assertEqual(0x0042,header.abbrev_address)
+        self.assertEqual(0x0326a,header.file_length)
+        self.assertEqual(0xf3a4,header.checksum)
 
-        self.assertEquals(0,header.flag_status_line_type)
+        self.assertEqual(0,header.flag_status_line_type)
         self.assertFalse(header.flag_story_two_disk)
         self.assertFalse(header.flag_status_line_not_available)
         self.assertFalse(header.flag_screen_splitting_available)
         self.assertFalse(header.flag_variable_pitch_default)
 
     def test_checksum(self):
-        self.assertEquals(0xf3a4,self.zmachine.calculate_checksum())
+        self.assertEqual(0xf3a4,self.zmachine.calculate_checksum())
+
+    def test_dictionary(self):
+        dictionary = self.zmachine.dictionary
+        self.assertEqual([0x2e,0x2c,0x22], dictionary.keyboard_codes)
+        self.assertEqual(7,dictionary.entry_length)
+        self.assertEqual(0x62,dictionary.number_of_entries)
 
 if __name__ == '__main__':
     unittest.main()

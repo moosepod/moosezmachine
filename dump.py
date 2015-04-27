@@ -4,7 +4,8 @@
 
 import sys
 import getopt
-from zmachine.interpreter import ZMachine,StoryFileException,ZTextException
+from zmachine.interpreter import ZMachine,StoryFileException
+from zmachine.text import ZTextException
 
 class DumpScreen(object):
     def __init__(self):
@@ -23,14 +24,18 @@ class DumpScreen(object):
 def dump_memory(data,zmachine,start_address,):
     data.dump(start_address=start_address)
 
-def dump(path,abbrevs=False,dictionary=False):
+def load(path):
     with open(path,'rb') as f:
         zmachine = ZMachine()
         try:
             zmachine.raw_data = f.read()
         except StoryFileException as e:
             print('Unable to load story file. %s' % e)
-            return 
+            return None
+    return zmachine
+
+def dump(path,abbrevs=False,dictionary=False):
+        zmachine = load(path)
 
         header = zmachine.header
        
