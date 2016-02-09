@@ -7,6 +7,7 @@ import os
 from zmachine.memory import Memory
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
+from zmachine.instructions import Instruction
 
 class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
@@ -223,6 +224,7 @@ class ZMachine(object):
         self.game_memory = GameMemory(self._raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
+        self.program_counter = self.header.program_counter_address
 
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
@@ -247,3 +249,9 @@ class ZMachine(object):
         if self.header.version > 3:
             return self._raw_data.packed_address(idx,4)
         return self._raw_data.packed_address(idx,2)
+    
+    def current_instruction(self):
+        instruction = Instruction()
+        print(self._raw_data[self.program_counter:self.program_counter+32])
+        instruction.init_from_memory(self._raw_data[self.program_counter:self.program_counter+32])
+        return instruction

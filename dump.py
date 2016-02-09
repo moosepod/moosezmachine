@@ -63,6 +63,10 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         print('Raw memory\n---------\n')
         header.dump()
         print('')
+
+        print('Current instruction\n--------\n')
+        print(zmachine.current_instruction())
+        print('')
         
         if start_address:
             print('')
@@ -90,7 +94,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
                 try:
                     ztext.reset()
                     text = ztext.to_ascii(Memory(dictionary[i]), 0,4)
-                except ZTextException, e:  
+                except ZTextException as e:  
                     print('Error. %s' % e)
                 print(' %d: %.2X %.2X %.2X %.2X (%s)' % (i, 
                                         dictionary[i][0],
@@ -114,15 +118,15 @@ def main():
     abbrevs = data.abbrevs
     dictionary  = data.dictionary
     filename = data.file
-    addr_tmp = data.address
+    addr_tmp = data.address or '0x00'
     start_address=0
-    if not addr_tmp.startswith('0x'):
-        print 'address must start with 0x'
+    if addr_tmp and not addr_tmp.startswith('0x'):
+        print('address must start with 0x')
         return 
     try:
         start_address = int(addr_tmp,0)
     except ValueError:
-        print 'address must starat with 0x and be a valid hex address' 
+        print('address must starat with 0x and be a valid hex address')
     dump(filename, abbrevs=abbrevs,dictionary=dictionary,start_address=start_address)
 
 if __name__ == "__main__":

@@ -7,6 +7,30 @@ from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessExcepti
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
+from zmachine.instructions import Instruction,InstructionForm,InstructionType
+
+
+class InstructionTests(unittest.TestCase):
+    # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
+    def test_inc_chk(self):
+        mem=Memory([0x05,0x02,0x00,0xd4])
+        instruction = Instruction(memory=mem)
+        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
+
+    def test_print(self):
+        mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        instruction = Instruction(memory=mem)
+        self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
+
+    def test_mul(self):
+        mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
+        instruction = Instruction(memory=mem)
+        self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
+
+    def test_call_1n(self):
+        mem=Memory([0x8f,0x01,0x56])
+        instruction = Instruction(memory=mem)
+        self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
 
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):
