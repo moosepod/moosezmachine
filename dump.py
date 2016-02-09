@@ -3,7 +3,7 @@
 #
 
 import sys
-import getopt
+import argparse
 from zmachine.interpreter import ZMachine,StoryFileException
 from zmachine.text import ZTextException
 from zmachine.memory import Memory
@@ -35,7 +35,7 @@ def load(path):
             return None
     return zmachine
 
-def dump(path,abbrevs=False,dictionary=False):
+def dump(path,abbrevs=False,dictionary=False,start_address=0):
         zmachine = load(path)
 
         header = zmachine.header
@@ -63,7 +63,13 @@ def dump(path,abbrevs=False,dictionary=False):
         print('Raw memory\n---------\n')
         header.dump()
         print('')
-    
+        
+        if start_address:
+            print('')
+            print('Dumping from 0x%x' % start_address)
+            data = zmachine.get_memory(start_address,start_address+(16*10))
+            dump_memory(data,zmachine,start_address)
+
         ztext = zmachine.get_ztext()
         if abbrevs:
             print('')
@@ -97,21 +103,27 @@ def usage() :
     return 
 
 def main():
-    try:    
-        abbrevs = False
-        dictionary = False
-        opts, args = getopt.getopt(sys.argv[1:],'',['abbrevs','dictionary'])
-        if len(args) != 1:
-            return usage()
-        for opt,v in opts:
-            if opt == '--abbrevs':
-                abbrevs=True
-            if opt == '--dictionary':
-                dictionary = True
-    except getopt.GetoptError as err:
-        print(err)
-        return usage()
-    dump(args[0], abbrevs=abbrevs,dictionary=dictionary)
+    dictionary = False
+    abbrevs = False
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dictionary',action='store_true')
+    parser.add_argument('--abbrevs',action='store_true')
+    parser.add_argument('--address')
+    parser.add_argument('--file')
+    data = parser.parse_args()
+    abbrevs = data.abbrevs
+    dictionary  = data.dictionary
+    filename = data.file
+    addr_tmp = data.address
+    start_address=0
+    if not addr_tmp.startswith('0x'):
+        print 'address must start with 0x'
+        return 
+    try:
+        start_address = int(addr_tmp,0)
+    except ValueError:
+        print 'address must starat with 0x and be a valid hex address' 
+    dump(filename, abbrevs=abbrevs,dictionary=dictionary,start_address=start_address)
 
 if __name__ == "__main__":
     main()
