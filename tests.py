@@ -20,6 +20,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(5, instruction.opcode_number)
         self.assertEqual([0x02,0x00],instruction.operands)
         self.assertEqual(0x20,instruction.offset)
+        self.assertEqual(None,instruction.store_to)
 
     def test_print(self):
         mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
@@ -28,6 +29,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
         self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
         self.assertEqual(10, instruction.offset)
+        self.assertEqual(None,instruction.store_to)
 
     def test_mul(self):
         mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
@@ -37,6 +39,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(22, instruction.opcode_number)
         self.assertEqual([0x03e8,0x02], instruction.operands)
         self.assertEqual(7, instruction.offset)
+        self.assertEqual(0, instruction.store_to)
 
     def test_call_1n(self):
         mem=Memory([0x8f,0x01,0x56])
@@ -46,6 +49,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(15, instruction.opcode_number)
         self.assertEqual([0x0156], instruction.operands)
         self.assertEqual(4, instruction.offset)
+        self.assertEqual(None, instruction.store_to)
 
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):

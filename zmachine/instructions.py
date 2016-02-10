@@ -43,6 +43,7 @@ class Instruction(object):
         self.operands = [] # List of operands (if any)
         self.offset = 0 # Offset, in bytes, to move PC
         self.store_to = None # Variable # to store the resulting value to
+        self.zchars = [] # If this instruction works with zcodes, store them here
 
         # 4.3
         if b1 == 0xbe and version >= 5:
