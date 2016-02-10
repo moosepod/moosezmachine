@@ -39,8 +39,11 @@ class Instruction(object):
         b1 = memory[0]
         b2 = memory[1]
         self.opcode_byte=b1
-        self.operands = []
-        self.offset = 0
+
+        self.operands = [] # List of operands (if any)
+        self.offset = 0 # Offset, in bytes, to move PC
+        self.store_to = None # Variable # to store the resulting value to
+
         # 4.3
         if b1 == 0xbe and version >= 5:
             # 4.3.4
