@@ -37,6 +37,8 @@ def load(path):
 
 def dump(path,abbrevs=False,dictionary=False,start_address=0):
         zmachine = load(path)
+        if not zmachine:
+            return
 
         header = zmachine.header
        

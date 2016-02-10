@@ -72,7 +72,13 @@ class Instruction(object):
             self.instruction_form = InstructionForm.long_form
             self.instruction_type = InstructionType.twoOP
             self.opcode_number = b1 & 0x1F # Bottom 5 bits are opcode #        
+
     def __str__(self):
-        str = u'Opcode byte: %x\n' % self.opcode_byte
-        str += u'Instruction form: %s' % self.instruction_form 
+        return """
+Opcode number:    %s
+Instruction form: %s
+Instruction type: %s
+        """ % (self.opcode_number,
+                self.instruction_form,
+                self.instruction_type)
         return str

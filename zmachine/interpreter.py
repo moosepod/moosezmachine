@@ -72,7 +72,7 @@ class Header(Memory):
     def __init__(self,data):
         super(Header,self).__init__(data)
         if self.version > Header.MAX_VERSION:
-            raise StoryFileException('This story file version is not supported.')
+            raise StoryFileException('Story file version %d is not supported.' % self.version)
 
     @property
     def version(self):
