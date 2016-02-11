@@ -224,7 +224,9 @@ class ZMachine(object):
         self.game_memory = GameMemory(self._raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
-        self.program_counter = self.header.program_counter_address
+        # Starting routine is at program counter default. Increment one past
+        # that since first byte is number of local vars
+        self.program_counter = self.header.program_counter_address + 1
 
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
@@ -245,13 +247,15 @@ class ZMachine(object):
             raise ZMachineException('get_memory called with end_addr %s smaller than start_addr %s' % (end_addr,start_addr))
         return Memory(self._raw_data[start_addr:end_addr])
 
-    def packed_address(self,idx):
+    def _packed_address_multiplier(self):
         if self.header.version > 3:
-            return self._raw_data.packed_address(idx,4)
-        return self._raw_data.packed_address(idx,2)
+            return 4
+        return 2
+
+    def packed_address(self,idx):
+        return self._raw_data.packed_address(idx,self._packed_address_multiplier())
     
     def current_instruction(self):
         instruction = Instruction()
-        print(self._raw_data[self.program_counter:self.program_counter+32])
-        instruction.init_from_memory(self._raw_data[self.program_counter:self.program_counter+32])
+        instruction.init_from_memory(Memory(self._raw_data[self.program_counter:self.program_counter+32]))
         return instruction

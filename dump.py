@@ -67,7 +67,10 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         print('')
 
         print('Current instruction\n--------\n')
-        print(zmachine.current_instruction())
+        for i in range(0,10):
+            inst = zmachine.current_instruction()
+            print(inst)
+            zmachine.program_counter+=inst.offset
         print('')
         
         if start_address:

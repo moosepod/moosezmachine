@@ -58,7 +58,6 @@ class Instruction(object):
         b1 = memory[0]
         b2 = memory[1]
         self.opcode_byte=b1
-
         self.operands = [] # List of operands (if any)
         self.offset = 0 # Offset, in bytes, to move PC
         self.store_to = None # Variable # to store the resulting value to
@@ -107,7 +106,7 @@ class Instruction(object):
                 self.instruction_type = InstructionType.zeroOP
             else:
                 self.instruction_type = InstructionType.oneOP
-            self.opcode_number = b1 & 0x1F
+            self.opcode_number = b1 & 0x0F
             # 4.4.1
             self.operands = [operand_from_bitfield(bf45)]  
         else:
@@ -122,11 +121,11 @@ class Instruction(object):
             if b1 & 0x20: self.operands[1] = OperandType.large_constant
         
         # Find opcode handler
-        self.handler = OPCODE_HANDLERS.get(self.instruction_type, self.opcode_number)
-        if not self.handler:
-            self.handler = OpcodeHandler('notfound','Handler not found',False,False)
+        self.handler = OPCODE_HANDLERS.get((self.instruction_type, self.opcode_number),
+                                            OpcodeHandler(self.opcode_number,str(self.opcode_number),False,False))
 
         # 4.5
+        tmp = []
         for i,optype in enumerate(self.operands):
             val = 0
             if optype == OperandType.small_constant:
@@ -142,27 +141,30 @@ class Instruction(object):
                 # 4.4.3
                 # Omit any vars after an ommitted type
                 break
-            self.operands[i] = val
-
+            tmp.append(val)
+        self.operands=tmp
         # 4.6
         if self.handler.is_store:
             self.store_to = memory[idx]
             idx+=1
 
         # Set our offset to the current memory idx
+        self.bytestr = ' '.join('%02x' % b for b in memory[0:idx])
+        self.bytestr += ' (%s)' % bin(memory[0])
         self.offset = idx
 
     def __str__(self):
-        return """
-Opcode number:    %s
-Instruction form: %s
-Instruction type: %s
-        """ % (self.opcode_number,
-                self.instruction_form,
-                self.instruction_type)
-        return str
+        st = self.bytestr
+        st += '\n'
+        st += "%s:%s" % (self.instruction_type, self.handler.description)
+        if self.operands:
+            st += ' [%s]' % ' '.join(['%02x' % x for x in self.operands])
+        if self.store_to:
+            st += ' -> %s' % self.store_to
+        st += ' (%02x)' % self.offset
+        return st
 
-class Operator(object):
+class OpcodeHandler(object):
     def __init__(self, name, description, is_break, is_store):
         self.name = name
         self.description = description
@@ -170,4 +172,5 @@ class Operator(object):
         self.is_store = is_store
 
 # 14.1
-OPCODE_HANDLER = {(InstructionType.twoOP, 22): Operator('mul','mul a b -> (result)',False,True)}}
+OPCODE_HANDLERS = {(InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True)}
+
