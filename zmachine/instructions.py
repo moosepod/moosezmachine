@@ -120,8 +120,13 @@ class Instruction(object):
             # If bit 6 is 1, first operand is large. If bit 5 is 1, second operand is large.
             if b1 & 0x40: self.operands[0] = OperandType.large_constant
             if b1 & 0x20: self.operands[1] = OperandType.large_constant
+        
+        # Find opcode handler
+        self.handler = OPCODE_HANDLERS.get(self.instruction_type, self.opcode_number)
+        if not self.handler:
+            self.handler = OpcodeHandler('notfound','Handler not found',False,False)
+
         # 4.5
-        print (self.operands)
         for i,optype in enumerate(self.operands):
             val = 0
             if optype == OperandType.small_constant:
@@ -139,6 +144,11 @@ class Instruction(object):
                 break
             self.operands[i] = val
 
+        # 4.6
+        if self.handler.is_store:
+            self.store_to = memory[idx]
+            idx+=1
+
         # Set our offset to the current memory idx
         self.offset = idx
 
@@ -151,3 +161,13 @@ Instruction type: %s
                 self.instruction_form,
                 self.instruction_type)
         return str
+
+class Operator(object):
+    def __init__(self, name, description, is_break, is_store):
+        self.name = name
+        self.description = description
+        self.is_break = is_break
+        self.is_store = is_store
+
+# 14.1
+OPCODE_HANDLER = {(InstructionType.twoOP, 22): Operator('mul','mul a b -> (result)',False,True)}}
