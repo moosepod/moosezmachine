@@ -28,7 +28,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
         self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
         self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
-        self.assertEqual(10, instruction.offset)
+        self.assertEqual(9, instruction.offset)
         self.assertEqual(None,instruction.store_to)
 
     def test_mul(self):
@@ -38,7 +38,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
         self.assertEqual(22, instruction.opcode_number)
         self.assertEqual([0x03e8,0x02], instruction.operands)
-        self.assertEqual(7, instruction.offset)
+        self.assertEqual(6, instruction.offset)
         self.assertEqual(0, instruction.store_to)
 
     def test_call_1n(self):
@@ -48,7 +48,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionType.oneOP,instruction.instruction_type)
         self.assertEqual(15, instruction.opcode_number)
         self.assertEqual([0x0156], instruction.operands)
-        self.assertEqual(4, instruction.offset)
+        self.assertEqual(3, instruction.offset)
         self.assertEqual(None, instruction.store_to)
 
 class MemoryTests(unittest.TestCase):
@@ -407,7 +407,7 @@ class ValidationTests(unittest.TestCase):
                 zmachine.raw_data = raw_data
                 self.fail('Should have thrown exception.')
             except StoryFileException as e:
-                self.assertEqual('This story file version is not supported.',str(e))
+                self.assertEqual('Story file version %d is not supported.' % version,str(e))
             
 
 class SampleFileTests(unittest.TestCase):
