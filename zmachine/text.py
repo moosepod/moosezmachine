@@ -181,12 +181,15 @@ class ZText(object):
             Bit   F E D C B A 9 8 7 6 5 4 3 2 1 0
             ZChar   1 1 1 1 1 2 2 2 2 2 3 3 3 3 3
             """
-        b0 = memory[idx]
-        b1 = memory[idx+1]
+        try:
+            b0 = memory[idx]
+            b1 = memory[idx+1]
 
-        # Use masks and shifts to filter out the three 5-bit chars we want, as well as whether
-        # end bit is set
-        return ((b0 & 0x7C)>>2,((0x03 & b0) << 3) | ((0xE0 & b1)>>5), int(b1 & 0x1F)), (b0 & 0x80) == 0x80
+            # Use masks and shifts to filter out the three 5-bit chars we want, as well as whether
+            # end bit is set
+            return ((b0 & 0x7C)>>2,((0x03 & b0) << 3) | ((0xE0 & b1)>>5), int(b1 & 0x1F)), (b0 & 0x80) == 0x80
+        except IndexError:
+            return (6,6,6,),True
 
     def shift(self,reverse=False,permanent=False):
         """ Shift the current alphabet. 0 shifts it "right" (A0->A1->A2)

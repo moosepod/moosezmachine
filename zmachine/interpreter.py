@@ -51,7 +51,7 @@ class Header(Memory):
     FLAGS_2 = 0x10
     FLAGS_2_1 = 0x11
     HIMEM = 0x04
-    PROGRAM_COUNTER = 0x06
+    MAIN_ROUTINE = 0x06
     DICTIONARY = 0x08
     OBJECT_TABLE = 0x0A
     GLOBAL_VARIABLES = 0x0C
@@ -83,8 +83,8 @@ class Header(Memory):
         return self.word(Header.HIMEM)
 
     @property
-    def program_counter_address(self):
-        return self.word(Header.PROGRAM_COUNTER)
+    def main_routine_addr(self): 
+        return self.word(Header.MAIN_ROUTINE)
 
     @property
     def dictionary_address(self):
@@ -184,6 +184,31 @@ class GameMemory(Memory):
             raise MemoryAccessException('Bit %d of index %d not writeable to game' % (bit,idx))
         super(GameMemory,self).set_flag(idx,bit,value)
 
+class Routine(object):
+    """ Context for a routine in memory """
+    def __init__(self,memory,idx,version,nolocals=False):
+        """ Initialize this routine from location idx at the memory passed in """
+        self.routine_start = idx
+        self.version=version
+        if not nolocals:
+            var_count = memory[idx]
+            if var_count < 0 or var_count > 15:
+                raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
+            # 5.2.1
+            idx+=1
+            self.local_vars = [0] * var_count
+            if version < 5:
+                for i in range(0,var_count):
+                    self.local_vars = memory.word(idx)
+                    idx+=2
+        self.memory = memory
+        self.idx = idx  
+
+    def current_instruction(self):
+        """ Return the current instruction pointed to by this routine """
+        instruction = Instruction(self.memory,self.idx,self.version)
+        return instruction
+
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
         is divided into multiple objects """
@@ -224,10 +249,16 @@ class ZMachine(object):
         self.game_memory = GameMemory(self._raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
-        # Starting routine is at program counter default. Increment one past
-        # that since first byte is number of local vars
-        self.program_counter = self.header.program_counter_address + 1
-
+        # Program counter default points to first routine. 
+        if self.header.version == 6:   
+            self.routines = [Routine(self._raw_data,
+                    self.header.main_routine_addr * self._packed_address_multiplier()
+                    ,self.header.version)]
+        else:
+            self.routines =[Routine(self._raw_data,
+                    self.header.main_routine_addr,
+                    self.header.version,
+                    nolocals=True)]
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
@@ -255,7 +286,6 @@ class ZMachine(object):
     def packed_address(self,idx):
         return self._raw_data.packed_address(idx,self._packed_address_multiplier())
     
-    def current_instruction(self):
-        instruction = Instruction()
-        instruction.init_from_memory(Memory(self._raw_data[self.program_counter:self.program_counter+32]))
-        return instruction
+    def current_routine(self):
+        """ Return the routine at the top of the stack """
+        return self.routines[-1]

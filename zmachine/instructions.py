@@ -6,12 +6,13 @@
 """
 
 from enum import Enum
+from zmachine.text import ZText
 
 class InstructionType(Enum):
-    zeroOP = 1
-    oneOP  = 2
-    twoOP  = 3
-    varOP  = 4
+    zeroOP = '0OP'
+    oneOP  = '1OP'
+    twoOP  = '2OP'
+    varOP  = 'VAR'
 
 class InstructionForm(Enum):
     long_form     = 1
@@ -38,31 +39,21 @@ def operand_from_bitfield(bf):
     return None
 
 class Instruction(object):
-    def __init__(self,memory=None):
-        if memory:
-            self.init_from_memory(memory)
-        else:
-            self.instruction_type = None
-            self.opcode = 0
-            self.opcode_byte = 0
-            self.instruction_form = None
-            self.opcode_number = 0
-            self.operands = []
-            
-    def init_from_memory(self,memory,version=3):
-        """ Init this instruction object from the provided block of memory. Assume byte 0 is the first byte of the instruction
-            Note number of bytes varies based on instruction """ 
+    def __init__(self,memory,idx,version):
+        """ Init this instruction object from the provided block of memory. """
         # If top two bits are 11, variable form. If 10, short. 
         # If opcode is BE, form is extended. Otherwise long.
-        idx = 1
-        b1 = memory[0]
-        b2 = memory[1]
+        start_idx=idx
+        b1 = memory[idx]
+        b2 = memory[idx+1]
+        idx+=1
         self.opcode_byte=b1
         self.operands = [] # List of operands (if any)
         self.offset = 0 # Offset, in bytes, to move PC
         self.store_to = None # Variable # to store the resulting value to
         self.zchars = [] # If this instruction works with zcodes, store them here
-        
+        self.literal_string = None # Ascii version of zchars, if any
+
         # 4.3
         if b1 == 0xbe and version >= 5:
             # 4.3.4 (Extended form)
@@ -70,8 +61,7 @@ class Instruction(object):
             self.instruction_type = InstructionType.varOP
             self.opcode_number = b2
             # 4,4,3
-            idx+=1
-            b2 = mem[idx]
+            b2 = memory[idx]
             idx+=1
             self.operands = [
                 operand_from_bitfield((b2 & 0xC0) >> 6),
@@ -79,16 +69,16 @@ class Instruction(object):
                 operand_from_bitfield((b2 & 0x0C) >> 2),
                 operand_from_bitfield(b2 & 0x03)
             ]
-        elif b1 >> 6 == 3:
+        elif (b1 & 0xC0 )>> 6 == 3:
             # 4.3.3 (Variable form)
             self.instruction_form = InstructionForm.variable_form
-            if (b1 & 0x20) >> 4 == 1: 
+            if (b1 & 0x20) >> 5 == 1: 
                 self.instruction_type = InstructionType.varOP
             else:
                 self.instruction_type = InstructionType.twoOP
             self.opcode_number = b1 & 0x1F
-            # 4,4,3
             idx+=1
+            # 4,4,3
             self.operands = [
                 operand_from_bitfield((b2 & 0xC0) >> 6),
                 operand_from_bitfield((b2 & 0x30) >> 4),
@@ -122,7 +112,7 @@ class Instruction(object):
         
         # Find opcode handler
         self.handler = OPCODE_HANDLERS.get((self.instruction_type, self.opcode_number),
-                                            OpcodeHandler(self.opcode_number,str(self.opcode_number),False,False))
+                                            OpcodeHandler(self.opcode_number,str(self.opcode_number),False,False,False))
 
         # 4.5
         tmp = []
@@ -143,34 +133,56 @@ class Instruction(object):
                 break
             tmp.append(val)
         self.operands=tmp
+       
+        if self.handler.literal_string:
+            zchar_start_idx = idx
+            ztext = ZText(version=version,get_abbrev_f=lambda x: [6,6,6])
+            self.zchars = []
+            done = False
+            while not done:
+                zchars_tmp,done = ztext.get_zchars_from_memory(memory,idx)
+                idx+=2
+                self.zchars.extend(list(zchars_tmp))            
+            self.literal_string = ztext.to_ascii(memory,zchar_start_idx,0)
+
         # 4.6
         if self.handler.is_store:
-            self.store_to = memory[idx]
+            self.store_to = memory[idx]            
             idx+=1
-
         # Set our offset to the current memory idx
-        self.bytestr = ' '.join('%02x' % b for b in memory[0:idx])
+        self.bytestr = ' '.join('%02x' % b for b in memory[start_idx:idx])
         self.bytestr += ' (%s)' % bin(memory[0])
-        self.offset = idx
+        self.offset = idx - start_idx
 
     def __str__(self):
-        st = self.bytestr
-        st += '\n'
-        st += "%s:%s" % (self.instruction_type, self.handler.description)
+        st = '%s\n' % self.bytestr
+        st += "%s:%s" % (self.instruction_type.name, self.handler.description)
         if self.operands:
             st += ' [%s]' % ' '.join(['%02x' % x for x in self.operands])
         if self.store_to:
             st += ' -> %s' % self.store_to
+        if self.literal_string:
+            st += '"%s"' % self.literal_string
         st += ' (%02x)' % self.offset
+        st += '\n'
         return st
 
 class OpcodeHandler(object):
-    def __init__(self, name, description, is_break, is_store):
+    def __init__(self, name, description, is_break, is_store,literal_string):
         self.name = name
         self.description = description
         self.is_break = is_break
         self.is_store = is_store
+        self.literal_string = literal_string
+
 
 # 14.1
-OPCODE_HANDLERS = {(InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True)}
+OPCODE_HANDLERS = {
+(InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True,False),
+
+(InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True),
+(InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False),
+
+(InstructionType.varOP,0): OpcodeHandler('call','call routine ...0 to 3 args... -> (result)',False,True,False)
+}
 

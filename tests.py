@@ -14,7 +14,7 @@ class InstructionTests(unittest.TestCase):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
     def test_inc_chk(self):
         mem=Memory([0x05,0x02,0x00,0xd4])
-        instruction = Instruction(memory=mem)
+        instruction = Instruction(memory=mem,idx=0,version=3)
         self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
         self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
         self.assertEqual(5, instruction.opcode_number)
@@ -24,16 +24,17 @@ class InstructionTests(unittest.TestCase):
 
     def test_print(self):
         mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-        instruction = Instruction(memory=mem)
+        instruction = Instruction(memory=mem,idx=0,version=3)
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
         self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
         self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
         self.assertEqual(9, instruction.offset)
         self.assertEqual(None,instruction.store_to)
+        self.assertEqual("HELLO.\n", instruction.literal_string)
 
     def test_mul(self):
         mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
-        instruction = Instruction(memory=mem)
+        instruction = Instruction(memory=mem,idx=0,version=3)
         self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
         self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
         self.assertEqual(22, instruction.opcode_number)
@@ -43,7 +44,7 @@ class InstructionTests(unittest.TestCase):
 
     def test_call_1n(self):
         mem=Memory([0x8f,0x01,0x56])
-        instruction = Instruction(memory=mem)
+        instruction = Instruction(memory=mem,idx=0,version=3)
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
         self.assertEqual(InstructionType.oneOP,instruction.instruction_type)
         self.assertEqual(15, instruction.opcode_number)
@@ -443,7 +444,7 @@ class SampleFileTests(unittest.TestCase):
         header = self.zmachine.header
         self.assertEqual(3,header.version)
         self.assertEqual(0x0cd4,header.himem_address)
-        self.assertEqual(0x0cd5,header.program_counter_address)
+        self.assertEqual(0x0cd5,header.main_routine_addr)
         self.assertEqual(0x0835,header.dictionary_address)
         self.assertEqual(0x0146,header.object_table_address)
         self.assertEqual(0x0102,header.global_variables_address)

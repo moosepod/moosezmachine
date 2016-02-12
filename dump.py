@@ -44,7 +44,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
        
         print('Version:                  %d' % (header.version))
         print('Himem address:            0x%04x' % (header.himem_address))
-        print('PC Address:               0x%04x' % (header.program_counter_address))
+        print('Main routine address:     0x%04x' % (header.main_routine_addr))
         print('Dictionary address:       0x%04x' % (header.dictionary_address))
         print('Object table address:     0x%04x' % (header.object_table_address))
         print('Global variables address: 0x%04x' % (header.global_variables_address))
@@ -67,10 +67,11 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         print('')
 
         print('Current instruction\n--------\n')
+        routine = zmachine.current_routine()
         for i in range(0,10):
-            inst = zmachine.current_instruction()
-            print(inst)
-            zmachine.program_counter+=inst.offset
+            inst = routine.current_instruction()
+            print('%04x: %s' %(routine.idx,inst))
+            routine.idx+=inst.offset
         print('')
         
         if start_address:
