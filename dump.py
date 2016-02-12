@@ -68,7 +68,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
 
         print('Current instruction\n--------\n')
         routine = zmachine.current_routine()
-        for i in range(0,10):
+        for i in range(0,30):
             inst = routine.current_instruction()
             print('%04x: %s' %(routine.idx,inst))
             routine.idx+=inst.offset

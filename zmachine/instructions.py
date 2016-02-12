@@ -151,7 +151,6 @@ class Instruction(object):
             idx+=1
         # Set our offset to the current memory idx
         self.bytestr = ' '.join('%02x' % b for b in memory[start_idx:idx])
-        self.bytestr += ' (%s)' % bin(memory[0])
         self.offset = idx - start_idx
 
     def __str__(self):
@@ -163,7 +162,6 @@ class Instruction(object):
             st += ' -> %s' % self.store_to
         if self.literal_string:
             st += '"%s"' % self.literal_string
-        st += ' (%02x)' % self.offset
         st += '\n'
         return st
 
