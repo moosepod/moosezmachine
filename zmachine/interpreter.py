@@ -209,6 +209,44 @@ class Routine(object):
         instruction = Instruction(self.memory,self.idx,self.version)
         return instruction
 
+class GameState(object):
+    """ Contains all information about the current game's state, including: 
+        - all memory
+        - output streams
+        - routine stack
+    """
+    def __init__(self,memory,streams):
+        self.memory = memory        
+        self.streams = streams
+
+
+class AbstractScreen(object):
+    """ See section 8 """
+    pass
+
+class AbstractOutputStream(object):
+    """ See section 8 """
+    def __init__(self):
+        self.is_active = False
+        # 7.2 Buffered streams word wrap
+        self.is_buffered = False
+
+    def print(self,txt):
+        """ Print ascii to the stream """
+        raise Exception('Not implemented')
+
+    def new_line(self):
+        """ Output a newline to the stream """
+        raise Exception('Not implemented')
+
+    def print_char(self,chr):
+        """ Output ZSCII char """
+        raise Exception('Not implemented')
+
+    def set_buffer(self,b):
+        """ Set buffering on/off """
+        self.is_buffered = b == True
+
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
         is divided into multiple objects """
