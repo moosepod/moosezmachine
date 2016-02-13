@@ -231,7 +231,7 @@ class AbstractOutputStream(object):
         # 7.2 Buffered streams word wrap
         self.is_buffered = False
 
-    def print(self,txt):
+    def print_str(self,txt):
         """ Print ascii to the stream """
         raise Exception('Not implemented')
 
