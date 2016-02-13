@@ -2,6 +2,8 @@
 
 moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) based off the Z-Machine Standards Document version 1.0 (http://inform-fiction.org/zmachine/standards/z1point0/sect03.html)
 
+moosezmachine needs at lesat Python 3.4 to work.
+
 This project is a reference implementation -- no effort has been put into optimizations. 
 
 Currently it only handles zcode versions 1 through 3. 
