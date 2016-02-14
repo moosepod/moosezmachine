@@ -21,7 +21,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
         self.assertEqual(5, instruction.opcode_number)
         self.assertEqual([0x02,0x00],instruction.operands)
-        self.assertEqual(0x20,instruction.offset)
+        self.assertEqual(20,instruction.offset)
         self.assertEqual(None,instruction.store_to)
 
     def test_print(self):
