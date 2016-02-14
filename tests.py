@@ -3,12 +3,14 @@
 import unittest
 import os
 
-from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException
+from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException,OutputStream
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
 from zmachine.instructions import Instruction,InstructionForm,InstructionType
 
+class TestOutputStream(OutputStream):
+    pass
 
 class InstructionTests(unittest.TestCase):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
@@ -43,6 +45,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(0, instruction.store_to)
 
     def test_call_1n(self):
+        # Not support in V3 -- so we test the parsing but nothing depending on instruction lookup
         mem=Memory([0x8f,0x01,0x56])
         instruction = Instruction(memory=mem,idx=0,version=3)
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
@@ -331,7 +334,7 @@ class GameMemoryTests(unittest.TestCase):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
             self.zmachine = ZMachine()
-            self.zmachine.raw_data = f.read()
+            self.zmachine.initialize(f.read(),TestOutputStream(),TestOutputStream(),TestOutputStream())
 
     def test_header(self):
         self.zmachine.game_memory[0]
@@ -391,7 +394,7 @@ class ValidationTests(unittest.TestCase):
     def test_size(self):
         zmachine = ZMachine()
         try:
-            zmachine.raw_data = b''
+            zmachine.initialize(b'',TestOutputStream(),TestOutputStream(),TestOutputStream())
             self.fail('Should have thrown exception')
         except StoryFileException as e:
             self.assertEqual(u'Story file is too short',str(e))
@@ -405,7 +408,7 @@ class ValidationTests(unittest.TestCase):
         for version in (0x04,0x05,0x06,0x07,0x08):
             raw_data[0] = version
             try:
-                zmachine.raw_data = raw_data
+                zmachine.initialize(raw_data,TestOutputStream(),TestOutputStream(),TestOutputStream())
                 self.fail('Should have thrown exception.')
             except StoryFileException as e:
                 self.assertEqual('Story file version %d is not supported.' % version,str(e))
@@ -418,7 +421,7 @@ class SampleFileTests(unittest.TestCase):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
             self.zmachine = ZMachine()
-            self.zmachine.raw_data = f.read()
+            self.zmachine.initialize(f.read(),TestOutputStream(),TestOutputStream(),TestOutputStream())
     
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,

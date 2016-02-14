@@ -209,43 +209,41 @@ class Routine(object):
         instruction = Instruction(self.memory,self.idx,self.version)
         return instruction
 
-class GameState(object):
-    """ Contains all information about the current game's state, including: 
-        - all memory
-        - output streams
-        - routine stack
-    """
-    def __init__(self,memory,streams):
-        self.memory = memory        
-        self.streams = streams
-
-
-class AbstractScreen(object):
-    """ See section 8 """
-    pass
-
-class AbstractOutputStream(object):
+class OutputStream(object):
     """ See section 8 """
     def __init__(self):
-        self.is_active = False
         # 7.2 Buffered streams word wrap
+        self.is_active = False
         self.is_buffered = False
 
     def print_str(self,txt):
         """ Print ascii to the stream """
-        raise Exception('Not implemented')
+        pass
 
     def new_line(self):
         """ Output a newline to the stream """
-        raise Exception('Not implemented')
+        pass
 
     def print_char(self,chr):
         """ Output ZSCII char """
-        raise Exception('Not implemented')
+        pass
 
     def set_buffer(self,b):
         """ Set buffering on/off """
         self.is_buffered = b == True
+
+class OutputStreams(object):
+    """ See section 8. Wraps the various output streams """
+    SCREEN = 0
+    TRANSCRIPT = 1
+    ZMACHINE = 2
+    SCRIPT = 3
+
+    def __init__(self,screen,transcript,zmachine,script=None):
+        self.screens = [screen,transcript]
+        if zmachine.header.version > 3:
+            self.screens.append(ZMachineStream(zmachine))
+            self.screens.append(script)
 
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
@@ -263,6 +261,7 @@ class ZMachine(object):
         self.game_memory = None # Protected memory interface for use by game
         self.himem_address = 0
         self.rng = RNG()
+        self.output_streams=None
         self.reset()
 
     def reset(self):
@@ -300,7 +299,16 @@ class ZMachine(object):
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
+
+    def set_streams(self,screen_stream,transcript_stream,script_stream):
+        # Initialize our output streams with the provided streams        
+        self.output_streams = OutputStreams(screen_stream,transcript_stream,self,script_stream)
     
+    def initialize(self,data,screen_stream,transcript_stream,script_stream):
+        """ Initialize this Zmachine with all information ready to play the game """
+        self.raw_data = data
+        self.set_streams(screen_stream,transcript_stream,script_stream)
+
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """

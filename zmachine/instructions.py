@@ -149,9 +149,29 @@ class Instruction(object):
         if self.handler.is_store:
             self.store_to = memory[idx]            
             idx+=1
-        # Set our offset to the current memory idx
+
+        # 4.7
+        if self.handler.is_branch:
+            b = memory[idx]
+            idx+=1
+            if (b & 0x80) >> 7:
+                branch_if_true = True
+            else:
+                branch_if_true = False
+            if (b & 0x40) >> 6:
+                # Bit 6 set, offset is bottom 6 bits of byte
+                self.offset = b & 0x3F
+            else:
+                # Bit 6 not set, offset is bottom 6 bits + next byte
+                next_byte = memory[idx]
+                idx += 1
+                self.offset = ((b & 0x3f) << 8) | next_byte 
+        else:   
+            # Set our offset to the current memory idx
+            self.offset = idx - start_idx
+        
+        # Store the bytes used in this instruction for debugging
         self.bytestr = ' '.join('%02x' % b for b in memory[start_idx:idx])
-        self.offset = idx - start_idx
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -166,10 +186,10 @@ class Instruction(object):
         return st
 
 class OpcodeHandler(object):
-    def __init__(self, name, description, is_break, is_store,literal_string):
+    def __init__(self, name, description, is_branch, is_store,literal_string):
         self.name = name
         self.description = description
-        self.is_break = is_break
+        self.is_branch = is_branch
         self.is_store = is_store
         self.literal_string = literal_string
 
@@ -177,6 +197,7 @@ class OpcodeHandler(object):
 # 14.1
 OPCODE_HANDLERS = {
 (InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True,False),
+(InstructionType.twoOP,5):   OpcodeHandler('inc_chk','inc_chk (variable) value ?(label)',True,False,False),
 
 (InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True),
 (InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False),
