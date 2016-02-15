@@ -2,7 +2,7 @@ import curses
 from curses import wrapper
 import argparse
 
-from zmachine.interpreter import ZMachine
+from zmachine.interpreter import ZMachine,OutputStream
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -10,7 +10,29 @@ STORY_BOTTOM_MARGIN = 1
 STATUS_BAR_HEIGHT = 1
 STORY_WINDOW_WIDTH = 80 
 STORY_RIGHT_MARGIN = 1
- 
+
+class CursesStream(OutputStream):
+    def __init__(self,window):
+        super(CursesStream,self).__init__()
+        self.window = window
+
+class DebuggerWindow(object):
+    def __init__(self, zmachine, window):
+        self.zmachine = zmachine
+        self.window = window
+
+    def redraw(self):
+        self.window.clear()
+        self.window.addstr(0,0,"^Quit | ^Reset | ^Step | ^Vars | ^PC | ^Header | ^Dictionary | ^Objects",curses.A_REVERSE)
+        
+        self.window.move(2,0)
+
+        for i,inst in enumerate(self.zmachine.instructions()):
+            instruction, idx = inst
+            self.window.addstr("%04x %s\n" % (idx,instruction.bytestr))
+            self.window.addstr("    %s:%s\n\n" % (instruction.instruction_type,instruction.handler.description))  
+        self.window.refresh()
+
 class MainLoop(object):
     def __init__(self,zmachine):
         self.zmachine = zmachine
@@ -41,16 +63,16 @@ class MainLoop(object):
                               STORY_WINDOW_WIDTH,
                               STATUS_BAR_HEIGHT+STORY_TOP_MARGIN,
                               0)
-        story.addstr(0,0,"This is the story window")
         story.refresh()
+        self.zmachine.output_streams.set_screen_stream(CursesStream(story))
 
         # The debugger window
-        debugger = curses.newwin(screen_height,
+        debugger = DebuggerWindow(self.zmachine,
+                                curses.newwin(screen_height,
                                  screen_width-STORY_WINDOW_WIDTH-STORY_RIGHT_MARGIN,
                                  0,
-                                 STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN)
-        debugger.addstr(0,0,"^Quit | ^Reset | ^Step | ^Vars | ^PC | ^Header | ^Dictionary | ^Objects",curses.A_REVERSE)
-        debugger.refresh()
+                                 STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
+        debugger.redraw()
 
         while True:
             pass
@@ -58,7 +80,7 @@ class MainLoop(object):
 def load_zmachine(filename):
     zmachine = ZMachine()
     with open(filename,'rb') as f:
-        zmachine.raw_data = f.read()
+        zmachine.initialize(f.read(),OutputStream(),OutputStream(),OutputStream())
         if not zmachine:
             raise Exception('Unable to load zmachine %s' % filename)
     return zmachine

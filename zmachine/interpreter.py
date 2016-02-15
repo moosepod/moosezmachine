@@ -204,10 +204,13 @@ class Routine(object):
         self.memory = memory
         self.idx = idx  
 
+    def instruction(self,idx):
+        """ Return the current instruction pointed to by the given index"""
+        return Instruction(self.memory,idx,self.version)
+
     def current_instruction(self):
         """ Return the current instruction pointed to by this routine """
-        instruction = Instruction(self.memory,self.idx,self.version)
-        return instruction
+        return self.instruction(self.idx)
 
 class OutputStream(object):
     """ See section 8 """
@@ -240,10 +243,13 @@ class OutputStreams(object):
     SCRIPT = 3
 
     def __init__(self,screen,transcript,zmachine,script=None):
-        self.screens = [screen,transcript]
+        self.streams = [screen,transcript]
         if zmachine.header.version > 3:
-            self.screens.append(ZMachineStream(zmachine))
-            self.screens.append(script)
+            self.streams.append(ZMachineStream(zmachine))
+            self.streams.append(script)
+
+    def set_screen_stream(self,stream):
+        self.streams[OutputStreams.SCREEN] = stream
 
 class ZMachine(object):
     """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
@@ -335,3 +341,19 @@ class ZMachine(object):
     def current_routine(self):
         """ Return the routine at the top of the stack """
         return self.routines[-1]
+    
+    def instructions(self):
+        instructions = []
+        routine = self.current_routine()
+        offset = routine.idx
+        
+        for i in range(0,5):
+            instruction = routine.instruction(offset)
+            instructions.append((instruction,offset))
+            offset += instruction.offset
+        
+        return instructions
+ 
+    def step(self):
+        """ Execute the intruction at the PC in the current routine context, then move PC based on returned offset """
+        pass

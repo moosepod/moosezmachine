@@ -175,7 +175,7 @@ class Instruction(object):
 
     def __str__(self):
         st = '%s\n' % self.bytestr
-        st += "%s:%s" % (self.instruction_type.name, self.handler.description)
+        st += "%s:%s" % (self.instruction_type, self.handler.description)
         if self.operands:
             st += ' [%s]' % ' '.join(['%02x' % x for x in self.operands])
         if self.store_to:
