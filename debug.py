@@ -1,6 +1,8 @@
 import curses
 from curses import wrapper
+
 import argparse
+import time
 
 from zmachine.interpreter import ZMachine,OutputStream
 
@@ -10,6 +12,12 @@ STORY_BOTTOM_MARGIN = 1
 STATUS_BAR_HEIGHT = 1
 STORY_WINDOW_WIDTH = 80 
 STORY_RIGHT_MARGIN = 1
+
+class QuitException(Exception):
+    pass
+
+class ResetException(Exception):
+    pass
 
 class CursesStream(OutputStream):
     def __init__(self,window):
@@ -21,16 +29,65 @@ class DebuggerWindow(object):
         self.zmachine = zmachine
         self.window = window
 
+    def status(self,msg):
+        self.window.move(2,10)
+        self.window.addstr(msg)
+        self.window.refresh()
+    
+    def quit(self):
+        raise QuitException()
+    
+    def reset(self):
+        raise ResetException()
+    
+    def step(self):
+        self.zmachine.step()
+        self.redraw()
+    
+    def show_vars(self):
+        self.status('VARS')
+
+    def show_header(self):
+        self.status('HEADER')
+
+    def show_dictionary(self):
+        self.status('DICTIONARY')
+
+    def show_objects(self):
+        self.status('OBJECTS')
+    
+    def key_pressed(self,key):  
+        """ Key pressed while debugger active """
+        ch = chr(key).lower()
+        if ch == 'q':
+            self.quit()
+        elif ch == 'r':
+            self.reset()
+        elif ch == 's':
+            self.step()
+        elif ch == 'v':
+            self.show_vars()
+        elif ch == 'h':
+            self.show_header()
+        elif ch == 'd':
+            self.show_dictionary()
+        elif ch == 'o':
+            self.show_objects()
+
     def redraw(self):
         self.window.clear()
-        self.window.addstr(0,0,"^Quit | ^Reset | ^Step | ^Vars | ^PC | ^Header | ^Dictionary | ^Objects",curses.A_REVERSE)
+        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (V)ars (H)eader (D)ictionary (O)bjects",curses.A_REVERSE)
         
         self.window.move(2,0)
-
-        for i,inst in enumerate(self.zmachine.instructions()):
-            instruction, idx = inst
+        
+        for i,inst_t in enumerate(self.zmachine.instructions(5)):
+            if i == 0:
+                prefix = " >>> "
+            else:
+                prefix = "     "
+            instruction, idx = inst_t 
             self.window.addstr("%04x %s\n" % (idx,instruction.bytestr))
-            self.window.addstr("    %s:%s\n\n" % (instruction.instruction_type,instruction.handler.description))  
+            self.window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
         self.window.refresh()
 
 class MainLoop(object):
@@ -74,8 +131,12 @@ class MainLoop(object):
                                  STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
         debugger.redraw()
 
+        debugger_selected = True
+
         while True:
-            pass
+            ch = story.getch()
+            if debugger_selected:
+                debugger.key_pressed(ch)
 
 def load_zmachine(filename):
     zmachine = ZMachine()
@@ -91,6 +152,17 @@ def main():
     data = parser.parse_args()
     filename = data.file
     
+    try:
+        while True:
+            try:
+                start(filename)    
+            except ResetException:
+                print("Resetting...")
+                time.sleep(1)
+    except QuitException:
+        print("Thanks for playing!")
+
+def start(filename):
     zmachine = load_zmachine(filename)
     loop = MainLoop(zmachine)
     wrapper(loop.loop)

@@ -151,6 +151,7 @@ class Instruction(object):
             idx+=1
 
         # 4.7
+        self.next_instruction = idx
         if self.handler.is_branch:
             b = memory[idx]
             idx+=1
@@ -166,12 +167,12 @@ class Instruction(object):
                 next_byte = memory[idx]
                 idx += 1
                 self.offset = ((b & 0x3f) << 8) | next_byte 
-        else:   
-            # Set our offset to the current memory idx
-            self.offset = idx - start_idx
         
         # Store the bytes used in this instruction for debugging
         self.bytestr = ' '.join('%02x' % b for b in memory[start_idx:idx])
+
+    def execute(self,routine):
+        self.handler.execute(routine)
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -193,6 +194,9 @@ class OpcodeHandler(object):
         self.is_store = is_store
         self.literal_string = literal_string
 
+    def execute(self, routine):
+        """ Execute this instruction in the context of the provided routine """
+        pass
 
 # 14.1
 OPCODE_HANDLERS = {

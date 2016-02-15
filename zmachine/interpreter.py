@@ -212,6 +212,11 @@ class Routine(object):
         """ Return the current instruction pointed to by this routine """
         return self.instruction(self.idx)
 
+    def step(self):
+        inst = self.current_instruction()
+        self.idx = inst.next_instruction
+        inst.execute(self)
+
 class OutputStream(object):
     """ See section 8 """
     def __init__(self):
@@ -342,18 +347,19 @@ class ZMachine(object):
         """ Return the routine at the top of the stack """
         return self.routines[-1]
     
-    def instructions(self):
+    def instructions(self,how_many):
+        """ Return how_many instructions starting at the current instruction """
         instructions = []
         routine = self.current_routine()
-        offset = routine.idx
+        idx = routine.idx
         
-        for i in range(0,5):
-            instruction = routine.instruction(offset)
-            instructions.append((instruction,offset))
-            offset += instruction.offset
+        for i in range(0,how_many):
+            instruction = routine.instruction(idx)
+            instructions.append((instruction,idx))
+            idx = instruction.next_instruction
         
         return instructions
  
     def step(self):
-        """ Execute the intruction at the PC in the current routine context, then move PC based on returned offset """
-        pass
+        """ Execute the instruction at the PC in the current routine context, then move PC based on returned offset """
+        self.current_routine().step()
