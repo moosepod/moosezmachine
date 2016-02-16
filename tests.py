@@ -13,9 +13,15 @@ from zmachine.instructions import Instruction,InstructionForm,InstructionType
 class TestOutputStream(OutputStream):
     pass
 
+class TestSaveHandler(SaveHandler):
+    pass
+
+class TestRestoreHandler(RestoreHandler):
+    pass
+
 class TestOutputStreams(OutputStreams):
-    def __init__(self,interpreter):
-        super(TestOutputStream(TestOutputStream(),TestOutputStream(),interpreter))
+    def __init__(self):
+        super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
 class InstructionTests(unittest.TestCase):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
@@ -473,7 +479,7 @@ class SampleFileTests(unittest.TestCase):
         self.assertFalse(header.flag_variable_pitch_default)
 
     def test_checksum(self):
-        self.assertEqual(0xf3a4,self.zmachine.calculate_checksum())
+        self.assertEqual(0xf3a4,self.zmachine.story.calculate_checksum())
 
     def test_dictionary(self):
         dictionary = self.zmachine.story.dictionary

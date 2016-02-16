@@ -234,9 +234,13 @@ class OutputStreams(object):
     ZMACHINE = 2
     SCRIPT = 3
 
-    def __init__(self,screen,transcript,zmachine,script=None):
-        self.streams = [screen,transcript]
-        if zmachine.header.version > 3:
+    def __init__(self,screen,transcript,script=None):
+        self.screen = screen
+        self.transcript = transcript
+        
+    def reset(self,zmachine):
+        self.streams = [self.screen,self.transcript]
+        if zmachine.story.header.version > 3:
             self.streams.append(ZMachineStream(zmachine))
             self.streams.append(script)
 
@@ -299,9 +303,9 @@ class Story(object):
         return self.raw_data.packed_address(idx,self._packed_address_multiplier())
 
 class GameState(object):
-    pass           
+    def __init__(self,story):
+        self.story = story           
     
-
 class SaveHandler(object):
     pass
 
@@ -324,7 +328,9 @@ class Interpreter(object):
         """ Start/restart the interpreter """
         self.initialized = True
         self.story.reset()
+        self.pc = self.story.header.main_routine_addr
         self.game_state = GameState(self.story)
+        self.output_streams.reset(self)
 
     def get_ztext(self):
         """ Return the a ztext processor for this interpreter """
@@ -346,11 +352,11 @@ class Interpreter(object):
         """ Return the current instruction pointed to by the given address """
         return Instruction(self.story.raw_data,
                             address,
-                            self.header.version)
+                            self.story.header.version)
 
     def current_instruction(self):
         """ Return the current instruction """
-        return self.instruction(self.pc)
+        return self.instruction_at(self.pc)
 
     def step(self):
         """ Execute the current instruction then increment the program counter """

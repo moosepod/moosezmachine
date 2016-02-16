@@ -4,7 +4,7 @@ from curses import wrapper
 import argparse
 import time
 
-from zmachine.interpreter import ZMachine,OutputStream
+from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -139,11 +139,12 @@ class MainLoop(object):
                 debugger.key_pressed(ch)
 
 def load_zmachine(filename):
-    zmachine = ZMachine()
     with open(filename,'rb') as f:
-        zmachine.initialize(f.read(),OutputStream(),OutputStream(),OutputStream())
-        if not zmachine:
-            raise Exception('Unable to load zmachine %s' % filename)
+        story = Story(f.read())
+        outputs = OutputStreams(OutputStream(),OutputStream())
+        zmachine = Interpreter(story,outputs,None,None)
+        zmachine.reset()
+
     return zmachine
 
 def main():

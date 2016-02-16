@@ -4,7 +4,7 @@
 
 import sys
 import argparse
-from zmachine.interpreter import ZMachine,StoryFileException
+from zmachine.interpreter import Interpreter,Story,StoryFileException
 from zmachine.text import ZTextException
 from zmachine.memory import Memory
 
@@ -27,9 +27,10 @@ def dump_memory(data,zmachine,start_address,):
 
 def load(path):
     with open(path,'rb') as f:
-        zmachine = ZMachine()
+        story = Story(f.read())
         try:
-            zmachine.raw_data = f.read()
+            zmachine = Interpreter(story,None,None,None)
+            zmachine.reset()
         except StoryFileException as e:
             print('Unable to load story file. %s' % e)
             return None
@@ -40,7 +41,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         if not zmachine:
             return
 
-        header = zmachine.header
+        header = zmachine.story.header
        
         print('Version:                  %d' % (header.version))
         print('Himem address:            0x%04x' % (header.himem_address))
@@ -67,11 +68,10 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         print('')
 
         print('Current instruction\n--------\n')
-        routine = zmachine.current_routine()
-        for i in range(0,30):
-            inst = routine.current_instruction()
-            print('%04x: %s' %(routine.idx,inst))
-            routine.idx+=inst.offset
+        idx = zmachine.pc
+        for t in zmachine.instructions(30):
+            (instruction,idx) = t
+            print('%04x: %s' %(idx,instruction))
         print('')
         
         if start_address:
@@ -91,7 +91,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         if dictionary:
             print ('')
             print ('Dictionary\n--------------\n')
-            dictionary = zmachine.dictionary
+            dictionary = zmachine.story.dictionary
         
             print ('Entries       : %d' % len(dictionary))
             print ('Entry length  : %d' % dictionary.entry_length)
