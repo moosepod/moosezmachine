@@ -201,8 +201,11 @@ class OpcodeHandler(object):
 
 # 14.1
 OPCODE_HANDLERS = {
+(InstructionType.oneOP, 0):  OpcodeHandler('jz','jz a ?(label)',False,True,False),
 (InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True,False),
 (InstructionType.twoOP,5):   OpcodeHandler('inc_chk','inc_chk (variable) value ?(label)',True,False,False),
+(InstructionType.twoOP,13):  OpcodeHandler('store','store (variable) value',False,False,False),
+(InstructionType.twoOP,14):  OpcodeHandler('insert_obj','insert_obj object destination',False,False,False),
 
 (InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True),
 (InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False),
