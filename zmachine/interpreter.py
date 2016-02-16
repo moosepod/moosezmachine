@@ -204,19 +204,6 @@ class Routine(object):
         self.memory = memory
         self.idx = idx  
 
-    def instruction(self,idx):
-        """ Return the current instruction pointed to by the given index"""
-        return Instruction(self.memory,idx,self.version)
-
-    def current_instruction(self):
-        """ Return the current instruction pointed to by this routine """
-        return self.instruction(self.idx)
-
-    def step(self):
-        inst = self.current_instruction()
-        self.idx = inst.next_instruction
-        inst.execute(self)
-
 class OutputStream(object):
     """ See section 8 """
     def __init__(self):
@@ -256,84 +243,52 @@ class OutputStreams(object):
     def set_screen_stream(self,stream):
         self.streams[OutputStreams.SCREEN] = stream
 
-class ZMachine(object):
-    """ Contains the entirity of the state of the interpreter. It does not initialize in a valid state,
-        is divided into multiple objects """
+class Story(object):
+    """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
+        Provides wrapper interfaces to subsets of the memory, such as the dictionary, header,
+        or objects """
     MIN_FILE_SIZE = 64  # Minimum size of a story file, in bytes
-
-    def __init__(self):
+    
+    def __init__(self,data):
+        """ Initalize with story data. Data is not loaded and validated until reset() is called """
         self.header = None
-        self.global_variables = None
         self.dictionary = None
-        self.object_tree = None
-        self.program_counter = 0   # Address of the current routine.
-        self.stack = []            # Global stack, represented as a list
-        self._raw_data = []
         self.game_memory = None # Protected memory interface for use by game
         self.himem_address = 0
+
+        # Initial data, stored to allow for resets
+        self.story_data = data
+
+        # Raw bytes of memory as a Memory object
+        self.raw_data = None
+    
+        # Will contain the wrapped game memory that provides memory access validation
+        self.game_memory = None
         self.rng = RNG()
-        self.output_streams=None
-        self.reset()
 
     def reset(self):
-        self.rng.enter_random_mode()
-        if self.header:
-            self.header.reset()
-
-    @property
-    def raw_data(self):
-        """ Return the raw data for the currently loaded story file """
-        return self._raw_data
-
-    @raw_data.setter
-    def raw_data(self,value):
-        """ Set the story data for this file. This will reset the header. """
-        self._raw_data = Memory(value)
-        if len(value) < ZMachine.MIN_FILE_SIZE:
+        """ Reset/initialize the game state from the raw game data. Will raise StoryFileException on validation issues """
+        self.raw_data = Memory(self.story_data)
+        if len(self.story_data) < Story.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
-        self.header = Header(self._raw_data[0:ZMachine.MIN_FILE_SIZE])
+        self.header = Header(self.raw_data[0:Story.MIN_FILE_SIZE])
         self.header.reset()
         self.dictionary = Dictionary(self.raw_data, self.header.dictionary_address)
-        self.game_memory = GameMemory(self._raw_data,
+        self.game_memory = GameMemory(self.raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
-        # Program counter default points to first routine. 
-        if self.header.version == 6:   
-            self.routines = [Routine(self._raw_data,
-                    self.header.main_routine_addr * self._packed_address_multiplier()
-                    ,self.header.version)]
-        else:
-            self.routines =[Routine(self._raw_data,
-                    self.header.main_routine_addr,
-                    self.header.version,
-                    nolocals=True)]
+
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
 
-    def set_streams(self,screen_stream,transcript_stream,script_stream):
-        # Initialize our output streams with the provided streams        
-        self.output_streams = OutputStreams(screen_stream,transcript_stream,self,script_stream)
-    
-    def initialize(self,data,screen_stream,transcript_stream,script_stream):
-        """ Initialize this Zmachine with all information ready to play the game """
-        self.raw_data = data
-        self.set_streams(screen_stream,transcript_stream,script_stream)
+        # Default mode for RNG is random (see 2.4)
+        self.rng.enter_random_mode()
 
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
             of all bytes past 0x0040 """
-        return sum(self._raw_data[0x40:]) % 65536
-
-    def get_ztext(self):
-        """ Return the a ztext processor for this interpreter """
-        return ZText(version=self.header.version,get_abbrev_f=lambda x:Memory([0x80,0]))
-
-    def get_memory(self,start_addr,end_addr):
-        """ Return a chunk of memory """
-        if end_addr < start_addr:
-            raise ZMachineException('get_memory called with end_addr %s smaller than start_addr %s' % (end_addr,start_addr))
-        return Memory(self._raw_data[start_addr:end_addr])
+        return sum(self.raw_data[0x40:]) % 65536
 
     def _packed_address_multiplier(self):
         if self.header.version > 3:
@@ -341,25 +296,77 @@ class ZMachine(object):
         return 2
 
     def packed_address(self,idx):
-        return self._raw_data.packed_address(idx,self._packed_address_multiplier())
+        return self.raw_data.packed_address(idx,self._packed_address_multiplier())
+
+class GameState(object):
+    pass           
     
-    def current_routine(self):
-        """ Return the routine at the top of the stack """
-        return self.routines[-1]
-    
+
+class SaveHandler(object):
+    pass
+
+class RestoreHandler(object):
+    pass
+
+class Interpreter(object):
+    """ Main interface to the game. Combines Story, GameState, OutputScreens, SaveHandler,
+        RestoreHandler. Call reset to start the interpreter. 
+    """
+    def __init__(self,story, output_streams, save_handler, restore_handler):
+        self.story = story
+        self.output_streams = output_streams
+        self.save_handler = save_handler
+        self.restore_handler = restore_handler
+        self.initialized = False
+        self.pc = 0 # program counter
+
+    def reset(self):
+        """ Start/restart the interpreter """
+        self.initialized = True
+        self.story.reset()
+        self.game_state = GameState(self.story)
+
+    def get_ztext(self):
+        """ Return the a ztext processor for this interpreter """
+        self._check_initialized()
+        return ZText(version=self.story.header.version,get_abbrev_f=lambda x:Memory([0x80,0]))
+
+    def get_memory(self,start_addr,end_addr):
+        """ Return a chunk of memory """
+        self._check_initialized()
+        if end_addr < start_addr:
+            raise InterpreterException('get_memory called with end_addr %s smaller than start_addr %s' % (end_addr,start_addr))
+        return Memory(self.story.raw_data[start_addr:end_addr])
+        
+    def _check_initialized(self):
+        if not self.initialized:
+            raise InterpreterException('Interpreter is not yet initialized')
+
+    def instruction_at(self,address):
+        """ Return the current instruction pointed to by the given address """
+        return Instruction(self.story.raw_data,
+                            address,
+                            self.header.version)
+
+    def current_instruction(self):
+        """ Return the current instruction """
+        return self.instruction(self.pc)
+
+    def step(self):
+        """ Execute the current instruction then increment the program counter """
+        inst = self.current_instruction()
+        self.pc = inst.next_address
+        inst.execute(self,None)
+
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """
         instructions = []
-        routine = self.current_routine()
-        idx = routine.idx
-        
+        address = self.pc
+
         for i in range(0,how_many):
-            instruction = routine.instruction(idx)
-            instructions.append((instruction,idx))
-            idx = instruction.next_instruction
+            instruction = self.instruction_at(address)
+            instructions.append((instruction,address))
+            address = instruction.next_address
         
         return instructions
  
-    def step(self):
-        """ Execute the instruction at the PC in the current routine context, then move PC based on returned offset """
-        self.current_routine().step()

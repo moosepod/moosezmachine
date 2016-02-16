@@ -39,14 +39,14 @@ def operand_from_bitfield(bf):
     return None
 
 class Instruction(object):
-    def __init__(self,memory,idx,version):
+    def __init__(self,memory,address,version):
         """ Init this instruction object from the provided block of memory. """
         # If top two bits are 11, variable form. If 10, short. 
         # If opcode is BE, form is extended. Otherwise long.
-        start_idx=idx
-        b1 = memory[idx]
-        b2 = memory[idx+1]
-        idx+=1
+        start_address=address
+        b1 = memory[address]
+        b2 = memory[address+1]
+        address+=1
         self.opcode_byte=b1
         self.operands = [] # List of operands (if any)
         self.offset = 0 # Offset, in bytes, to move PC
@@ -61,8 +61,8 @@ class Instruction(object):
             self.instruction_type = InstructionType.varOP
             self.opcode_number = b2
             # 4,4,3
-            b2 = memory[idx]
-            idx+=1
+            b2 = memory[address]
+            address+=1
             self.operands = [
                 operand_from_bitfield((b2 & 0xC0) >> 6),
                 operand_from_bitfield((b2 & 0x30) >> 4),
@@ -77,7 +77,7 @@ class Instruction(object):
             else:
                 self.instruction_type = InstructionType.twoOP
             self.opcode_number = b1 & 0x1F
-            idx+=1
+            address+=1
             # 4,4,3
             self.operands = [
                 operand_from_bitfield((b2 & 0xC0) >> 6),
@@ -119,14 +119,14 @@ class Instruction(object):
         for i,optype in enumerate(self.operands):
             val = 0
             if optype == OperandType.small_constant:
-                val = memory[idx]
-                idx+=1
+                val = memory[address]
+                address+=1
             elif optype == OperandType.large_constant:
-                val = memory.word(idx)
-                idx+=2
+                val = memory.word(address)
+                address+=2
             elif optype == OperandType.variable:
-                val = memory[idx]
-                idx+=1
+                val = memory[address]
+                address+=1
             elif optype == OperandType.omitted:
                 # 4.4.3
                 # Omit any vars after an ommitted type
@@ -135,44 +135,45 @@ class Instruction(object):
         self.operands=tmp
        
         if self.handler.literal_string:
-            zchar_start_idx = idx
+            zchar_start_address = address
             ztext = ZText(version=version,get_abbrev_f=lambda x: [6,6,6])
             self.zchars = []
             done = False
             while not done:
-                zchars_tmp,done = ztext.get_zchars_from_memory(memory,idx)
-                idx+=2
+                zchars_tmp,done = ztext.get_zchars_from_memory(memory,address)
+                address+=2
                 self.zchars.extend(list(zchars_tmp))            
-            self.literal_string = ztext.to_ascii(memory,zchar_start_idx,0)
+            self.literal_string = ztext.to_ascii(memory,zchar_start_address,0)
 
         # 4.6
         if self.handler.is_store:
-            self.store_to = memory[idx]            
-            idx+=1
+            self.store_to = memory[address]            
+            address+=1
 
         # 4.7
-        self.next_instruction = idx
+        self.next_address = address
+        self.branch_to = None
         if self.handler.is_branch:
-            b = memory[idx]
-            idx+=1
+            b = memory[address]
+            address+=1
             if (b & 0x80) >> 7:
                 branch_if_true = True
             else:
                 branch_if_true = False
             if (b & 0x40) >> 6:
                 # Bit 6 set, offset is bottom 6 bits of byte
-                self.offset = b & 0x3F
+                self.branch_to = b & 0x3F
             else:
                 # Bit 6 not set, offset is bottom 6 bits + next byte
-                next_byte = memory[idx]
-                idx += 1
-                self.offset = ((b & 0x3f) << 8) | next_byte 
+                next_byte = memory[address]
+                address += 1
+                self.branch_to = ((b & 0x3f) << 8) | next_byte 
         
         # Store the bytes used in this instruction for debugging
-        self.bytestr = ' '.join('%02x' % b for b in memory[start_idx:idx])
+        self.bytestr = ' '.join('%02x' % b for b in memory[start_address:address])
 
-    def execute(self,routine):
-        self.handler.execute(routine)
+    def execute(self,interpreter,routine):
+        self.handler.execute(interpreter,routine)
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -194,7 +195,7 @@ class OpcodeHandler(object):
         self.is_store = is_store
         self.literal_string = literal_string
 
-    def execute(self, routine):
+    def execute(self, interpreter, routine):
         """ Execute this instruction in the context of the provided routine """
         pass
 

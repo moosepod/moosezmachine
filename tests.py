@@ -3,7 +3,8 @@
 import unittest
 import os
 
-from zmachine.interpreter import ZMachine,StoryFileException,MemoryAccessException,OutputStream
+from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
+                                 OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -12,49 +13,57 @@ from zmachine.instructions import Instruction,InstructionForm,InstructionType
 class TestOutputStream(OutputStream):
     pass
 
+class TestOutputStreams(OutputStreams):
+    def __init__(self,interpreter):
+        super(TestOutputStream(TestOutputStream(),TestOutputStream(),interpreter))
+
 class InstructionTests(unittest.TestCase):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
     def test_inc_chk(self):
         mem=Memory([0x05,0x02,0x00,0xd4])
-        instruction = Instruction(memory=mem,idx=0,version=3)
+        instruction = Instruction(memory=mem,address=0,version=3)
         self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
         self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
         self.assertEqual(5, instruction.opcode_number)
         self.assertEqual([0x02,0x00],instruction.operands)
-        self.assertEqual(20,instruction.offset)
+        self.assertEqual(20,instruction.branch_to)
+        self.assertEqual(3,instruction.next_address)
         self.assertEqual(None,instruction.store_to)
 
     def test_print(self):
         mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-        instruction = Instruction(memory=mem,idx=0,version=3)
+        instruction = Instruction(memory=mem,address=0,version=3)
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
         self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
         self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
-        self.assertEqual(9, instruction.offset)
+        self.assertEqual(9, instruction.next_address)
         self.assertEqual(None,instruction.store_to)
+        self.assertEqual(None,instruction.branch_to)
         self.assertEqual("HELLO.\n", instruction.literal_string)
 
     def test_mul(self):
         mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
-        instruction = Instruction(memory=mem,idx=0,version=3)
+        instruction = Instruction(memory=mem,address=0,version=3)
         self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
         self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
         self.assertEqual(22, instruction.opcode_number)
         self.assertEqual([0x03e8,0x02], instruction.operands)
-        self.assertEqual(6, instruction.offset)
+        self.assertEqual(6, instruction.next_address)
         self.assertEqual(0, instruction.store_to)
-
+        self.assertEqual(None,instruction.branch_to)
+    
     def test_call_1n(self):
         # Not support in V3 -- so we test the parsing but nothing depending on instruction lookup
         mem=Memory([0x8f,0x01,0x56])
-        instruction = Instruction(memory=mem,idx=0,version=3)
+        instruction = Instruction(memory=mem,address=0,version=3)
         self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
         self.assertEqual(InstructionType.oneOP,instruction.instruction_type)
         self.assertEqual(15, instruction.opcode_number)
         self.assertEqual([0x0156], instruction.operands)
-        self.assertEqual(3, instruction.offset)
+        self.assertEqual(3, instruction.next_address)
         self.assertEqual(None, instruction.store_to)
-
+        self.assertEqual(None,instruction.branch_to)
+    
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):
         mem = Memory([1,2,3])
@@ -333,32 +342,32 @@ class GameMemoryTests(unittest.TestCase):
         if not os.path.exists(path):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
-            self.zmachine = ZMachine()
-            self.zmachine.initialize(f.read(),TestOutputStream(),TestOutputStream(),TestOutputStream())
+            self.story = Story(f.read())
+            self.story.reset()
 
     def test_header(self):
-        self.zmachine.game_memory[0]
+        self.story.game_memory[0]
         try:
-            self.zmachine.game_memory[0] = 1
+            self.story.game_memory[0] = 1
             self.fail('Should have thrown exception')
         except MemoryAccessException:
             pass
-        self.zmachine.game_memory.set_flag(0x10,0,1)        
-        self.zmachine.game_memory.set_flag(0x10,1,1)        
-        self.zmachine.game_memory.set_flag(0x10,2,1)        
-        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,3,1)
-        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,4,1)
-        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,5,1)
-        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,6,1)
-        self.assertRaises(MemoryAccessException, self.zmachine.game_memory.set_flag,0x10,7,1)
+        self.story.game_memory.set_flag(0x10,0,1)        
+        self.story.game_memory.set_flag(0x10,1,1)        
+        self.story.game_memory.set_flag(0x10,2,1)        
+        self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,3,1)
+        self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,4,1)
+        self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,5,1)
+        self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,6,1)
+        self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,7,1)
 
     def test_packed(self):
-        self.assertEqual(self.zmachine._raw_data[3],self.zmachine.packed_address(1))
+        self.assertEqual(self.story.raw_data[3],self.story.packed_address(1))
 
     def test_highmem_access(self):
-        himem_address = self.zmachine.header.himem_address
+        himem_address = self.story.header.himem_address
         for i in range(0,2):
-            memory = self.zmachine.game_memory
+            memory = self.story.game_memory
             try:
                 memory[himem_address+i]
                 self.fail('Should have thrown exception')
@@ -375,9 +384,9 @@ class GameMemoryTests(unittest.TestCase):
             self.assertRaises(MemoryAccessException, memory.set_flag,himem_address+1,1,1)
 
     def test_static_memory_access(self):
-        static_address = self.zmachine.header.static_memory_address
+        static_address = self.story.header.static_memory_address
         for i in range(0,2):
-            memory = self.zmachine.game_memory
+            memory = self.story.game_memory
             memory[static_address+i]
 
             try:
@@ -392,23 +401,23 @@ class GameMemoryTests(unittest.TestCase):
 
 class ValidationTests(unittest.TestCase):
     def test_size(self):
-        zmachine = ZMachine()
+        story = Story(b'')
         try:
-            zmachine.initialize(b'',TestOutputStream(),TestOutputStream(),TestOutputStream())
+            story.reset()
             self.fail('Should have thrown exception')
         except StoryFileException as e:
             self.assertEqual(u'Story file is too short',str(e))
 
     def test_version(self):
-        zmachine = ZMachine()
         raw_data = bytearray([0] * 1000)
+        
         for version in (0x01,0x02,0x03):
             raw_data[0] = version
-            zmachine.raw_data = raw_data
+            Story(raw_data).reset()
         for version in (0x04,0x05,0x06,0x07,0x08):
             raw_data[0] = version
             try:
-                zmachine.initialize(raw_data,TestOutputStream(),TestOutputStream(),TestOutputStream())
+                Story(raw_data).reset()
                 self.fail('Should have thrown exception.')
             except StoryFileException as e:
                 self.assertEqual('Story file version %d is not supported.' % version,str(e))
@@ -420,13 +429,14 @@ class SampleFileTests(unittest.TestCase):
         if not os.path.exists(path):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
-            self.zmachine = ZMachine()
-            self.zmachine.initialize(f.read(),TestOutputStream(),TestOutputStream(),TestOutputStream())
-    
+            self.story = Story(f.read())
+            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+            self.zmachine.reset()
+
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,
         # just to see if the RNG is totally failing
-        rng = self.zmachine.rng
+        rng = self.zmachine.story.rng
         for i in range(0,100):
             x = rng.randint(i+1)
             self.assertTrue(x >= 1)
@@ -444,7 +454,7 @@ class SampleFileTests(unittest.TestCase):
         self.assertFalse(rng.seed == 0)
 
     def test_header(self):
-        header = self.zmachine.header
+        header = self.zmachine.story.header
         self.assertEqual(3,header.version)
         self.assertEqual(0x0cd4,header.himem_address)
         self.assertEqual(0x0cd5,header.main_routine_addr)
@@ -466,7 +476,7 @@ class SampleFileTests(unittest.TestCase):
         self.assertEqual(0xf3a4,self.zmachine.calculate_checksum())
 
     def test_dictionary(self):
-        dictionary = self.zmachine.dictionary
+        dictionary = self.zmachine.story.dictionary
         self.assertEqual([0x2e,0x2c,0x22], dictionary.keyboard_codes)
         self.assertEqual(7,dictionary.entry_length)
         self.assertEqual(0x62,dictionary.number_of_entries)
