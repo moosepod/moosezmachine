@@ -245,8 +245,20 @@ class OutputStreams(object):
             self.streams.append(script)
 
     def set_screen_stream(self,stream):
+        """ Assign the screen stream, setting it active by default """
         self.streams[OutputStreams.SCREEN] = stream
+        stream.is_active=True
 
+    def new_line(self):
+        """ Pass a new_line call down to all active streams """
+        for stream in (s for s in self.streams if s.is_active):
+            stream.new_line()
+
+    def print_str(self,txt):
+        """ Print the (ascii) string to all active streams """
+        for stream in (s for s in self.streams if s.is_active):
+            stream.print_str(txt)
+        
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
         Provides wrapper interfaces to subsets of the memory, such as the dictionary, header,

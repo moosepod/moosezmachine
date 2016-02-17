@@ -23,6 +23,34 @@ class CursesStream(OutputStream):
     def __init__(self,window):
         super(CursesStream,self).__init__()
         self.window = window
+        self.lines = []
+        self.height,self.width = window.getmaxyx()
+
+    def refresh(self):
+        """ Redraw this screen """
+        self.window.move(0,0)
+        self.window.clrtobot()
+        for y,line in enumerate(self.lines):
+            self.window.insstr(y,0,line)
+        self.window.refresh()
+            
+    def _println(self,msg):
+        self.lines.append(msg)
+        if len(self.lines) > self.height:
+            self.lines.pop(0)    
+        self.refresh()
+
+    def _print(self,txt):
+        if not self.lines:
+            self.lines = ['']
+        self.lines[-1] += txt
+        self.refresh()
+
+    def new_line(self):
+        self._println('')
+        
+    def print_str(self,txt):
+        self._print(txt)
 
 class DebuggerWindow(object):
     def __init__(self, zmachine, window):

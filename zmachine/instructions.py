@@ -173,7 +173,7 @@ class Instruction(object):
         self.bytestr = ' '.join('%02x' % b for b in memory[start_address:address])
 
     def execute(self,interpreter,routine):
-        self.handler.execute(interpreter,routine)
+        self.handler.execute(interpreter,routine,self)
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -188,16 +188,24 @@ class Instruction(object):
         return st
 
 class OpcodeHandler(object):
-    def __init__(self, name, description, is_branch, is_store,literal_string):
+    def __init__(self, name, description, is_branch, is_store,literal_string,handler_function=None):
         self.name = name
         self.description = description
         self.is_branch = is_branch
         self.is_store = is_store
         self.literal_string = literal_string
+        self.handler_function = handler_function
 
-    def execute(self, interpreter, routine):
+    def execute(self, interpreter, routine,instruction):
         """ Execute this instruction in the context of the provided routine """
-        pass
+        if self.handler_function:
+            self.handler_function(interpreter,routine,instruction)
+
+def op_newline(interpreter,routine,instruction):
+    interpreter.output_streams.new_line()
+
+def op_print(interpreter, routine,instruction):
+    interpreter.output_streams.print_str(instruction.literal_string)
 
 # 14.1
 OPCODE_HANDLERS = {
@@ -207,8 +215,8 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,13):  OpcodeHandler('store','store (variable) value',False,False,False),
 (InstructionType.twoOP,14):  OpcodeHandler('insert_obj','insert_obj object destination',False,False,False),
 
-(InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True),
-(InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False),
+(InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True,op_print),
+(InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False,op_newline),
 
 (InstructionType.varOP,0): OpcodeHandler('call','call routine ...0 to 3 args... -> (result)',False,True,False)
 }
