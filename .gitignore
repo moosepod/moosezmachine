@@ -1,5 +1,6 @@
 venv
 *.pyc
+.*.py.swp
 **/*.py.swp
 **/*.py.swo
 .vagrant
