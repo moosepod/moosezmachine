@@ -64,6 +64,28 @@ class StepperWindow(object):
             window.addstr("%04x %s\n" % (idx,instruction.bytestr))
             window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
 
+class MemoryWindow(object):
+    def __init__(self):
+        self.address = 0
+
+    def next_line(self):
+        self.address += 0x10
+        return True
+
+    def previous_line(self):
+        self.address -= 0x10
+        if self.address < 0:
+            self.address = 0
+        return True
+    
+    def redraw(self,window,zmachine,height):
+        for i in range(0,height-1):
+            addr = self.address + (0x10 * i)
+            s = '%.4x ' % addr
+            s += str(' '.join(['%.2x' % x for x in zmachine.story.raw_data[addr:addr+16]]))
+            s += '\n'
+            window.addstr(s)   
+        
 class DictionaryWindow(object):
     def __init__(self):
         self.dictionary_index = 0
@@ -136,6 +158,7 @@ class DebuggerWindow(object):
         self.window = window
         self.window_handlers = {'s': StepperWindow(),
                                 'h': HeaderWindow(),
+                                'm': MemoryWindow(),
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
@@ -177,7 +200,7 @@ class DebuggerWindow(object):
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
-        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (V)ars (H)eader (D)ictionary (O)bjects",curses.A_REVERSE)
+        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (M)emory (H)eader (D)ictionary (O)bjects",curses.A_REVERSE)
         
         self.window.move(2,0)
         if self.current_handler:
