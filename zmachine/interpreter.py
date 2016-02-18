@@ -69,13 +69,16 @@ class Header(Memory):
     """ Represents the header of a ZCode file, bytes 0x00 through 0x40. The usage of the data will vary
         based on the version of the file. Most of the memory is read-only for a game. Some of the remainder
         is set by the game, other by the interpreter itself. """
-    def __init__(self,data):
+    def __init__(self,data,force_version=0):
+        self.force_version = force_version
         super(Header,self).__init__(data)
         if self.version > Header.MAX_VERSION:
             raise StoryFileException('Story file version %d is not supported.' % self.version)
 
     @property
     def version(self):
+        if self.force_version:
+            return self.force_version
         return self[Header.VERSION]
 
     @property
@@ -282,12 +285,14 @@ class Story(object):
         self.game_memory = None
         self.rng = RNG()
 
-    def reset(self):
-        """ Reset/initialize the game state from the raw game data. Will raise StoryFileException on validation issues """
+    def reset(self,force_version=0):
+        """ Reset/initialize the game state from the raw game data. Will raise StoryFileException on validation issues. 
+            If force version is set, pretend this file is that version.
+         """
         self.raw_data = Memory(self.story_data)
         if len(self.story_data) < Story.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
-        self.header = Header(self.raw_data[0:Story.MIN_FILE_SIZE])
+        self.header = Header(self.raw_data[0:Story.MIN_FILE_SIZE],force_version=force_version)
         self.header.reset()
         self.dictionary = Dictionary(self.raw_data, self.header.dictionary_address)
         self.game_memory = GameMemory(self.raw_data,
@@ -336,10 +341,12 @@ class Interpreter(object):
         self.initialized = False
         self.pc = 0 # program counter
 
-    def reset(self):
-        """ Start/restart the interpreter """
+    def reset(self,force_version=0):
+        """ Start/restart the interpreter. Set force_version to make it act like the story file
+            is that version
+         """
         self.initialized = True
-        self.story.reset()
+        self.story.reset(force_version=force_version)
         self.pc = self.story.header.main_routine_addr
         self.game_state = GameState(self.story)
         self.output_streams.reset(self)
