@@ -24,27 +24,21 @@ class CursesStream(OutputStream):
     def __init__(self,window):
         super(CursesStream,self).__init__()
         self.window = window
-        self.lines = []
         self.height,self.width = window.getmaxyx()
+        self.window.move(self.height-1,0)
+        self.window.scrollok(True)
 
     def refresh(self):
         """ Redraw this screen """
-        self.window.move(0,0)
-        self.window.clrtobot()
-        for y,line in enumerate(self.lines):
-            self.window.insstr(y,0,line)
         self.window.refresh()
             
     def _println(self,msg):
-        self.lines.append(msg)
-        if len(self.lines) > self.height:
-            self.lines.pop(0)    
+        self.window.addstr(msg)
+        self.window.addstr('\n')
         self.refresh()
 
-    def _print(self,txt):
-        if not self.lines:
-            self.lines = ['']
-        self.lines[-1] += txt
+    def _print(self,msg):
+        self.window.addstr(msg)
         self.refresh()
 
     def new_line(self):
@@ -179,8 +173,6 @@ class DebuggerWindow(object):
             if h:
                 self.current_handler = h
                 self.redraw()
-            else:
-                raise Exception(key)
 
     def redraw(self):
         curses.curs_set(0) # Hide cursor
