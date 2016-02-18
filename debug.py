@@ -54,6 +54,12 @@ class CursesStream(OutputStream):
         self._print(txt)
 
 class StepperWindow(object):
+    def next_line(self):
+        return False
+
+    def previous_line(self):
+        return False
+    
     def redraw(self,window,zmachine,height):
         for i,inst_t in enumerate(zmachine.instructions(10)):
             if i == 0:
@@ -65,28 +71,49 @@ class StepperWindow(object):
             window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
 
 class DictionaryWindow(object):
+    def __init__(self):
+        self.dictionary_index = 0
+
+    def next_line(self):
+        self.dictionary_index += 1
+        return True
+
+    def previous_line(self):
+        self.dictionary_index -= 1
+        if self.dictionary_index < 0:
+            self.dictionary_index = 0
+        return True
+    
     def redraw(self,window,zmachine,height):
         dictionary = zmachine.story.dictionary
         ztext = zmachine.get_ztext()
 
+        window.addstr('Use , and . to scroll dictionary\n\n')
         window.addstr('Entries       : %d\n' % len(dictionary))
         window.addstr('Entry length  : %d\n' % dictionary.entry_length)
         window.addstr('Keyboard codes: %s' % '  '.join(['"%s"' % ztext._map_zscii(x) for x in dictionary.keyboard_codes]))
         window.addstr('\n\n')
         y,x = window.getyx()
-        for i in range(0,min(len(dictionary),height-y)): 
+        for i in range(0,min(height-y,len(dictionary) - self.dictionary_index)): 
             try:
+                idx = i + self.dictionary_index
                 ztext.reset()
-                text = ztext.to_ascii(Memory(dictionary[i]), 0,4)
+                text = ztext.to_ascii(Memory(dictionary[idx]), 0,4)
             except ZTextException as e:  
                 window.addstr('Error. %s\n' % e)
-            window.addstr(' %d: %.2X %.2X %.2X %.2X (%s)\n' % (i, 
-                                    dictionary[i][0],
-                                    dictionary[i][1],
-                                    dictionary[i][2],
-                                    dictionary[i][3],
+            window.addstr(' %d: %.2X %.2X %.2X %.2X (%s)\n' % (idx, 
+                                    dictionary[idx][0],
+                                    dictionary[idx][1],
+                                    dictionary[idx][2],
+                                    dictionary[idx][3],
                                      text))
 class HeaderWindow(object):
+    def next_line(self):
+       return False
+
+    def previous_line(self):
+        return False
+
     def redraw(self,window,zmachine,height):
         header = zmachine.story.header
        
@@ -141,11 +168,19 @@ class DebuggerWindow(object):
             self.current_handler = self.window_handlers['s']
             self.zmachine.step()
             self.redraw()
+        elif ch == '.' or ch == '>':
+            if self.current_handler.next_line():
+                self.redraw()
+        elif ch == ',' or ch == '<':
+            if self.current_handler.previous_line():
+                self.redraw()
         else:
             h = self.window_handlers.get(ch)
             if h:
                 self.current_handler = h
                 self.redraw()
+            else:
+                raise Exception(key)
 
     def redraw(self):
         curses.curs_set(0) # Hide cursor
