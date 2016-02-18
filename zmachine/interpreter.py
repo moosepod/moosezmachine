@@ -349,7 +349,8 @@ class Interpreter(object):
         self.story.reset(force_version=force_version)
         self.pc = self.story.header.main_routine_addr
         self.game_state = GameState(self.story)
-        self.output_streams.reset(self)
+        if self.output_streams:
+            self.output_streams.reset(self)
 
     def get_ztext(self):
         """ Return the a ztext processor for this interpreter """

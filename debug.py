@@ -4,7 +4,8 @@ from curses import wrapper
 import argparse
 import time
 
-from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams
+from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory
+from zmachine.text import ZTextException
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -52,10 +53,71 @@ class CursesStream(OutputStream):
     def print_str(self,txt):
         self._print(txt)
 
+class StepperWindow(object):
+    def redraw(self,window,zmachine,height):
+        for i,inst_t in enumerate(zmachine.instructions(10)):
+            if i == 0:
+                prefix = " >>> "
+            else:
+                prefix = "     "
+            instruction, idx = inst_t 
+            window.addstr("%04x %s\n" % (idx,instruction.bytestr))
+            window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
+
+class DictionaryWindow(object):
+    def redraw(self,window,zmachine,height):
+        dictionary = zmachine.story.dictionary
+        ztext = zmachine.get_ztext()
+
+        window.addstr('Entries       : %d\n' % len(dictionary))
+        window.addstr('Entry length  : %d\n' % dictionary.entry_length)
+        window.addstr('Keyboard codes: %s' % '  '.join(['"%s"' % ztext._map_zscii(x) for x in dictionary.keyboard_codes]))
+        window.addstr('\n\n')
+        y,x = window.getyx()
+        for i in range(0,min(len(dictionary),height-y)): 
+            try:
+                ztext.reset()
+                text = ztext.to_ascii(Memory(dictionary[i]), 0,4)
+            except ZTextException as e:  
+                window.addstr('Error. %s\n' % e)
+            window.addstr(' %d: %.2X %.2X %.2X %.2X (%s)\n' % (i, 
+                                    dictionary[i][0],
+                                    dictionary[i][1],
+                                    dictionary[i][2],
+                                    dictionary[i][3],
+                                     text))
+class HeaderWindow(object):
+    def redraw(self,window,zmachine,height):
+        header = zmachine.story.header
+       
+        window.addstr('Version:                  %d\n' % (header.version))
+        window.addstr('Himem address:            0x%04x\n' % (header.himem_address))
+        window.addstr('Main routine address:     0x%04x\n' % (header.main_routine_addr))
+        window.addstr('Dictionary address:       0x%04x\n' % (header.dictionary_address))
+        window.addstr('Object table address:     0x%04x\n' % (header.object_table_address))
+        window.addstr('Global variables address: 0x%04x\n' % (header.global_variables_address))
+        window.addstr('Static memory address:    0x%04x\n' % (header.static_memory_address))
+        window.addstr('Abbrev table address:     0x%04x\n' % (header.abbrev_address))
+        window.addstr('File length:              0x%08x\n' % (header.file_length))
+        window.addstr('Checksum:                 0x%08x\n' % (header.checksum))
+        window.addstr('Revision number:          0x%04x\n' % (header.revision_number))
+        window.addstr('Flags:')
+        if header.flag_status_line_type == 0: window.addstr('   score/turns\n')
+        if header.flag_status_line_type == 1: window.addstr('   hours:mins\n')
+        if header.flag_story_two_disk: window.addstr('   two disk\n')
+        if header.flag_status_line_not_available: window.addstr('   no status line\n')
+        if header.flag_screen_splitting_available: window.addstr('   screen split available\n')
+        if header.flag_variable_pitch_default: window.addstr('  variable pitch is default\n')
+
 class DebuggerWindow(object):
     def __init__(self, zmachine, window):
         self.zmachine = zmachine
         self.window = window
+        self.window_handlers = {'s': StepperWindow(),
+                                'h': HeaderWindow(),
+                                'd': DictionaryWindow()}
+        self.current_handler = self.window_handlers['s']
+        self.window_height,self.window_width = window.getmaxyx()
 
     def status(self,msg):
         self.window.move(2,10)
@@ -68,22 +130,6 @@ class DebuggerWindow(object):
     def reset(self):
         raise ResetException()
     
-    def step(self):
-        self.zmachine.step()
-        self.redraw()
-    
-    def show_vars(self):
-        self.status('VARS')
-
-    def show_header(self):
-        self.status('HEADER')
-
-    def show_dictionary(self):
-        self.status('DICTIONARY')
-
-    def show_objects(self):
-        self.status('OBJECTS')
-    
     def key_pressed(self,key):  
         """ Key pressed while debugger active """
         ch = chr(key).lower()
@@ -92,30 +138,24 @@ class DebuggerWindow(object):
         elif ch == 'r':
             self.reset()
         elif ch == 's':
-            self.step()
-        elif ch == 'v':
-            self.show_vars()
-        elif ch == 'h':
-            self.show_header()
-        elif ch == 'd':
-            self.show_dictionary()
-        elif ch == 'o':
-            self.show_objects()
+            self.current_handler = self.window_handlers['s']
+            self.zmachine.step()
+            self.redraw()
+        else:
+            h = self.window_handlers.get(ch)
+            if h:
+                self.current_handler = h
+                self.redraw()
 
     def redraw(self):
+        curses.curs_set(0) # Hide cursor
         self.window.clear()
         self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (V)ars (H)eader (D)ictionary (O)bjects",curses.A_REVERSE)
         
         self.window.move(2,0)
+        if self.current_handler:
+            self.current_handler.redraw(self.window, self.zmachine, self.window_height-3) # 3 is height of header + buffer
         
-        for i,inst_t in enumerate(self.zmachine.instructions(5)):
-            if i == 0:
-                prefix = " >>> "
-            else:
-                prefix = "     "
-            instruction, idx = inst_t 
-            self.window.addstr("%04x %s\n" % (idx,instruction.bytestr))
-            self.window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
         self.window.refresh()
 
 class MainLoop(object):
