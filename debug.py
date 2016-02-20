@@ -130,6 +130,31 @@ class DictionaryWindow(object):
                                     dictionary[idx][2],
                                     dictionary[idx][3],
                                      text))
+
+
+class VariablesWindow(object):
+    def __init__(self):
+        self.vars_index= 0
+
+    def next_line(self):
+        self.vars_index += 1
+        return True
+
+    def previous_line(self):
+        self.vars_index -= 1
+        if self.vars_index < 0:
+            self.vars_index = 0
+        return True
+    
+    def redraw(self,window,zmachine,height):
+        routine = zmachine.current_routine()
+        for i in range(self.vars_index,min(height+self.vars_index,255)):
+            if i == 0:
+                val = routine.peek_stack()
+            else:
+                val = routine[i]
+            window.addstr('%d) %.4x\n' % (i,val or 0)) 
+
 class HeaderWindow(object):
     def next_line(self):
        return False
@@ -166,6 +191,7 @@ class DebuggerWindow(object):
         self.window_handlers = {'s': StepperWindow(),
                                 'h': HeaderWindow(),
                                 'm': MemoryWindow(),
+                                'v': VariablesWindow(),
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
@@ -207,7 +233,7 @@ class DebuggerWindow(object):
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
-        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (M)emory (H)eader (D)ictionary (O)bjects",curses.A_REVERSE)
+        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (M)emory (H)eader (D)ictionary (V)ars (O)bjects",curses.A_REVERSE)
         
         self.window.move(2,0)
         if self.current_handler:

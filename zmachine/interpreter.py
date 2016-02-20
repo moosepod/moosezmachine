@@ -193,10 +193,11 @@ class GameMemory(Memory):
 
 class Routine(object):
     """ Context for a routine in memory """
-    def __init__(self,memory,routine_start,return_to_address,store_to,version,no_locals=False):
+    def __init__(self,memory,globals_address,routine_start,return_to_address,store_to,version,no_locals=False):
         """ Initialize this routine from location idx at the memory passed in """
         self.routine_start = routine_start
         self.version=version
+        self.globals_address = globals_address
         self.local_variables = []
         if not no_locals: # First "routine" in earlier story file versions has no locals
             idx = self.routine_start
@@ -213,6 +214,7 @@ class Routine(object):
         self.store_to = store_to
         self.return_to_address = return_to_address
         self.stack = []
+        self.memory = memory
 
     def __len__(self):
         # Always return 255 possible variables
@@ -229,9 +231,10 @@ class Routine(object):
         elif key < 0x10:
             local_var = key - 1
             if local_var >= len(self.local_variables):
-                raise InterpreterException('Reference to local var %d when only %d local vars' % (local_var,len(self.local_variables)))
+                return 0
             return self.local_variables[local_var]
-
+        else:
+            return self.memory.word(self.globals_address+key-0x10)
         return None
 
     def __setitem__(self,key,val):
@@ -244,8 +247,13 @@ class Routine(object):
         elif key < 0x10:
             local_var = key - 1
             if local_var >= len(self.local_variables):
-                raise Exception('Reference to local var %d when only %d local vars' % (local_var,self.local_variables))
+                raise InterpreterException('Reference to local var %d when only %d local vars' % (local_var,len(self.local_variables)))
             self.local_variables[local_var] = val
+
+    def peek_stack(self):
+        if len(self.stack):
+            return self.stack[-1]
+        return None
 
     def push_to_stack(self,val):
         self.stack.append(val)
@@ -399,6 +407,7 @@ class Interpreter(object):
     def call_routine(self, routine_address, return_address_offset,  store_var,  no_locals=False):
         """ Add a routine call to the stack from the current program counter """
         self.routines.append(Routine(self.story.raw_data, 
+                                    self.story.header.global_variables_address,
                                     routine_address,
                                     self.pc + return_address_offset,
                                     store_var,

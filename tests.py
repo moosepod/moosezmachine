@@ -567,18 +567,23 @@ class SampleFileTests(unittest.TestCase):
 
     def test_vars_local(self):
         routine = self.zmachine.current_routine()
-        try:
-            routine[15] # Referring to local var that doesn't exist should throw exception
-            self.fail()
-        except InterpreterException:
-            pass
         routine.local_variables=[3,0x0000,0xFFFF]
         self.assertEqual(3,routine[1])
         self.assertEqual(0x0000,routine[2])
         self.assertEqual(0xFFFF,routine[3])
-        
+        self.assertEqual(0,routine[15])
+
         routine[3] = 4
         self.assertEqual(4,routine[3])
+
+        try:
+            routine[4]=5
+            self.fail('Should throw exception on assign')
+        except InterpreterException:
+            pass
+
+    def test_vars_global(self):
+        self.fail()
 
 if __name__ == '__main__':
     unittest.main()
