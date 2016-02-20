@@ -17,6 +17,10 @@ class MemoryAccessException(Exception):
     """ Thrown in cases where a game attempts to access memory it shouldn't """
     pass
 
+class InterpreterException(Exception):
+    """ General exception in handling by the interpreter """
+    pass
+
 class RNG(object):
     """ The random number generator, as specced in section 2.4
         Note that it toggles between a predicatable and random mode """
@@ -189,23 +193,68 @@ class GameMemory(Memory):
 
 class Routine(object):
     """ Context for a routine in memory """
-    def __init__(self,memory,idx,version,nolocals=False):
+    def __init__(self,memory,routine_start,return_to_address,store_to,version,no_locals=False):
         """ Initialize this routine from location idx at the memory passed in """
-        self.routine_start = idx
+        self.routine_start = routine_start
         self.version=version
-        if not nolocals:
+        self.local_variables = []
+        if not no_locals: # First "routine" in earlier story file versions has no locals
+            idx = self.routine_start
             var_count = memory[idx]
             if var_count < 0 or var_count > 15:
                 raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
             # 5.2.1
             idx+=1
-            self.local_vars = [0] * var_count
+            self.local_variables = [0] * var_count
             if version < 5:
                 for i in range(0,var_count):
-                    self.local_vars = memory.word(idx)
+                    self.local_variables = memory.word(idx)
                     idx+=2
-        self.memory = memory
-        self.idx = idx  
+        self.store_to = store_to
+        self.return_to_address = return_to_address
+        self.stack = []
+
+    def __len__(self):
+        # Always return 255 possible variables
+        return 255
+
+    def __getitem__(self,key):
+        """ Return the value of the numbered variable. 16->255 are globals, 1-15 are the current routine's locals,
+            and 0 is push/pull on the stack """
+        key = int(key)
+        if key < 0 or key > 255:
+            raise InterpreterException('Var %d is out of range 0 to x to 255' % key)
+        if key == 0:
+            return self.pop_from_stack()
+        elif key < 0x10:
+            local_var = key - 1
+            if local_var >= len(self.local_variables):
+                raise InterpreterException('Reference to local var %d when only %d local vars' % (local_var,len(self.local_variables)))
+            return self.local_variables[local_var]
+
+        return None
+
+    def __setitem__(self,key,val):
+        """ Write a byte to the var with the given number. See get_var """
+        key = int(key)
+        if key < 0 or key > 255:
+            raise InterpreterException('Var %d is out of range 0 to x to 255' % key)
+        if key == 0:
+            self.push_to_stack(val)
+        elif key < 0x10:
+            local_var = key - 1
+            if local_var >= len(self.local_variables):
+                raise Exception('Reference to local var %d when only %d local vars' % (local_var,self.local_variables))
+            self.local_variables[local_var] = val
+
+    def push_to_stack(self,val):
+        self.stack.append(val)
+
+    def pop_from_stack(self):
+        try:
+            return self.stack.pop()
+        except IndexError:
+            raise InterpreterException('Cannot pop from empty stack')
 
 class OutputStream(object):
     """ See section 8 """
@@ -311,13 +360,6 @@ class Story(object):
             of all bytes past 0x0040 """
         return sum(self.raw_data[0x40:]) % 65536
 
-    def _packed_address_multiplier(self):
-        if self.header.version > 3:
-            return 4
-        return 2
-
-    def packed_address(self,idx):
-        return self.raw_data.packed_address(idx,self._packed_address_multiplier())
 
 class GameState(object):
     def __init__(self,story):
@@ -351,7 +393,19 @@ class Interpreter(object):
         self.game_state = GameState(self.story)
         if self.output_streams:
             self.output_streams.reset(self)
+        self.routines = []
+        self.call_routine(self.pc,self.pc,None,no_locals=True)
 
+    def call_routine(self, routine_address, return_address_offset,  store_var,  no_locals=False):
+        """ Add a routine call to the stack from the current program counter """
+        self.routines.append(Routine(self.story.raw_data, 
+                                    routine_address,
+                                    self.pc + return_address_offset,
+                                    store_var,
+                                    self.story.header.version,
+                                    no_locals=no_locals))
+        self.pc = routine_address
+    
     def get_ztext(self):
         """ Return the a ztext processor for this interpreter """
         self._check_initialized()
@@ -378,11 +432,16 @@ class Interpreter(object):
         """ Return the current instruction """
         return self.instruction_at(self.pc)
 
+    def current_routine(self):
+        """ Return the currently running routine (at top of routine stack) """
+        return self.routines[-1]
+
     def step(self):
         """ Execute the current instruction then increment the program counter """
         inst = self.current_instruction()
         self.pc = inst.next_address
-        inst.execute(self,None)
+        inst.execute(self)
+
 
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """
@@ -396,3 +455,8 @@ class Interpreter(object):
         
         return instructions
  
+    def packed_address_to_address(self,address):
+        if self.story.header.version > 3:
+            return address * 4
+        return address * 2
+

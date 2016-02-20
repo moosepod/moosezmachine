@@ -172,8 +172,8 @@ class Instruction(object):
         # Store the bytes used in this instruction for debugging
         self.bytestr = ' '.join('%02x' % b for b in memory[start_address:address])
 
-    def execute(self,interpreter,routine):
-        self.handler.execute(interpreter,routine,self)
+    def execute(self,interpreter):
+        self.handler.execute(interpreter,self)
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -196,16 +196,21 @@ class OpcodeHandler(object):
         self.literal_string = literal_string
         self.handler_function = handler_function
 
-    def execute(self, interpreter, routine,instruction):
+    def execute(self, interpreter, instruction):
         """ Execute this instruction in the context of the provided routine """
         if self.handler_function:
-            self.handler_function(interpreter,routine,instruction)
+            self.handler_function(interpreter,instruction)
 
-def op_newline(interpreter,routine,instruction):
+def op_newline(interpreter,instruction):
     interpreter.output_streams.new_line()
 
-def op_print(interpreter, routine,instruction):
+def op_print(interpreter,instruction):
     interpreter.output_streams.print_str(instruction.literal_string)
+
+def op_call(interpreter, instruction):
+    interpreter.call_routine(interpreter.packed_address_to_address(instruction.operands[0]),
+                            instruction.next_address,
+                            instruction.store_to)
 
 # 14.1
 OPCODE_HANDLERS = {
@@ -218,6 +223,6 @@ OPCODE_HANDLERS = {
 (InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True,op_print),
 (InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False,op_newline),
 
-(InstructionType.varOP,0): OpcodeHandler('call','call routine ...0 to 3 args... -> (result)',False,True,False)
+(InstructionType.varOP,0): OpcodeHandler('call','call routine ...0 to 3 args... -> (result)',False,True,False,op_call)
 }
 

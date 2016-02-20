@@ -4,7 +4,8 @@ import unittest
 import os
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
-                                 OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story
+                                 OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
+                                InterpreterException
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -49,10 +50,28 @@ class InstructionTestsMixin(object):
         self.zmachine.output_streams.set_screen_stream(self.screen)
     
 
-class RoutineInstructionsTests(unittest.TestCase,InstructionTestsMixin):
+class RoutineInstructionsTests(InstructionTestsMixin,unittest.TestCase):
     def test_call(self):
-        pass
+        mem=Memory(b'\xe0\x3f\x16\x34\x00')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.varOP,instruction.instruction_type)
+        self.assertEqual(0, instruction.opcode_number)
+        self.assertEqual([0x1634], instruction.operands)
+        self.assertEqual(5, instruction.next_address)
+        self.assertEqual(0, instruction.store_to)
+        self.assertEqual(None,instruction.branch_to)
     
+        # Routine address is a packed address
+        self.assertEqual(1, len(self.zmachine.routines))
+        return_to = self.zmachine.pc + instruction.next_address
+        instruction.handler.execute(self.zmachine,instruction)          
+        self.assertEqual(2, len(self.zmachine.routines))
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0,routine.store_to)
+        self.assertEqual(return_to,routine.return_to_address)
+        self.assertEqual(0x1634*2,self.zmachine.pc)
+
     def test_call_1n(self):
         # Not support in V3 -- so we test the parsing but nothing depending on instruction lookup
         mem=Memory([0x8f,0x01,0x56])
@@ -101,7 +120,7 @@ class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         self.assertEqual("HELLO.\n", instruction.literal_string)
         
         self.assertEqual('',self.screen.printed_string)
-        instruction.handler.execute(self.zmachine,None,instruction)          
+        instruction.handler.execute(self.zmachine,instruction)          
         self.assertEqual('HELLO.\n',self.screen.printed_string)
     
     def test_new_line(self):
@@ -116,7 +135,7 @@ class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         self.assertEqual(None, instruction.literal_string)
         
         self.assertFalse(self.screen.new_line_called)
-        instruction.handler.execute(self.zmachine,None,instruction)          
+        instruction.handler.execute(self.zmachine,instruction)          
         self.assertTrue(self.screen.new_line_called)
 
     
@@ -417,9 +436,6 @@ class GameMemoryTests(unittest.TestCase):
         self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,6,1)
         self.assertRaises(MemoryAccessException, self.story.game_memory.set_flag,0x10,7,1)
 
-    def test_packed(self):
-        self.assertEqual(self.story.raw_data[3],self.story.packed_address(1))
-
     def test_highmem_access(self):
         himem_address = self.story.header.himem_address
         for i in range(0,2):
@@ -536,6 +552,33 @@ class SampleFileTests(unittest.TestCase):
         self.assertEqual([0x2e,0x2c,0x22], dictionary.keyboard_codes)
         self.assertEqual(7,dictionary.entry_length)
         self.assertEqual(0x62,dictionary.number_of_entries)
+
+    def test_vars_stack(self):
+        routine = self.zmachine.current_routine()
+        try:
+            routine[0] # Popping empty stack should throw error
+            self.fail()
+        except InterpreterException:
+            pass
+        routine[0]=0x0000
+        routine[0]=0xFFFF
+        self.assertEqual(0xFFFF,routine[0])
+        self.assertEqual(0x0000,routine[0])
+
+    def test_vars_local(self):
+        routine = self.zmachine.current_routine()
+        try:
+            routine[15] # Referring to local var that doesn't exist should throw exception
+            self.fail()
+        except InterpreterException:
+            pass
+        routine.local_variables=[3,0x0000,0xFFFF]
+        self.assertEqual(3,routine[1])
+        self.assertEqual(0x0000,routine[2])
+        self.assertEqual(0xFFFF,routine[3])
+        
+        routine[3] = 4
+        self.assertEqual(4,routine[3])
 
 if __name__ == '__main__':
     unittest.main()
