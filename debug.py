@@ -62,7 +62,14 @@ class StepperWindow(object):
                 prefix = "     "
             instruction, idx = inst_t 
             window.addstr("%04x %s\n" % (idx,instruction.bytestr))
-            window.addstr("%s%s:%s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description))  
+            extra = ''
+            if instruction.operands:
+                extra = ' %s' % instruction.operands
+            if instruction.handler.is_branch:
+                extra += ' br->%s' % instruction.branch_to
+            if instruction.handler.is_store:
+                extra += ' st->%s' % instruction.store_to
+            window.addstr("%s%s:%s %s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description,extra))  
 
 class MemoryWindow(object):
     def __init__(self):

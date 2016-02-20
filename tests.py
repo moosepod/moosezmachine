@@ -11,7 +11,16 @@ from zmachine.dictionary import Dictionary
 from zmachine.instructions import Instruction,InstructionForm,InstructionType
 
 class TestOutputStream(OutputStream):
-    pass
+    def __init__(self,*args,**kwargs):
+        super(TestOutputStream,self).__init__(*args,**kwargs)
+        self.new_line_called = False
+        self.printed_string = ''
+
+    def new_line(self):
+        self.new_line_called = True
+
+    def print_str(self,msg):
+        self.printed_string += msg
 
 class TestSaveHandler(SaveHandler):
     pass
@@ -23,40 +32,26 @@ class TestOutputStreams(OutputStreams):
     def __init__(self):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
-class InstructionTests(unittest.TestCase):
+class InstructionTestsMixin(object):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
-    def test_inc_chk(self):
-        mem=Memory([0x05,0x02,0x00,0xd4])
-        instruction = Instruction(memory=mem,address=0,version=3)
-        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
-        self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
-        self.assertEqual(5, instruction.opcode_number)
-        self.assertEqual([0x02,0x00],instruction.operands)
-        self.assertEqual(20,instruction.branch_to)
-        self.assertEqual(3,instruction.next_address)
-        self.assertEqual(None,instruction.store_to)
+    def __init__(self,*args,**kwargs):
+        super(InstructionTestsMixin,self).__init__(*args,**kwargs)    
+        path = 'testdata/test.z3'
+        if not os.path.exists(path):
+            self.fail('Could not find test file test.z3')
+        with open(path, 'rb') as f:
+            self.story = Story(f.read())
+            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
 
-    def test_print(self):
-        mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-        instruction = Instruction(memory=mem,address=0,version=3)
-        self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
-        self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
-        self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
-        self.assertEqual(9, instruction.next_address)
-        self.assertEqual(None,instruction.store_to)
-        self.assertEqual(None,instruction.branch_to)
-        self.assertEqual("HELLO.\n", instruction.literal_string)
+    def setUp(self):
+        self.zmachine.reset()
+        self.screen = TestOutputStream()
+        self.zmachine.output_streams.set_screen_stream(self.screen)
+    
 
-    def test_mul(self):
-        mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
-        instruction = Instruction(memory=mem,address=0,version=3)
-        self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
-        self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
-        self.assertEqual(22, instruction.opcode_number)
-        self.assertEqual([0x03e8,0x02], instruction.operands)
-        self.assertEqual(6, instruction.next_address)
-        self.assertEqual(0, instruction.store_to)
-        self.assertEqual(None,instruction.branch_to)
+class RoutineInstructionsTests(unittest.TestCase,InstructionTestsMixin):
+    def test_call(self):
+        pass
     
     def test_call_1n(self):
         # Not support in V3 -- so we test the parsing but nothing depending on instruction lookup
@@ -69,6 +64,61 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(3, instruction.next_address)
         self.assertEqual(None, instruction.store_to)
         self.assertEqual(None,instruction.branch_to)
+
+class ArithmaticInstructionsTests(unittest.TestCase,InstructionTestsMixin):
+    def test_inc_chk(self):
+        mem=Memory([0x05,0x02,0x00,0xd4])
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
+        self.assertEqual(5, instruction.opcode_number)
+        self.assertEqual([0x02,0x00],instruction.operands)
+        self.assertEqual(20,instruction.branch_to)
+        self.assertEqual(3,instruction.next_address)
+        self.assertEqual(None,instruction.store_to)
+
+    def test_mul(self):
+        mem=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
+        self.assertEqual(22, instruction.opcode_number)
+        self.assertEqual([0x03e8,0x02], instruction.operands)
+        self.assertEqual(6, instruction.next_address)
+        self.assertEqual(0, instruction.store_to)
+        self.assertEqual(None,instruction.branch_to)
+
+class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
+    def test_print(self):
+        mem=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
+        self.assertEqual([4,13,10,17,17,20,5,18,5,7,5,5],instruction.zchars)
+        self.assertEqual(9, instruction.next_address)
+        self.assertEqual(None,instruction.store_to)
+        self.assertEqual(None,instruction.branch_to)
+        self.assertEqual("HELLO.\n", instruction.literal_string)
+        
+        self.assertEqual('',self.screen.printed_string)
+        instruction.handler.execute(self.zmachine,None,instruction)          
+        self.assertEqual('HELLO.\n',self.screen.printed_string)
+    
+    def test_new_line(self):
+        mem = Memory(b'\xbb\x00')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.short_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.zeroOP, instruction.instruction_type)
+        self.assertEqual([],instruction.zchars)
+        self.assertEqual(1, instruction.next_address)
+        self.assertEqual(None,instruction.store_to)
+        self.assertEqual(None,instruction.branch_to)
+        self.assertEqual(None, instruction.literal_string)
+        
+        self.assertFalse(self.screen.new_line_called)
+        instruction.handler.execute(self.zmachine,None,instruction)          
+        self.assertTrue(self.screen.new_line_called)
+
     
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):

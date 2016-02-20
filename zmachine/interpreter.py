@@ -240,7 +240,7 @@ class OutputStreams(object):
     def __init__(self,screen,transcript,script=None):
         self.screen = screen
         self.transcript = transcript
-        
+         
     def reset(self,zmachine):
         self.streams = [self.screen,self.transcript]
         if zmachine.story.header.version > 3:
