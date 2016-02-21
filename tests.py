@@ -583,7 +583,9 @@ class SampleFileTests(unittest.TestCase):
             pass
 
     def test_vars_global(self):
-        self.fail()
-
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0x026d, routine[22]) # Check default value from story file
+        routine[22] = 0xFFFF
+        self.assertEqual(0xFFFF,routine[22])
 if __name__ == '__main__':
     unittest.main()

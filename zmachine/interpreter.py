@@ -9,6 +9,9 @@ from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
 from zmachine.instructions import Instruction
 
+# First global variable in the variable numbering system
+GLOBAL_VAR_START = 0x10
+
 class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
     pass
@@ -228,13 +231,13 @@ class Routine(object):
             raise InterpreterException('Var %d is out of range 0 to x to 255' % key)
         if key == 0:
             return self.pop_from_stack()
-        elif key < 0x10:
+        elif key < GLOBAL_VAR_START:
             local_var = key - 1
             if local_var >= len(self.local_variables):
                 return 0
             return self.local_variables[local_var]
         else:
-            return self.memory.word(self.globals_address+key-0x10)
+            return self.memory.word(self.globals_address+key-GLOBAL_VAR_START)
         return None
 
     def __setitem__(self,key,val):
@@ -244,11 +247,13 @@ class Routine(object):
             raise InterpreterException('Var %d is out of range 0 to x to 255' % key)
         if key == 0:
             self.push_to_stack(val)
-        elif key < 0x10:
+        elif key < GLOBAL_VAR_START:
             local_var = key - 1
             if local_var >= len(self.local_variables):
                 raise InterpreterException('Reference to local var %d when only %d local vars' % (local_var,len(self.local_variables)))
             self.local_variables[local_var] = val
+        else:
+            self.memory.set_word(self.globals_address + key - GLOBAL_VAR_START, val)
 
     def peek_stack(self):
         if len(self.stack):
