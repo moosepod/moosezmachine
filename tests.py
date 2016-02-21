@@ -1,5 +1,4 @@
 """ Tests for zmachine """
-
 import unittest
 import os
 
@@ -51,6 +50,52 @@ class InstructionTestsMixin(object):
     
 
 class RoutineInstructionsTests(InstructionTestsMixin,unittest.TestCase):
+    def test_je(self):
+        mem = Memory(b'\x01\x00\x11\x8d\x19')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
+        self.assertEqual(1, instruction.opcode_number)
+        self.assertEqual([0,17], instruction.operands)
+        self.assertEqual(5, instruction.next_address)
+        self.assertEqual(None, instruction.store_to)
+        self.assertEqual(3353,instruction.branch_to)
+
+        # Items not equal, don't jump
+        self.assertEqual(5,instruction.handler.execute(self.zmachine,instruction))
+
+        # Items equal, jump
+        mem = Memory(b'\x01\x11\x11\x8d\x19')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(3353,instruction.handler.execute(self.zmachine,instruction))
+        
+        self.fail('Test inverse branch')
+
+    def test_jl(self):
+        mem = Memory(b'\x22\xb2\x14\xe4\x5d')
+        instruction = Instruction(memory=mem,address=0,version=3)
+        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
+        self.assertEqual(2, instruction.opcode_number)
+        self.assertEqual([178,5348], instruction.operands)
+        self.assertEqual(5, instruction.next_address)
+        self.assertEqual(None, instruction.store_to)
+        self.assertEqual(29,instruction.branch_to)
+    
+        # Item is less than, so jump
+        self.assertEqual(29, instruction.handler.execute(self.zmachine,instruction))
+
+        # Gt, don't jump
+        instruction.operands = [5348,178]
+        self.assertEqual(instruction.next_address, instruction.handler.execute(self.machine,instruction))
+
+        # equal, don't jump
+        instruction.operands = [3,3]
+        self.assertEqual(instruction.next_address, instruction.handler.execute(self.machine,instruction))
+
+        self.fail('Test signed')
+        self.fail('test inverse branch')
+
     def test_call(self):
         mem=Memory(b'\xe0\x3f\x16\x34\x00')
         instruction = Instruction(memory=mem,address=0,version=3)
@@ -93,7 +138,7 @@ class ArithmaticInstructionsTests(unittest.TestCase,InstructionTestsMixin):
         self.assertEqual(5, instruction.opcode_number)
         self.assertEqual([0x02,0x00],instruction.operands)
         self.assertEqual(20,instruction.branch_to)
-        self.assertEqual(3,instruction.next_address)
+        self.assertEqual(4,instruction.next_address)
         self.assertEqual(None,instruction.store_to)
 
     def test_mul(self):
@@ -102,7 +147,7 @@ class ArithmaticInstructionsTests(unittest.TestCase,InstructionTestsMixin):
         self.assertEqual(InstructionForm.variable_form, instruction.instruction_form)
         self.assertEqual(InstructionType.twoOP, instruction.instruction_type)
         self.assertEqual(22, instruction.opcode_number)
-        self.assertEqual([0x03e8,0x02], instruction.operands)
+        self.assertEqual([0x03e8,-0x02], instruction.operands)
         self.assertEqual(6, instruction.next_address)
         self.assertEqual(0, instruction.store_to)
         self.assertEqual(None,instruction.branch_to)

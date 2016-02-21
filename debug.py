@@ -64,9 +64,9 @@ class StepperWindow(object):
             window.addstr("%04x %s\n" % (idx,instruction.bytestr))
             extra = ''
             if instruction.operands:
-                extra = ' %s' % instruction.operands
+                extra = ' %s' % ['0x%.4x' % x for x in instruction.operands]
             if instruction.handler.is_branch:
-                extra += ' br->%s' % instruction.branch_to
+                extra += ' br->0x%.4x' % instruction.branch_to
             if instruction.handler.is_store:
                 extra += ' st->%s' % instruction.store_to
             window.addstr("%s%s:%s %s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description,extra))  

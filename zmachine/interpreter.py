@@ -453,9 +453,8 @@ class Interpreter(object):
     def step(self):
         """ Execute the current instruction then increment the program counter """
         inst = self.current_instruction()
-        self.pc = inst.next_address
-        inst.execute(self)
-
+        
+        self.pc = inst.execute(self)
 
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """

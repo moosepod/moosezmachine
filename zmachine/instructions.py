@@ -125,7 +125,7 @@ class Instruction(object):
                 val = memory.word(address)
                 address+=2
             elif optype == OperandType.variable:
-                val = memory[address]
+                val = -1 * memory[address]
                 address+=1
             elif optype == OperandType.omitted:
                 # 4.4.3
@@ -151,15 +151,14 @@ class Instruction(object):
             address+=1
 
         # 4.7
-        self.next_address = address
         self.branch_to = None
         if self.handler.is_branch:
             b = memory[address]
             address+=1
             if (b & 0x80) >> 7:
-                branch_if_true = True
+                self.branch_if_true = True
             else:
-                branch_if_true = False
+                self.branch_if_true = False
             if (b & 0x40) >> 6:
                 # Bit 6 set, offset is bottom 6 bits of byte
                 self.branch_to = b & 0x3F
@@ -168,12 +167,14 @@ class Instruction(object):
                 next_byte = memory[address]
                 address += 1
                 self.branch_to = ((b & 0x3f) << 8) | next_byte 
-        
+            self.branch_to+=start_address
+        self.next_address = address
+
         # Store the bytes used in this instruction for debugging
         self.bytestr = ' '.join('%02x' % b for b in memory[start_address:address])
 
     def execute(self,interpreter):
-        self.handler.execute(interpreter,self)
+        return self.handler.execute(interpreter,self)
 
     def __str__(self):
         st = '%s\n' % self.bytestr
@@ -199,26 +200,52 @@ class OpcodeHandler(object):
     def execute(self, interpreter, instruction):
         """ Execute this instruction in the context of the provided routine """
         if self.handler_function:
-            self.handler_function(interpreter,instruction)
+            return self.handler_function(interpreter,instruction)
+        return instruction.next_address
 
 def op_newline(interpreter,instruction):
     interpreter.output_streams.new_line()
+    return instruction.next_address
 
 def op_print(interpreter,instruction):
     interpreter.output_streams.print_str(instruction.literal_string)
+    return instruction.next_address
 
 def op_call(interpreter, instruction):
-    interpreter.call_routine(interpreter.packed_address_to_address(instruction.operands[0]),
+    routine_address = interpreter.packed_address_to_address(instruction.operands[0])
+    interpreter.call_routine(routine_address,
                             instruction.next_address,
                             instruction.store_to)
+    return routine_address
+
+def op_je(interpreter,instruction):
+    a = instruction.operands[0]
+    for b in instruction.operands[1:]:
+        if a == b:
+            return instruction.branch_to # Branch address will have been set on instruction initialize
+    
+    # Don't branch, not equal
+    return instruction.next_address       
+
+def op_jl(interpreter,instruction):
+    a = instruction.operands[0]
+    for b in instruction.operands[1:]:
+        if a < b:
+            return instruction.branch_to # Branch address will have been set on instruction initialize
+    
+    # Don't branch, not equal
+    return instruction.next_address       
 
 # 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  OpcodeHandler('jz','jz a ?(label)',False,True,False),
-(InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True,False),
+
+(InstructionType.twoOP,1):  OpcodeHandler('je','je a b ?(label)',True,False,False,op_je),
+(InstructionType.twoOP,2):  OpcodeHandler('jl','jl a b ?(label)',True,False,False,op_jl),
 (InstructionType.twoOP,5):   OpcodeHandler('inc_chk','inc_chk (variable) value ?(label)',True,False,False),
 (InstructionType.twoOP,13):  OpcodeHandler('store','store (variable) value',False,False,False),
 (InstructionType.twoOP,14):  OpcodeHandler('insert_obj','insert_obj object destination',False,False,False),
+(InstructionType.twoOP, 22): OpcodeHandler('mul','mul a b -> (result)',False,True,False),
 
 (InstructionType.zeroOP,2):  OpcodeHandler('print', 'print (literal-string)',False,False,True,op_print),
 (InstructionType.zeroOP,11): OpcodeHandler('new_line','new_line',False,False,False,op_newline),
