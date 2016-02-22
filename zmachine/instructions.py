@@ -211,17 +211,16 @@ def extract_branch_offset(memory,address):
 
 def format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string):
     """ Create a text description of this instruction """
-    description = '%s\n' % self.bytestr
-    st += "%s:%s" % (self.instruction_type, self.handler.description)
-    if self.operands:
-        st += ' [%s]' % ' '.join(['%02x' % x for x in self.operands])
-    if self.store_to:
-        st += ' -> %s' % self.store_to
-    if self.literal_string:
-        st += '"%s"' % self.literal_string
-    st += '\n'
-    
-
+    description += "%s:%s" % (instruction_type, self.handler.name)
+    for operand in self.operands:
+        description += ' %04x' % x
+    if literal_string:
+        description += '(%s)' % literal_string
+    if store_to:
+        description += ' -> %s' % store_to
+    if branch_offset:
+        description += ' ?%s' % branch_offset
+    return description
 
 ### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed
 class NextInstructionAction(object):
@@ -257,7 +256,7 @@ def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     return NextInstructionAction(next_address)
 
 ## Branching
-def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):n:
+def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     routine_address = interpreter.packed_address_to_address(instruction.operands[0])
     return CallAction(routine_address, store_to,next_address)
 
@@ -279,6 +278,9 @@ def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
     # Don't branch, not equal
     return NextInstructionAction(next_address)
 
+def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+    return NextInstructionAction(next_address)
+
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     return NextInstructionAction(next_address)
 
@@ -298,18 +300,18 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
 
-(InstructionType.twoOP,1):  {'name': 'je','je a b ?(label)','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
-(InstructionType.twoOP,2):  {'name': 'jl','jl a b ?(label)','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jz},
+(InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
+(InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jz},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
 (InstructionType.twoOP, 22): {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
 
-(InstructionType.zeroOP,2):  {'name': 'print', 'print (literal-string)','literal_string': True,'handler': op_print},
+(InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
 (InstructionType.zeroOP,11): {'name': 'new_line','handler': op_newline},
 
-(InstructionType.varOP,0): {'name': 'call','store': True,
-                            'types': (OperandTypeHint.PACKED_ADDRESS,OperandTypeHint.unsigned,OperandTypeHint.unsigned,
-                                        OperandTypeHint.unsigned,OperandTypeHint.unsigned,}'handler': op_call}
+(InstructionType.varOP,0):   {'name': 'call','store': True,
+                              'types': (OperandTypeHint.packed_address,OperandTypeHint.unsigned,OperandTypeHint.unsigned,
+                                        OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_call}
 }
 

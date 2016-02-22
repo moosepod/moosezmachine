@@ -7,7 +7,6 @@ import os
 from zmachine.memory import Memory
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
-from zmachine.instructions import Instruction
 
 # First global variable in the variable numbering system
 GLOBAL_VAR_START = 0x10

@@ -8,7 +8,10 @@ from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessExce
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
-from zmachine.instructions import Instruction,InstructionForm,InstructionType
+from zmachine.instructions import InstructionForm,InstructionType,OperandType,\
+                                  read_instruction,extract_opcode,\
+                                  process_operands, extract_literal_string, extract_branch_offset,\
+                                  format_description
 
 class TestOutputStream(OutputStream):
     def __init__(self,*args,**kwargs):
@@ -32,9 +35,61 @@ class TestOutputStreams(OutputStreams):
     def __init__(self):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
-class InstructionTests(TestCase):
+class InstructionTests(unittest.TestCase):
     def test_extract_opcode(self):
-        self.fail()
+        # je
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x01\x00\x11\x8d\x19'),0)
+        self.assertEqual(InstructionForm.long_form, instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction_type)
+        self.assertEqual(1, opcode_number)
+        self.assertEqual([OperandType.small_constant,OperandType.small_constant], operands)
+
+        # jl
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x22\xb2\x14\xe4\x5d'),0)
+        self.assertEqual(InstructionForm.long_form, instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction_type)
+        self.assertEqual(2, opcode_number)
+        self.assertEqual([OperandType.small_constant,OperandType.large_constant], operands)
+
+        # call
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xe0\x3f\x16\x34\x00'),0)
+        self.assertEqual(InstructionForm.variable_form, instruction_form)
+        self.assertEqual(InstructionType.varOP,instruction_type)
+        self.assertEqual(0, opcode_number)
+        self.assertEqual([OperandType.large_constant,OperandType.omitted,OperandType.omitted,OperandType.omitted], operands)
+
+        # call_1n
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory([0x8f,0x01,0x56]),0)
+        self.assertEqual(InstructionForm.short_form, instruction_form)
+        self.assertEqual(InstructionType.oneOP,instruction_type)
+        self.assertEqual(15, opcode_number)
+        self.assertEqual([OperandType.large_constant], operands)
+
+        # inc_chk
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory([0x05,0x02,0x00,0xd4]),0)
+        self.assertEqual(InstructionForm.long_form, instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction_type)
+        self.assertEqual(5, opcode_number)
+        self.assertEqual([OperandType.small_constant,OperandType.small_constant], operands)
+
+        # mul
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xd6\x2f\x03\xe8\x02\x00'),0)
+        self.assertEqual(InstructionForm.variable_form, instruction_form)
+        self.assertEqual(InstructionType.twoOP, instruction_type)
+        self.assertEqual(22, opcode_number)
+        self.assertEqual([OperandType.large_constant,OperandType.variable], operands)
+
+        # print
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5'),0)
+        self.assertEqual(InstructionForm.short_form, instruction_form)
+        self.assertEqual(InstructionType.zeroOP, instruction_type)
+        self.assertEqual(2, opcode_number)
+
+        # new_line
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xbb\x00'),0)
+        self.assertEqual(InstructionForm.short_form, instruction_form)
+        self.assertEqual(InstructionType.zeroOP, instruction_type)
+        self.assertEqual(11, opcode_number)
 
     def test_process_operands(self):
         self.fail()
