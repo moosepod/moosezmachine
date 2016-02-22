@@ -440,7 +440,8 @@ class Interpreter(object):
         """ Return the current instruction pointed to by the given address """
         return read_instruction(self.story.raw_data,
                             address,
-                            self.story.header.version)
+                            self.story.header.version,
+                            self.get_ztext())
         
 
     def current_instruction(self):

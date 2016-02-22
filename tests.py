@@ -39,12 +39,15 @@ class InstructionTests(TestCase):
     def test_process_operands(self):
         self.fail()
 
-    def test_extract_branch(self):
+    def test_extract_branch_offset(self):
         self.fail()
 
     def test_extract_literal_string(self):
         self.fail()
-        
+
+    def test_format_description(self):
+        self.fail()
+
 class InstructionTestsMixin(object):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
     def __init__(self,*args,**kwargs):

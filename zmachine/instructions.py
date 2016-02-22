@@ -8,6 +8,7 @@
 from enum import Enum
 from zmachine.text import ZText
 
+### Constants and utilities
 class InstructionException(Exception):
     pass
 
@@ -29,12 +30,6 @@ class OperandType(Enum):
     variable = 3
     omitted = 4
 
-class IntepreterAction(Enum):
-    next_instruction = 1 # Jump to next instruction
-    return_val       = 2 # Return from the current routine. Next val in tuple is return value
-    jump_abs         = 3 # Jump to an absolute address. Next val in tuple is address
-    call             = 4 # Call routine. Next val in tuple is value.
-
 class OperandTypeHint(Enum):
     """ Declared with opcode handlers to give hints on how to handle/display operands """
     unsigned = 1
@@ -55,8 +50,52 @@ def operand_from_bitfield(bf):
         return OperandType.large_constant
     return None
 
+### Passed in memory, address of next instruction, and some context info, return
+### a handler function (taking an interpreter) and a description of this instruction
+def read_instruction(self,memory,address,version,ztext):
+    """ Read the instruction at the given address, and return a handler function and summary """
+    # If top two bits are 11, variable form. If 10, short. 
+    # If opcode is BE, form is extended. Otherwise long.
+    start_address=address
+
+    offset = 0 # Offset, in bytes, to move PC
+    store_to = None # Variable # to store the resulting value to
+    zchars = [] # If this instruction works with zcodes, store them here
+    literal_string = None # Ascii version of zchars, if any
+
+    address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(memory,address)
+    
+    # Find opcode handler
+    handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+    if not handler:
+        raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
+
+    address, operands = process_operands(operands, handler)
+   
+    if handler.get('literal_string'):
+        address,literal_string = extract_literal_string(memory,address,ztext)
+        
+    # 4.6
+    if handler.get('store'):
+        store_to = memory[address]            
+        address+=1
+
+    # 4.7
+    branch_offset = None
+    if handler.get('branch'):
+        address, branch_offset = extract_branch(memory,address)
+    next_address = address
+
+    # Create the handler function for this instruction
+    handler_f = lambda interpreter: self.handler.execute(interpreter, operands, next_address,store_to,branch_offset,branch_if_true)
+
+    # Setup text version for debuggging
+    description = format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string)
+    
+    return handler_f,description
+
 def extract_opcode(memory,address):
-    # Section 4.3
+    """ Handle section 4.3 """
     b1 = memory[address]
     b2 = memory[address+1]
     address+=1
@@ -121,7 +160,7 @@ def extract_opcode(memory,address):
     return address,instruction_form, instruction_type,  opcode_number,operands
 
 def process_operands(operands, handler):
-    # Section 4.5
+    """ Handle section 4.5 """
     tmp = []
     for i,optype in enumerate(operands):
         val = 0
@@ -141,9 +180,9 @@ def process_operands(operands, handler):
         tmp.append(val)
     return address, tmp
 
-def extract_literal_string(memory,address):
+def extract_literal_string(memory,address,ztext):
+    """ Extract the literal string from the given memory/address and return the new address + string """
     zchar_start_address = address
-    ztext = ZText(version=version,get_abbrev_f=lambda x: [6,6,6])
     zchars = []
     done = False
     while not done:
@@ -153,6 +192,7 @@ def extract_literal_string(memory,address):
     return address, ztext.to_ascii(memory,zchar_start_address,0)   
 
 def extract_branch_offset(memory,address):
+    """ Handle section 4.7 """
     b = memory[address]
     address+=1
     if (b & 0x80) >> 7:
@@ -169,50 +209,9 @@ def extract_branch_offset(memory,address):
         branch_offset = ((b & 0x3f) << 8) | next_byte 
     return address, branch_offset
 
-def read_instruction(self,memory,address,version):
-    """ Read the instruction at the given address, and return a handler function and summary """
-    # If top two bits are 11, variable form. If 10, short. 
-    # If opcode is BE, form is extended. Otherwise long.
-    start_address=address
-
-    offset = 0 # Offset, in bytes, to move PC
-    store_to = None # Variable # to store the resulting value to
-    zchars = [] # If this instruction works with zcodes, store them here
-    literal_string = None # Ascii version of zchars, if any
-
-    address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(memory,address)
-    
-    # Find opcode handler
-    handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
-    if not handler:
-        raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
-
-    operands = process_operands(operands, handler)
-   
-    if handler.get('literal_string'):
-        address,literal_string = extract_literal_string(memory,address)
-        
-    # 4.6
-    if handler.get('store'):
-        store_to = memory[address]            
-        address+=1
-
-    # 4.7
-    branch_offset = None
-    if handler.get.('branch'):
-        address, branch_offset = extract_branch(memory,address)
-
-        branch_offset+=start_address
-    next_address = address
-
-    # Store the bytes used in this instruction for debugging
-    bytestr = ' '.join('%02x' % b for b in memory[start_address:address])
-
-    # Create the execution function for this instruction
-    f = lambda interpreter: self.handler.execute(interpreter, operands, next_address,store_to,store_to,branch_if_true)
-
-    # Setup text version for debuggging
-    st = '%s\n' % self.bytestr
+def format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string):
+    """ Create a text description of this instruction """
+    description = '%s\n' % self.bytestr
     st += "%s:%s" % (self.instruction_type, self.handler.description)
     if self.operands:
         st += ' [%s]' % ' '.join(['%02x' % x for x in self.operands])
@@ -222,55 +221,78 @@ def read_instruction(self,memory,address,version):
         st += '"%s"' % self.literal_string
     st += '\n'
     
-    return f, bytestr, st
 
-### Text
+
+### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed
+class NextInstructionAction(object):
+    """ Interpreter should proceed to next instruction, address provided """
+    def __init__(self, addr):
+        self.next_address = next_address
+
+class CallAction(object):
+    """ Interpreter should call the routine with the provide info """
+    def __init__(self, routine_address, store_to, return_to):
+        self.routine_address = routine_address
+        self.store_to = store_to
+        self.return_to = return_to
+
+class JumpRelativeAction(object):
+    """ Interpreter should jump relative to the current program counter """
+    def __init__(self, branch_offset):
+        self.branch_offset = branch_offset
+
+###
+### All handlers are passed in an interpreter and information about the given instruction
+### and return an action object telling interpreter how to proceed
+###
+
+## Text
 
 def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     interpreter.output_streams.new_line()
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
 def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     interpreter.output_streams.print_str(instruction.literal_string)
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
-### Branching
+## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):n:
-   routine_address = interpreter.packed_address_to_address(instruction.operands[0])
-    return HandlerResult.call,{'routine_address': routine_address, 'store_to': store_to})
+    routine_address = interpreter.packed_address_to_address(instruction.operands[0])
+    return CallAction(routine_address, store_to,next_address)
 
 def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     a = instruction.operands[0]
     for b in instruction.operands[1:]:
         if a == b:
-            return HandlerResult.jump_abs, {'branch_offset': branch_offset} # Branch address will have been set on instruction initialize
+            return JumpRelativeAction(branch_offset)
     
     # Don't branch, not equal
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
 def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
     a = operands[0]
     for b in operands[1:]:
         if a < b:
-            return HandlerResult.jump_abs, {'branch_offset': branch_offset} # Branch address will have been set on instruction initialize
+            return JumpRelativeAction(branch_offset)
     
     # Don't branch, not equal
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
-### Memory/Variables
+## Memory/Variables
 def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
-### Objects
+## Objects
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
-### Math
+## Math
 def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    return HandlerResult.next_instruction,None
+    return NextInstructionAction(next_address)
 
 ### 14.1
 OPCODE_HANDLERS = {
