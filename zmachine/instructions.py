@@ -4,7 +4,7 @@
 
     See http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
 """
-
+import re
 from enum import Enum
 from zmachine.text import ZText
 
@@ -70,7 +70,7 @@ def read_instruction(self,memory,address,version,ztext):
     if not handler:
         raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
 
-    address, operands = process_operands(operands, handler)
+    address, operands = process_operands(operands, handler,memory)
    
     if handler.get('literal_string'):
         address,literal_string = extract_literal_string(memory,address,ztext)
@@ -82,8 +82,9 @@ def read_instruction(self,memory,address,version,ztext):
 
     # 4.7
     branch_offset = None
+    branch_if_true=False
     if handler.get('branch'):
-        address, branch_offset = extract_branch(memory,address)
+        address, branch_offset,branch_if_true = extract_branch(memory,address)
     next_address = address
 
     # Create the handler function for this instruction
@@ -159,7 +160,7 @@ def extract_opcode(memory,address):
     
     return address,instruction_form, instruction_type,  opcode_number,operands
 
-def process_operands(operands, handler):
+def process_operands(operands, handler,memory, address):
     """ Handle section 4.5 """
     tmp = []
     for i,optype in enumerate(operands):
@@ -207,19 +208,19 @@ def extract_branch_offset(memory,address):
         next_byte = memory[address]
         address += 1
         branch_offset = ((b & 0x3f) << 8) | next_byte 
-    return address, branch_offset
+    return address, branch_offset, branch_if_true
 
 def format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string):
     """ Create a text description of this instruction """
-    description += "%s:%s" % (instruction_type, self.handler.name)
-    for operand in self.operands:
-        description += ' %04x' % x
+    description = "%s:%s" % (instruction_type.name, handler['name'])
+    for operand in operands:
+        description += ' %04x' % operand
     if literal_string:
-        description += '(%s)' % literal_string
+        description += ' (%s)' % repr(literal_string).strip("'")
     if store_to:
         description += ' -> %s' % store_to
     if branch_offset:
-        description += ' ?%s' % branch_offset
+        description += ' ?%04x' % branch_offset
     return description
 
 ### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed

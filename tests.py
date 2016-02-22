@@ -8,7 +8,7 @@ from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessExce
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
-from zmachine.instructions import InstructionForm,InstructionType,OperandType,\
+from zmachine.instructions import InstructionForm,InstructionType,OperandType,OPCODE_HANDLERS,\
                                   read_instruction,extract_opcode,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description
@@ -92,16 +92,104 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(11, opcode_number)
 
     def test_process_operands(self):
-        self.fail()
+        # je
+        mem = Memory(b'\x01\x00\x11\x8d\x19')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        self.assertEqual([0,17], operands)
+
+        # jl
+        mem = Memory(b'\x22\xb2\x14\xe4\x5d')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        self.assertEqual([178,5348], operands)
+
+        self.fail('Test signed operands')
+
+        # call
+        mem = Memory(b'\xe0\x3f\x16\x34\x00')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        self.assertEqual([0x1634], operands)
+
+        # call_1n
+        mem = Memory([0x8f,0x01,0x56])
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler, mem, address)
+        self.assertEqual([0x0156], operands)
+
+        # inc_chk
+        mem = Memory([0x05,0x02,0x00,0xd4])
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler, mem, address)
+        self.assertEqual([0x02,0x00], operands)
+
+        # mul
+        mem = Memory(b'\xd6\x2f\x03\xe8\x02\x00')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler, mem, address)
+        self.assertEqual([0x03e8,-0x02], operands)
+
+        # print
+        mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler, mem, address)
+        self.assertEqual([], operands)
+
+        # new_line
+        mem = Memory(b'\xbb\x00')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler, mem, address)
+        self.assertEqual([], operands)
 
     def test_extract_branch_offset(self):
-        self.fail()
+        # je
+        mem = Memory(b'\x01\x00\x11\x8d\x19')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        address, branch_offset, branch_if_true = extract_branch_offset(mem,address)
+        self.assertEqual(3353,branch_offset)
+
+        # jl
+        mem = Memory(b'\x22\xb2\x14\xe4\x5d')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        address, branch_offset, branch_if_truet = extract_branch_offset(mem,address)
+        self.assertEqual(29,branch_offset)
 
     def test_extract_literal_string(self):
-        self.fail()
+        mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
+        self.assertEqual("HELLO.\n", literal_string)
 
     def test_format_description(self):
-        self.fail()
+        # je
+        mem = Memory(b'\x01\x00\x11\x8d\x19')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, operands = process_operands(operands, handler,mem, address)
+        address, branch_offset, branch_if_true = extract_branch_offset(mem,address)
+        description = format_description(instruction_type, handler, operands, None, branch_offset, branch_if_true, None)
+        self.assertEqual('twoOP:je 0000 0011 ?0d19',description)
+
+        # print
+        mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
+        address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
+        description = format_description(instruction_type, handler, [], None, None, False, literal_string)
+        self.assertEqual('zeroOP:print (HELLO.\\n)',description)
 
 class InstructionTestsMixin(object):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
