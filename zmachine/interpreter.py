@@ -409,12 +409,12 @@ class Interpreter(object):
         self.routines = []
         self.call_routine(self.pc,self.pc,None,no_locals=True)
 
-    def call_routine(self, routine_address, return_address_offset,  store_var,  no_locals=False):
+    def call_routine(self, routine_address, next_address,  store_var,  no_locals=False):
         """ Add a routine call to the stack from the current program counter """
         self.routines.append(Routine(self.story.raw_data, 
                                     self.story.header.global_variables_address,
                                     routine_address,
-                                    self.pc + return_address_offset,
+                                    next_address,
                                     store_var,
                                     self.story.header.version,
                                     no_locals=no_locals))
@@ -438,9 +438,10 @@ class Interpreter(object):
 
     def instruction_at(self,address):
         """ Return the current instruction pointed to by the given address """
-        return Instruction(self.story.raw_data,
+        return read_instruction(self.story.raw_data,
                             address,
                             self.story.header.version)
+        
 
     def current_instruction(self):
         """ Return the current instruction """
@@ -451,10 +452,18 @@ class Interpreter(object):
         return self.routines[-1]
 
     def step(self):
-        """ Execute the current instruction then increment the program counter """
-        inst = self.current_instruction()
+        """ Exaecute the current instruction then increment the program counter """
+        inst_f, next_address, byte_msg, debug_str = self.current_instruction()
         
-        self.pc = inst.execute(self)
+        op, data = inst_f(self)
+        if op == HandlerResult.next_instruction:
+            self.pc = next_address
+        elif op == HandlerResult.return_val:
+            pass
+        elif op == HandlerResult.jump_abs:
+            self.pc += data['branch_offset']
+        elif op == HandlerResult.call:
+            self.call_routine(data['routine_address'],next_address,data['store_to'])
 
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """

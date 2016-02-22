@@ -32,6 +32,19 @@ class TestOutputStreams(OutputStreams):
     def __init__(self):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
+class InstructionTests(TestCase):
+    def test_extract_opcode(self):
+        self.fail()
+
+    def test_process_operands(self):
+        self.fail()
+
+    def test_extract_branch(self):
+        self.fail()
+
+    def test_extract_literal_string(self):
+        self.fail()
+        
 class InstructionTestsMixin(object):
     # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
     def __init__(self,*args,**kwargs):
