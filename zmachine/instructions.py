@@ -52,7 +52,7 @@ def operand_from_bitfield(bf):
 
 ### Passed in memory, address of next instruction, and some context info, return
 ### a handler function (taking an interpreter) and a description of this instruction
-def read_instruction(self,memory,address,version,ztext):
+def read_instruction(memory,address,version,ztext):
     """ Read the instruction at the given address, and return a handler function and summary """
     # If top two bits are 11, variable form. If 10, short. 
     # If opcode is BE, form is extended. Otherwise long.
@@ -70,7 +70,7 @@ def read_instruction(self,memory,address,version,ztext):
     if not handler:
         raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
 
-    address, operands = process_operands(operands, handler,memory)
+    address, operands = process_operands(operands, handler,memory,address)
    
     if handler.get('literal_string'):
         address,literal_string = extract_literal_string(memory,address,ztext)
@@ -84,11 +84,11 @@ def read_instruction(self,memory,address,version,ztext):
     branch_offset = None
     branch_if_true=False
     if handler.get('branch'):
-        address, branch_offset,branch_if_true = extract_branch(memory,address)
+        address, branch_offset,branch_if_true = extract_branch_offset(memory,address)
     next_address = address
 
     # Create the handler function for this instruction
-    handler_f = lambda interpreter: self.handler.execute(interpreter, operands, next_address,store_to,branch_offset,branch_if_true)
+    handler_f = lambda interpreter: handler['handler'](interpreter, operands, next_address,store_to,branch_offset,branch_if_true)
 
     # Setup text version for debuggging
     description = format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string)
@@ -220,13 +220,17 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
     if store_to:
         description += ' -> %s' % store_to
     if branch_offset:
-        description += ' ?%04x' % branch_offset
+        if not branch_if_true:
+            branch_invert = '!'
+        else:
+            branch_invert = ''
+        description += ' ?%s%04x' % (branch_invert,branch_offset)
     return description
 
 ### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed
 class NextInstructionAction(object):
     """ Interpreter should proceed to next instruction, address provided """
-    def __init__(self, addr):
+    def __init__(self, next_address):
         self.next_address = next_address
 
 class CallAction(object):
@@ -262,12 +266,20 @@ def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     return CallAction(routine_address, store_to,next_address)
 
 def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    a = instruction.operands[0]
-    for b in instruction.operands[1:]:
+    do_branch = False
+    a = operands[0]
+    for b in operands[1:]:
         if a == b:
-            return JumpRelativeAction(branch_offset)
-    
+            do_branch = True
+            break
+
+    if not branch_if_true:
+        do_branch = not do_branch
+
     # Don't branch, not equal
+    if do_branch:
+        return JumpRelativeAction(branch_offset)
+
     return NextInstructionAction(next_address)
 
 def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):

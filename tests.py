@@ -1,6 +1,7 @@
 """ Tests for zmachine """
 import unittest
 import os
+import inspect
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
@@ -11,7 +12,8 @@ from zmachine.dictionary import Dictionary
 from zmachine.instructions import InstructionForm,InstructionType,OperandType,OPCODE_HANDLERS,\
                                   read_instruction,extract_opcode,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
-                                  format_description
+                                  format_description,\
+                                  JumpRelativeAction,CallAction,NextInstructionAction
 
 class TestOutputStream(OutputStream):
     def __init__(self,*args,**kwargs):
@@ -210,25 +212,30 @@ class InstructionTestsMixin(object):
 
 class RoutineInstructionsTests(InstructionTestsMixin,unittest.TestCase):
     def test_je(self):
-        mem = Memory(b'\x01\x00\x11\x8d\x19')
-        instruction = Instruction(memory=mem,address=0,version=3)
-        self.assertEqual(InstructionForm.long_form, instruction.instruction_form)
-        self.assertEqual(InstructionType.twoOP,instruction.instruction_type)
-        self.assertEqual(1, instruction.opcode_number)
-        self.assertEqual([0,17], instruction.operands)
-        self.assertEqual(5, instruction.next_address)
-        self.assertEqual(None, instruction.store_to)
-        self.assertEqual(3353,instruction.branch_to)
+        memory = Memory(b'\x01\x00\x11\x8d\x19')
+        handler_f, description = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:je 0000 0011 ?0d19',description)
+        result = handler_f(self.zmachine)
 
         # Items not equal, don't jump
-        self.assertEqual(5,instruction.handler.execute(self.zmachine,instruction))
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
 
         # Items equal, jump
-        mem = Memory(b'\x01\x11\x11\x8d\x19')
-        instruction = Instruction(memory=mem,address=0,version=3)
-        self.assertEqual(3353,instruction.handler.execute(self.zmachine,instruction))
-        
-        self.fail('Test inverse branch')
+        memory = Memory(b'\x01\x11\x11\x8d\x19')
+        handler_f, description = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:je 0011 0011 ?0d19',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(3353,result.branch_offset)
+
+        # Flip branch if true, reverse logic
+        memory = Memory(b'\x01\x11\x11\x0d\x19')
+        handler_f, description = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:je 0011 0011 ?!0d19',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
 
     def test_jl(self):
         mem = Memory(b'\x22\xb2\x14\xe4\x5d')
