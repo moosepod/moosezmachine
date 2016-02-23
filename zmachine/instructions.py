@@ -108,7 +108,7 @@ def read_instruction(memory,address,version,ztext):
     # Setup text version for debuggging
     description = format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string)
     
-    return handler_f,description
+    return handler_f,description,next_address
 
 def extract_opcode(memory,address):
     """ Handle section 4.3 """
@@ -188,7 +188,7 @@ def process_operand_type_hint(val, hint,version):
             return val * 4
         return val * 2
     elif hint == OperandTypeHint.variable:
-        return 'var%s' % val
+        return val
     return val 
 
 def process_operands(operands, handler,memory, address,version):
@@ -196,20 +196,25 @@ def process_operands(operands, handler,memory, address,version):
     tmp = []
     for i,optype in enumerate(operands):
         val = 0
+        if handler.get('types'):
+            hint = handler['types'][i]
+        else:
+            hint = None
         if optype == OperandType.small_constant:
-            val = process_operand_type_hint(memory[address],handler['types'][i],version)
+            val = process_operand_type_hint(memory[address],hint,version)
             address+=1
         elif optype == OperandType.large_constant:
-            val = process_operand_type_hint(memory.word(address),handler['types'][i],version)
+            val = process_operand_type_hint(memory.word(address),hint,version)
             address+=2
         elif optype == OperandType.variable:
-            val = 'var%s' % memory[address]
+            val = memory[address]
+            hint = OperandTypeHint.variable
             address+=1
         elif optype == OperandType.omitted:
             # 4.4.3
             # Omit any vars after an ommitted type
             break
-        tmp.append(val)
+        tmp.append((val,hint))
     return address, tmp
 
 def extract_literal_string(memory,address,ztext):
@@ -244,8 +249,11 @@ def extract_branch_offset(memory,address):
 def format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string):
     """ Create a text description of this instruction """
     description = "%s:%s" % (instruction_type.name, handler['name'])
-    for operand in operands:
-        description += ' %s' % operand
+    for operand,hint in operands:
+        if hint == OperandTypeHint.variable:
+            description += ' var%s' % operand
+        else:
+            description += ' %s' % operand
     if literal_string:
         description += ' (%s)' % repr(literal_string).strip("'")
     if store_to:
@@ -264,6 +272,9 @@ class NextInstructionAction(object):
     def __init__(self, next_address):
         self.next_address = next_address
 
+    def apply(self,interpreter):
+        interpreter.pc = self.next_address
+
 class CallAction(object):
     """ Interpreter should call the routine with the provide info """
     def __init__(self, routine_address, store_to, return_to):
@@ -271,24 +282,27 @@ class CallAction(object):
         self.store_to = store_to
         self.return_to = return_to
 
+    def apply(self,interpreter):
+        self.call_routine(self.routine_address,self.return_to,self.store_to)
+
 class JumpRelativeAction(object):
     """ Interpreter should jump relative to the current program counter """
     def __init__(self, branch_offset):
         self.branch_offset = branch_offset
+
+    def apply(self,interpreter):
+        interpreter.pc += self.branch_offset
 
 ###
 ### All handlers are passed in an interpreter and information about the given instruction
 ### and return an action object telling interpreter how to proceed
 ###
 
-
-def dereference_variables(val):
-    try:
-        return int(val)
-    except ValueError:
-        pass        
-
-    return int(val.replace('var',''))
+def dereference_variables(operand, instance):
+    val, hint = operand
+    if hint == OperandTypeHint.variable:
+        return instance.current_routine()[val]
+    return val
 
 ## Text
 
@@ -302,12 +316,14 @@ def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    return CallAction(operands[0], store_to,next_address)
+    address,hint = operands[0]
+    return CallAction(address, store_to,next_address)
 
 def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     do_branch = False
-    a = operands[0]
-    for b in operands[1:]:
+    a = dereference_variables(operands[0],interpreter)
+    for operand in operands[1:]:
+        b = dereference_variables(operand,interpreter)
         if a == b:
             do_branch = True
             break
@@ -322,8 +338,9 @@ def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
 
 def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     do_branch = False
-    a = operands[0]
-    for b in operands[1:]:
+    a = dereference_variables(operands[0],interpreter)
+    for operand in operands[1:]:
+        b = dereference_variables(operand,interpreter)
         if a < b:
             do_branch = True
             break
@@ -342,8 +359,8 @@ def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
 
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     routine = interpreter.current_routine()
-    var_num = dereference_variables(operands[0])
-    comp_to = dereference_variables(operands[1])
+    var_num,hint = operands[0]
+    comp_to,hint = operands[1]
     var = routine[var_num]
     var += 1
     routine[var_num] = var
@@ -367,8 +384,8 @@ def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branc
 
 ## Math
 def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    v1 = dereference_variables(operands[0])
-    v2 = dereference_variables(operands[1])
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
     result = v1 * v2
     if result < MIN_SIGNED or result > MAX_SIGNED:
         raise Interpreter('Overflow in mul of %s * %s: %s' % (v1,v2,result))

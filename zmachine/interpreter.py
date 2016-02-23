@@ -7,6 +7,7 @@ import os
 from zmachine.memory import Memory
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
+from zmachine.instructions import read_instruction
 
 # First global variable in the variable numbering system
 GLOBAL_VAR_START = 0x10
@@ -453,17 +454,9 @@ class Interpreter(object):
 
     def step(self):
         """ Exaecute the current instruction then increment the program counter """
-        inst_f, next_address, byte_msg, debug_str = self.current_instruction()
-        
-        op, data = inst_f(self)
-        if op == HandlerResult.next_instruction:
-            self.pc = next_address
-        elif op == HandlerResult.return_val:
-            pass
-        elif op == HandlerResult.jump_abs:
-            self.pc += data['branch_offset']
-        elif op == HandlerResult.call:
-            self.call_routine(data['routine_address'],next_address,data['store_to'])
+        handler_f,description,next_address = self.current_instruction()
+        result = handler_f(self)
+        result.apply(self)
 
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """
@@ -471,9 +464,9 @@ class Interpreter(object):
         address = self.pc
 
         for i in range(0,how_many):
-            instruction = self.instruction_at(address)
-            instructions.append((instruction,address))
-            address = instruction.next_address
+            handler_f,description,next_address = self.instruction_at(address)
+            instructions.append((description,next_address))
+            address = next_address
         
         return instructions
  

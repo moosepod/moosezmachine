@@ -70,8 +70,8 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         print('Current instruction\n--------\n')
         idx = zmachine.pc
         for t in zmachine.instructions(30):
-            (instruction,idx) = t
-            print('%04x: %s' %(idx,instruction))
+            (instruction,description,next_address) = t
+            print('%04x: %s' %(idx,description,))
         print('')
         
         if start_address:
