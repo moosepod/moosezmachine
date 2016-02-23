@@ -8,6 +8,11 @@ import re
 from enum import Enum
 from zmachine.text import ZText
 
+MIN_SIGNED= -32768
+MAX_SIGNED = 32767
+MIN_UNSIGNED = 0
+MAX_UNSIGNED = 0xffff
+
 ### Constants and utilities
 class InstructionException(Exception):
     pass
@@ -37,6 +42,16 @@ class OperandTypeHint(Enum):
     address = 3
     packed_address = 4
     variable = 5
+
+def convert_to_signed(val):
+    if val > 0x7fff:
+        return -1 * ((val ^ 0xffff) + 1)
+    return val
+
+def convert_to_unsigned(val):
+    if val < 0:
+        return -1 * ((val ^ 0xffff) + 1)
+    return val
 
 def operand_from_bitfield(bf):
     # 4.2
@@ -70,7 +85,7 @@ def read_instruction(memory,address,version,ztext):
     if not handler:
         raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
 
-    address, operands = process_operands(operands, handler,memory,address)
+    address, operands = process_operands(operands, handler,memory,address,version)
    
     if handler.get('literal_string'):
         address,literal_string = extract_literal_string(memory,address,ztext)
@@ -88,7 +103,7 @@ def read_instruction(memory,address,version,ztext):
     next_address = address
 
     # Create the handler function for this instruction
-    handler_f = lambda interpreter: handler['handler'](interpreter, operands, next_address,store_to,branch_offset,branch_if_true)
+    handler_f = lambda interpreter: handler['handler'](interpreter, operands, next_address,store_to,branch_offset,branch_if_true, literal_string)
 
     # Setup text version for debuggging
     description = format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string)
@@ -160,19 +175,35 @@ def extract_opcode(memory,address):
     
     return address,instruction_form, instruction_type,  opcode_number,operands
 
-def process_operands(operands, handler,memory, address):
+def process_operand_type_hint(val, hint,version):
+    """ Use the hint to perform any processing on the operand value (such as signing) """
+    if val < MIN_UNSIGNED or val > MAX_UNSIGNED:
+        raise InstructionException('Operand out of 0 <= op => 0xffff range')
+
+    if hint == OperandTypeHint.signed:
+        # Signed numbers are stored twos compliment. See 2.2.
+        return convert_to_signed(val)
+    elif hint == OperandTypeHint.packed_address:
+        if version > 3:
+            return val * 4
+        return val * 2
+    elif hint == OperandTypeHint.variable:
+        return 'var%s' % val
+    return val 
+
+def process_operands(operands, handler,memory, address,version):
     """ Handle section 4.5 """
     tmp = []
     for i,optype in enumerate(operands):
         val = 0
         if optype == OperandType.small_constant:
-            val = memory[address]
+            val = process_operand_type_hint(memory[address],handler['types'][i],version)
             address+=1
         elif optype == OperandType.large_constant:
-            val = memory.word(address)
+            val = process_operand_type_hint(memory.word(address),handler['types'][i],version)
             address+=2
         elif optype == OperandType.variable:
-            val = -1 * memory[address]
+            val = 'var%s' % memory[address]
             address+=1
         elif optype == OperandType.omitted:
             # 4.4.3
@@ -214,7 +245,7 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
     """ Create a text description of this instruction """
     description = "%s:%s" % (instruction_type.name, handler['name'])
     for operand in operands:
-        description += ' %04x' % operand
+        description += ' %s' % operand
     if literal_string:
         description += ' (%s)' % repr(literal_string).strip("'")
     if store_to:
@@ -250,22 +281,30 @@ class JumpRelativeAction(object):
 ### and return an action object telling interpreter how to proceed
 ###
 
+
+def dereference_variables(val):
+    try:
+        return int(val)
+    except ValueError:
+        pass        
+
+    return int(val.replace('var',''))
+
 ## Text
 
-def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     interpreter.output_streams.new_line()
     return NextInstructionAction(next_address)
 
-def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    interpreter.output_streams.print_str(instruction.literal_string)
+def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    interpreter.output_streams.print_str(literal_string)
     return NextInstructionAction(next_address)
 
 ## Branching
-def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
-    routine_address = interpreter.packed_address_to_address(instruction.operands[0])
-    return CallAction(routine_address, store_to,next_address)
+def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return CallAction(operands[0], store_to,next_address)
 
-def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     do_branch = False
     a = operands[0]
     for b in operands[1:]:
@@ -276,37 +315,65 @@ def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
     if not branch_if_true:
         do_branch = not do_branch
 
-    # Don't branch, not equal
     if do_branch:
         return JumpRelativeAction(branch_offset)
 
     return NextInstructionAction(next_address)
 
-def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    do_branch = False
     a = operands[0]
     for b in operands[1:]:
         if a < b:
-            return JumpRelativeAction(branch_offset)
-    
-    # Don't branch, not equal
+            do_branch = True
+            break
+
+    if not branch_if_true:
+        do_branch = not do_branch
+
+    if do_branch:
+        return JumpRelativeAction(branch_offset)
+
     return NextInstructionAction(next_address)
 
-def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
-def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+
+def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    routine = interpreter.current_routine()
+    var_num = dereference_variables(operands[0])
+    comp_to = dereference_variables(operands[1])
+    var = routine[var_num]
+    var += 1
+    routine[var_num] = var
+
+    branch = var > comp_to
+    if not branch_if_true:
+        branch = not branch
+
+    if branch:
+        return JumpRelativeAction(branch_offset)
+
     return NextInstructionAction(next_address)
 
 ## Memory/Variables
-def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 ## Objects
-def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 ## Math
-def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true):
+def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0])
+    v2 = dereference_variables(operands[1])
+    result = v1 * v2
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in mul of %s * %s: %s' % (v1,v2,result))
+    interpreter.current_routine()[int(store_to)] = result
+
     return NextInstructionAction(next_address)
 
 ### 14.1
@@ -314,7 +381,7 @@ OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
 
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
-(InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jz},
+(InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
