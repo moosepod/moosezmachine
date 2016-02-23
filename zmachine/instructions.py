@@ -293,6 +293,13 @@ class JumpRelativeAction(object):
     def apply(self,interpreter):
         interpreter.pc += self.branch_offset
 
+class QuitAction(object):
+    def __init__(self, next_address):
+        self.next_address = next_address
+
+    def apply(self,interpreter):
+        interpreter.quit()
+
 ###
 ### All handlers are passed in an interpreter and information about the given instruction
 ### and return an action object telling interpreter how to proceed
@@ -316,7 +323,7 @@ def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    address,hint = operands[0]
+    address,hint = operands[0]  
     return CallAction(address, store_to,next_address)
 
 def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -393,18 +400,28 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
+## Misc
+def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return QuitAction(next_address)
+
+def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
 
+(InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
 (InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
-(InstructionType.twoOP, 22): {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
+(InstructionType.twoOP,22): {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
+(InstructionType.twoOP,31):   {'name': 'nop','handler': op_nop},
 
 (InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
+(InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
 (InstructionType.zeroOP,11): {'name': 'new_line','handler': op_newline},
 
 (InstructionType.varOP,0):   {'name': 'call','store': True,

@@ -13,7 +13,7 @@ from zmachine.instructions import InstructionForm,InstructionType,OperandType,OP
                                   read_instruction,extract_opcode,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
-                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint
+                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction
 
 class TestOutputStream(OutputStream):
     def __init__(self,*args,**kwargs):
@@ -349,6 +349,22 @@ class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         self.assertFalse(self.screen.new_line_called)
         result = handler_f(self.zmachine)        
         self.assertTrue(self.screen.new_line_called)
+
+class MiscInstructionTests(InstructionTestsMixin,unittest.TestCase):
+    def test_quit(self):
+        memory = Memory(b'\xba\x00')
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:quit',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,QuitAction))
+
+    def test_nop(self):
+        memory = Memory(b'\x00\x03\x61')
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:nop 3 97',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,NextInstructionAction))
+
 
 class MemoryTests(unittest.TestCase):
     def test_from_integers(self):

@@ -24,6 +24,10 @@ class InterpreterException(Exception):
     """ General exception in handling by the interpreter """
     pass
 
+class QuitException(Exception):
+    """ Thrown when its time to quit the game """
+    pass
+
 class RNG(object):
     """ The random number generator, as specced in section 2.4
         Note that it toggles between a predicatable and random mode """
@@ -474,4 +478,7 @@ class Interpreter(object):
         if self.story.header.version > 3:
             return address * 4
         return address * 2
+
+    def quit(self):
+        raise QuitException()
 

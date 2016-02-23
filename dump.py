@@ -7,6 +7,7 @@ import argparse
 from zmachine.interpreter import Interpreter,Story,StoryFileException
 from zmachine.text import ZTextException
 from zmachine.memory import Memory
+from zmachine.instructions import InstructionException
 
 class DumpScreen(object):
     def __init__(self):
@@ -30,7 +31,7 @@ def load(path):
         story = Story(f.read())
         try:
             zmachine = Interpreter(story,None,None,None)
-            zmachine.reset()
+            zmachine.reset(force_version=3)
         except StoryFileException as e:
             print('Unable to load story file. %s' % e)
             return None
@@ -69,9 +70,15 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
 
         print('Current instruction\n--------\n')
         idx = zmachine.pc
-        for t in zmachine.instructions(30):
-            (instruction,description,next_address) = t
-            print('%04x: %s' %(idx,description,))
+        try:
+            for t in range(1,30):
+                t = zmachine.instruction_at(idx)
+                (f,description,next_address) = t
+                print('%04x: %s [%04x]' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]]),next_address))
+                print('      %s' %(description,))
+                idx=next_address
+        except InstructionException as e:
+            print(e)
         print('')
         
         if start_address:
