@@ -1,3 +1,5 @@
+import sys
+
 import curses
 from curses import wrapper
 
@@ -55,21 +57,16 @@ class StepperWindow(object):
         return False
     
     def redraw(self,window,zmachine,height):
+        idx = zmachine.pc
         for i,inst_t in enumerate(zmachine.instructions(10)):
             if i == 0:
                 prefix = " >>> "
             else:
                 prefix = "     "
-            instruction, idx = inst_t 
-            window.addstr("%04x %s\n" % (idx,instruction.bytestr))
-            extra = ''
-            if instruction.operands:
-                extra = ' %s' % ['0x%.4x' % x for x in instruction.operands]
-            if instruction.handler.is_branch:
-                extra += ' br->0x%.4x' % instruction.branch_to
-            if instruction.handler.is_store:
-                extra += ' st->%s' % instruction.store_to
-            window.addstr("%s%s:%s %s\n\n" % (prefix,instruction.instruction_type,instruction.handler.description,extra))  
+            (description,next_address) = inst_t
+            window.addstr('%04x: %s\n' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]])))
+            window.addstr("%s%s\n\n" % (prefix,description,))  
+            idx = next_address
 
 class MemoryWindow(object):
     def __init__(self):
@@ -299,6 +296,9 @@ def load_zmachine(filename):
     return zmachine
 
 def main():
+    if sys.version_info[0] < 3:
+        raise Exception("Moosezmachine requires Python 3.")
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--file')
     data = parser.parse_args()

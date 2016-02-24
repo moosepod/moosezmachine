@@ -4,7 +4,7 @@
 import random
 import os
 
-from zmachine.memory import Memory
+from zmachine.memory import Memory,BitArray
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
 from zmachine.instructions import read_instruction
@@ -273,6 +273,65 @@ class Routine(object):
         except IndexError:
             raise InterpreterException('Cannot pop from empty stack')
 
+class ObjectTableManager(object):
+    """ Handles the object table (see section 12.1). Note that requests to the table pass through, since we don't
+        know for sure where the object table ends """
+    def __init__(self,story):
+        self.version = story.header.version
+        self.game_memory = story.game_memory
+        self.object_table_address = story.header.object_table_address
+        self.reset()
+
+    def reset(self):
+        self.objects_start_address = self.object_table_address
+        self._load_defaults()
+
+    def _load_defaults(self):
+        """ Load the property defaults table. See 12.2 """
+        if self.version < 4:
+            num_words = 31
+        else:
+            num_words = 63
+        self.property_defaults = []
+        for i in range(0,num_words):
+            self.property_defaults.append(self.game_memory.word(self.objects_start_address))
+            self.objects_start_address+=2
+
+    def _object_record_size(self):
+        if self.version < 4:
+            return 9
+        return None
+
+    def estimate_number_of_objects(self):
+        """ Grab the first object and use its property table start as the assumed end of the
+            object table, the work backwards. No gurantee to work! """
+        first_obj = self[1]
+        addr = first_obj['property_address']
+        count = (addr - self.objects_start_address)/self._object_record_size()
+        if count > 255 and self.version < 4:
+            return 0 # Something's wrong, just return no objects
+        return int(count)
+
+    def __getitem__(self,key):
+        """ Get the nth object """
+        if self.version > 3:
+            raise InterpreterException("object table references need to be reworked for later versions, see 12.32")
+        
+        # 0th object is nothing, we should return no data
+        if key == 0:
+            return None
+
+        # 12.3.1
+        start_addr = self.objects_start_address + (self._object_record_size() * (key-1))    
+
+        obj = {'attributes': BitArray(self.game_memory._raw_data[start_addr:start_addr+4]),
+              'parent': self.game_memory[start_addr+4], 
+              'sibling': self.game_memory[start_addr+5], 
+              'child': self.game_memory[start_addr+6], 
+              'property_address': self.game_memory.word(start_addr+7)
+              }
+        return obj
+
 class OutputStream(object):
     """ See section 8 """
     def __init__(self):
@@ -339,6 +398,7 @@ class Story(object):
         self.header = None
         self.dictionary = None
         self.game_memory = None # Protected memory interface for use by game
+        self.object_table = None
         self.himem_address = 0
 
         # Initial data, stored to allow for resets
@@ -368,6 +428,8 @@ class Story(object):
         # some early files have no checksum -- skip the check in that case
         if self.header.checksum and self.header.checksum != self.calculate_checksum():
             raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
+
+        self.object_table = ObjectTableManager(self)
 
         # Default mode for RNG is random (see 2.4)
         self.rng.enter_random_mode()

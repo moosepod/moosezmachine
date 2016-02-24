@@ -81,6 +81,15 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
             print(e)
         print('')
         
+        print('Object Table Defaults\n--------\n')
+        for i,val in enumerate(zmachine.story.object_table.property_defaults):
+            print('%d) %04x' % (i,val))
+
+        obj_count = zmachine.story.object_table.estimate_number_of_objects()
+        print('Object Tables (%d estimated)\n--------\n' % obj_count)
+        for i in range(1,obj_count+1):
+            print('%d) %s' % (i,zmachine.story.object_table[i]))
+
         if start_address:
             print('')
             print('Dumping from 0x%x' % start_address)
@@ -120,6 +129,9 @@ def usage() :
     return 
 
 def main():
+    if sys.version_info[0] < 3:
+        raise Exception("Moosezmachine requires Python 3.")
+
     dictionary = False
     abbrevs = False
     parser = argparse.ArgumentParser()

@@ -116,7 +116,6 @@ def extract_opcode(memory,address):
     b2 = memory[address+1]
     address+=1
     opcode_byte=b1
-    operands = [] # List of operands (if any)
 
     if b1 == 0xbe and version >= 5:
         # 4.3.4 (Extended form)

@@ -3,6 +3,18 @@
 class MemoryException(Exception):
     pass
 
+class BitArray(object):
+    """ Take an array of bytes and allow for testing/modification """
+    def __init__(self,bytes):
+        self.bytes = bytes
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        """ Return bit array formatted as 0 and 1s, with leading 0s in each byte """
+        return (''.join([format(b,'#010b') for b in self.bytes])).replace('b','')
+
 class Memory(object):
     SIGNED_INT_MIN = -32768
     SIGNED_INT_MAX = 32767
