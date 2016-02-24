@@ -8,6 +8,7 @@ import time
 
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory
 from zmachine.text import ZTextException
+from zmachine.memory import BitArray
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -89,7 +90,34 @@ class MemoryWindow(object):
             s += str(' '.join(['%.2x' % x for x in zmachine.story.raw_data[addr:addr+16]]))
             s += '\n'
             window.addstr(s)   
-        
+
+class ObjectsWindow(object):
+    def __init__(self,max_obj):
+        self.obj_index = 1
+        self.max_obj = max_obj
+
+    def next_line(self):
+        self.obj_index += 1
+        if self.obj_index > self.max_obj:
+            self.obj_index = self.max_obj
+
+        return True
+
+    def previous_line(self):
+        self.address -= 1
+        if self.address < 0:
+            self.address = 0
+        return True
+    
+    def redraw(self,window,zmachine,height):
+        ztext = zmachine.get_ztext()
+        for i in range(self.obj_index,min(self.max_obj, height-self.obj_index)):
+            obj = zmachine.story.object_table[i]
+            zc = obj['short_name_zc']
+            window.addstr('%d: %s\n' % (i,ztext.to_ascii(zc,0,len(zc))))
+            for number,data in obj['properties'].items():
+                window.addstr('   %s: %s \n' % (number,''.join(['%02x' % x for x in data])))
+
 class DictionaryWindow(object):
     def __init__(self):
         self.dictionary_index = 0
@@ -189,6 +217,7 @@ class DebuggerWindow(object):
                                 'h': HeaderWindow(),
                                 'm': MemoryWindow(),
                                 'v': VariablesWindow(),
+                                'o': ObjectsWindow(zmachine.story.object_table.estimate_number_of_objects()),
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
