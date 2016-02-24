@@ -34,7 +34,7 @@ class ZText(object):
         self.state = ZTextState.DEFAULT
         self._previous_zchar = None
 
-    def to_ascii(self, memory,start_at,length_in_bytes):
+    def to_ascii(self, memory,start_at=0,length_in_bytes=0):
         """ Convert the ztext starting at start_at in memory to an ascii string.
             If length_in_bytes > 0, convert that many bytes. Otherwise convert until the end of 
             string word is found """

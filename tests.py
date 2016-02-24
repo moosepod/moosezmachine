@@ -184,10 +184,10 @@ class InstructionTests(unittest.TestCase):
         description = format_description(instruction_type, handler, [], None, None, False, literal_string)
         self.assertEqual('zeroOP:print (HELLO.\\n)',description)
 
-class InstructionTestsMixin(object):
-    # Took examples from end of http://inform-fiction.org/zmachine/standards/z1point0/sect04.html
+
+class TestStoryMixin(object):
     def __init__(self,*args,**kwargs):
-        super(InstructionTestsMixin,self).__init__(*args,**kwargs)    
+        super(TestStoryMixin,self).__init__(*args,**kwargs)    
         path = 'testdata/test.z3'
         if not os.path.exists(path):
             self.fail('Could not find test file test.z3')
@@ -201,7 +201,50 @@ class InstructionTestsMixin(object):
         self.zmachine.output_streams.set_screen_stream(self.screen)
     
 
-class RoutineInstructionsTests(InstructionTestsMixin,unittest.TestCase):
+class ObjectTableTests(TestStoryMixin,unittest.TestCase):
+    def __init__(self,*args,**kwargs):
+        super(ObjectTableTests,self).__init__(*args,**kwargs)    
+        path = 'testdata/test.z3'
+        if not os.path.exists(path):
+            self.fail('Could not find test file test.z3')
+        with open(path, 'rb') as f:
+            self.story = Story(f.read())
+            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+
+    def test_default_properties(self):
+        self.assertEqual([0x0000] * 31, self.story.object_table.property_defaults)
+
+    def test_get_property(self):
+        obj = self.story.object_table[1]
+        self.assertEqual({}, obj['properties'])
+        self.assertEqual(0, obj['child'])
+        self.assertEqual(0, obj['sibling'])
+        self.assertEqual(11, obj['parent'])
+        self.assertEqual('THE FIRST ROOM',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('000000000000000000000000000000100000',str(obj['attributes']))
+
+        obj = self.story.object_table[10]
+        self.assertEqual(0, obj['child'])
+        self.assertEqual(0, obj['sibling'])
+        self.assertEqual(0, obj['parent'])
+        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('000000000000000000000000000000000000',str(obj['attributes']))
+        self.assertEqual({16: bytearray(b'\xff'), 17: bytearray(b'\x00\x02'), 10: bytearray(b'\x00\n'), 
+            11: bytearray(b'\x00\x00'), 12: bytearray(b'\x00\x00'), 13: bytearray(b'\n'), 14: bytearray(b'\x00\x00'), 15: bytearray(b'\x00\x00')},
+            obj['properties'])
+
+        obj = self.story.object_table[11]
+        self.assertEqual({}, obj['properties'])
+        self.assertEqual(1, obj['child'])
+        self.assertEqual(0, obj['sibling'])
+        self.assertEqual(0, obj['parent'])
+        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('000000000000001111011111111011111111',str(obj['attributes']))
+
+    def test_set_property(self):
+        self.fail()
+
+class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_je(self):
         memory = Memory(b'\x01\x00\x11\x8d\x19')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -279,7 +322,7 @@ class RoutineInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         self.assertEqual(11368,result.routine_address)
         self.assertEqual(0,result.store_to)
 
-class ArithmaticInstructionsTests(InstructionTestsMixin,unittest.TestCase):
+class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_inc_chk(self):
         routine = self.zmachine.current_routine()
         routine.local_variables = [0,1,2,3,4,5]
@@ -331,7 +374,7 @@ class ArithmaticInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(convert_to_unsigned(-1),routine[48])
 
-class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
+class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_print(self):
         memory=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
@@ -350,7 +393,7 @@ class ScreenInstructionsTests(InstructionTestsMixin,unittest.TestCase):
         result = handler_f(self.zmachine)        
         self.assertTrue(self.screen.new_line_called)
 
-class MiscInstructionTests(InstructionTestsMixin,unittest.TestCase):
+class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
     def test_quit(self):
         memory = Memory(b'\xba\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
@@ -712,7 +755,13 @@ class ValidationTests(unittest.TestCase):
         
         for version in (0x01,0x02,0x03):
             raw_data[0] = version
-            Story(raw_data).reset()
+            try:
+                Story(raw_data).reset()
+                self.fail()
+            except MemoryAccessException as e:
+                # Should throw exception as our object table points at bad data
+                pass
+
         for version in (0x04,0x05,0x06,0x07,0x08):
             raw_data[0] = version
             try:
