@@ -315,11 +315,24 @@ class ObjectTableManager(object):
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}
+
         # 12.4
         text_length = self.game_memory[start_addr]
         start_addr+=1
-        properties{'name_zchars'} = self.game_memory.raw_data[start_addr:start_addr+(text_length*3)]
+        short_name_zc = self.game_memory._raw_data[start_addr:start_addr+(text_length*2)]
 
+        start_addr+=text_length*2
+        size_byte = self.game_memory[start_addr]
+        while size_byte:
+            start_addr+=1
+            property_number = size_byte & 0x1F
+            property_size = ((size_byte & 0xE0) >> 5) + 1 
+            data = self.game_memory._raw_data[start_addr:start_addr+property_size]
+            properties[property_number] = data
+            start_addr+=property_size
+            size_byte = self.game_memory[start_addr]
+
+        return properties,short_name_zc
 
     def __getitem__(self,key):
         """ Get the nth object """
@@ -333,14 +346,15 @@ class ObjectTableManager(object):
         # 12.3.1
         start_addr = self.objects_start_address + (self._object_record_size() * (key-1))    
 
-        property_address = self.game_memory.word(start_addr+7),
-
+        property_address = self.game_memory.word(start_addr+7)
+        properties,short_name_zc = self._get_properties(property_address)
         obj = {'attributes': BitArray(self.game_memory._raw_data[start_addr:start_addr+4]),
               'parent': self.game_memory[start_addr+4], 
               'sibling': self.game_memory[start_addr+5], 
               'child': self.game_memory[start_addr+6], 
               'property_address': property_address,
-              'properties': self._get_properties(property_address)
+              'short_name_zc': short_name_zc,
+              'properties': properties
               }
         return obj
 

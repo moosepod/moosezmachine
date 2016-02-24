@@ -291,7 +291,7 @@ def load_zmachine(filename):
         story = Story(f.read())
         outputs = OutputStreams(OutputStream(),OutputStream())
         zmachine = Interpreter(story,outputs,None,None)
-        zmachine.reset(force_version=3)
+        zmachine.reset()
 
     return zmachine
 

@@ -31,7 +31,7 @@ def load(path):
         story = Story(f.read())
         try:
             zmachine = Interpreter(story,None,None,None)
-            zmachine.reset(force_version=3)
+            zmachine.reset()
         except StoryFileException as e:
             print('Unable to load story file. %s' % e)
             return None
@@ -81,6 +81,7 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
             print(e)
         print('')
         
+        ztext = zmachine.get_ztext()
         print('Object Table Defaults\n--------\n')
         for i,val in enumerate(zmachine.story.object_table.property_defaults):
             print('%d) %04x' % (i,val))
@@ -88,7 +89,13 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
         obj_count = zmachine.story.object_table.estimate_number_of_objects()
         print('Object Tables (%d estimated)\n--------\n' % obj_count)
         for i in range(1,obj_count+1):
-            print('%d) %s' % (i,zmachine.story.object_table[i]))
+            obj = zmachine.story.object_table[i]
+            zc = obj['short_name_zc']
+            try:
+                obj['short_name'] = ztext.to_ascii(zc,0,len(zc))
+            except ZTextException:
+                obj['short_name'] = '(ZTEXT ERROR)'
+            print('%d) %s' % (i,obj))
 
         if start_address:
             print('')
@@ -96,7 +103,6 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
             data = zmachine.get_memory(start_address,start_address+(16*10))
             dump_memory(data,zmachine,start_address)
 
-        ztext = zmachine.get_ztext()
         if abbrevs:
             print('')
             print('Abbreviations\n------------\n')
