@@ -127,7 +127,7 @@ class InstructionTests(unittest.TestCase):
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
         handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
         address, operands = process_operands(operands, handler, mem, address,3)
-        self.assertEqual([(1000,OperandTypeHint.signed),(2,OperandTypeHint.variable)],operands)
+        self.assertEqual([(1000,OperandTypeHint.signed),(2,OperandTypeHint.signed_variable)],operands)
 
         # print
         mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
@@ -243,6 +243,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
 
     def test_set_property(self):
         self.fail()
+
+class PropertyInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_get_prop(self):
+        self.fail('Normal')
+        self.fail('Default')
+        self.fail('One byte')
+        self.fail('Two byte')
+        self.fail('Exception')
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_je(self):
@@ -392,6 +400,22 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertFalse(self.screen.new_line_called)
         result = handler_f(self.zmachine)        
         self.assertTrue(self.screen.new_line_called)
+
+    def test_print_num(self):
+        memory = Memory(b'\xe6\xbf\x11')
+        self.zmachine.current_routine()[17] = 20
+        self.assertEqual('',self.screen.printed_string)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:print_num var17',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual('20',self.screen.printed_string)
+
+        # Test signed
+        self.screen.printed_string=''
+        self.zmachine.current_routine()[17] = 0xffff
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)        
+        self.assertEqual('-1',self.screen.printed_string)
 
 class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
     def test_quit(self):

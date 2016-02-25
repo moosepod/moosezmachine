@@ -42,6 +42,7 @@ class OperandTypeHint(Enum):
     address = 3
     packed_address = 4
     variable = 5
+    signed_variable = 6
 
 def convert_to_signed(val):
     if val > 0x7fff:
@@ -195,7 +196,7 @@ def process_operands(operands, handler,memory, address,version):
     tmp = []
     for i,optype in enumerate(operands):
         val = 0
-        if handler.get('types'):
+        if len(handler.get('types',[])) > i:
             hint = handler['types'][i]
         else:
             hint = None
@@ -207,7 +208,10 @@ def process_operands(operands, handler,memory, address,version):
             address+=2
         elif optype == OperandType.variable:
             val = memory[address]
-            hint = OperandTypeHint.variable
+            if hint == OperandTypeHint.signed:
+                hint = OperandTypeHint.signed_variable
+            else:
+                hint = OperandTypeHint.variable
             address+=1
         elif optype == OperandType.omitted:
             # 4.4.3
@@ -249,7 +253,7 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
     """ Create a text description of this instruction """
     description = "%s:%s" % (instruction_type.name, handler['name'])
     for operand,hint in operands:
-        if hint == OperandTypeHint.variable:
+        if hint == OperandTypeHint.variable or hint == OperandTypeHint.signed_variable:
             description += ' var%s' % operand
         else:
             description += ' %s' % operand
@@ -308,6 +312,8 @@ def dereference_variables(operand, instance):
     val, hint = operand
     if hint == OperandTypeHint.variable:
         return instance.current_routine()[val]
+    elif hint == OperandTypeHint.signed_variable:
+        return convert_to_signed(instance.current_routine()[val])       
     return val
 
 ## Text
@@ -318,6 +324,11 @@ def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_i
 
 def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     interpreter.output_streams.print_str(literal_string)
+    return NextInstructionAction(next_address)
+
+def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    val = dereference_variables(operands[0],interpreter)
+    interpreter.output_streams.print_str(str(val))
     return NextInstructionAction(next_address)
 
 ## Branching
@@ -399,6 +410,10 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
+## Properties
+def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ## Misc
 def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return QuitAction(next_address)
@@ -416,7 +431,8 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
-(InstructionType.twoOP,22): {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
+(InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
+(InstructionType.twoOP,22):  {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
 (InstructionType.twoOP,31):   {'name': 'nop','handler': op_nop},
 
 (InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
@@ -425,6 +441,9 @@ OPCODE_HANDLERS = {
 
 (InstructionType.varOP,0):   {'name': 'call','store': True,
                               'types': (OperandTypeHint.packed_address,OperandTypeHint.unsigned,OperandTypeHint.unsigned,
-                                        OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_call}
+                                        OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_call},
+(InstructionType.varOP,6):   {'name': 'print_num',
+                              'types': (OperandTypeHint.signed,),
+                              'handler': op_print_num},
 }
 

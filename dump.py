@@ -37,7 +37,7 @@ def load(path):
             return None
     return zmachine
 
-def dump(path,abbrevs=False,dictionary=False,start_address=0):
+def dump(path,abbrevs=False,dictionary=False,objects=False,start_address=0):
         zmachine = load(path)
         if not zmachine:
             return
@@ -81,21 +81,22 @@ def dump(path,abbrevs=False,dictionary=False,start_address=0):
             print(e)
         print('')
         
-        ztext = zmachine.get_ztext()
-        print('Object Table Defaults\n--------\n')
-        for i,val in enumerate(zmachine.story.object_table.property_defaults):
-            print('%d) %04x' % (i,val))
+        if objects:
+            ztext = zmachine.get_ztext()
+            print('Object Table Defaults\n--------\n')
+            for i,val in enumerate(zmachine.story.object_table.property_defaults):
+                print('%d) %04x' % (i,val))
 
-        obj_count = zmachine.story.object_table.estimate_number_of_objects()
-        print('Object Tables (%d estimated)\n--------\n' % obj_count)
-        for i in range(1,obj_count+1):
-            obj = zmachine.story.object_table[i]
-            zc = obj['short_name_zc']
-            try:
-                obj['short_name'] = ztext.to_ascii(zc,0,len(zc))
-            except ZTextException:
-                obj['short_name'] = '(ZTEXT ERROR)'
-            print('%d) %s' % (i,obj))
+            obj_count = zmachine.story.object_table.estimate_number_of_objects()
+            print('Object Tables (%d estimated)\n--------\n' % obj_count)
+            for i in range(1,obj_count+1):
+                obj = zmachine.story.object_table[i]
+                zc = obj['short_name_zc']
+                try:
+                    obj['short_name'] = ztext.to_ascii(zc,0,len(zc))
+                except ZTextException:
+                    obj['short_name'] = '(ZTEXT ERROR)'
+                print('%d) %s' % (i,obj))
 
         if start_address:
             print('')
@@ -143,6 +144,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dictionary',action='store_true')
     parser.add_argument('--abbrevs',action='store_true')
+    parser.add_argument('--objects',action='store_true')
     parser.add_argument('--address')
     parser.add_argument('--file')
     data = parser.parse_args()
