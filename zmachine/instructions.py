@@ -43,6 +43,7 @@ class OperandTypeHint(Enum):
     packed_address = 4
     variable = 5
     signed_variable = 6
+    packed_address_variable = 7
 
 def convert_to_signed(val):
     if val > 0x7fff:
@@ -175,6 +176,11 @@ def extract_opcode(memory,address):
     
     return address,instruction_form, instruction_type,  opcode_number,operands
 
+def unpack_address(val,version):
+    if version > 3:
+        return val * 4
+    return val * 2
+
 def process_operand_type_hint(val, hint,version):
     """ Use the hint to perform any processing on the operand value (such as signing) """
     if val < MIN_UNSIGNED or val > MAX_UNSIGNED:
@@ -184,9 +190,7 @@ def process_operand_type_hint(val, hint,version):
         # Signed numbers are stored twos compliment. See 2.2.
         return convert_to_signed(val)
     elif hint == OperandTypeHint.packed_address:
-        if version > 3:
-            return val * 4
-        return val * 2
+        return unpack_address(val,version)
     elif hint == OperandTypeHint.variable:
         return val
     return val 
@@ -210,6 +214,8 @@ def process_operands(operands, handler,memory, address,version):
             val = memory[address]
             if hint == OperandTypeHint.signed:
                 hint = OperandTypeHint.signed_variable
+            elif hint == OperandTypeHint.packed_address:
+                hint = OperandTypeHint.packed_address_variable
             else:
                 hint = OperandTypeHint.variable
             address+=1
@@ -253,7 +259,7 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
     """ Create a text description of this instruction """
     description = "%s:%s" % (instruction_type.name, handler['name'])
     for operand,hint in operands:
-        if hint == OperandTypeHint.variable or hint == OperandTypeHint.signed_variable:
+        if hint in (OperandTypeHint.variable,OperandTypeHint.signed_variable,OperandTypeHint.packed_address_variable):
             description += ' var%s' % operand
         else:
             description += ' %s' % operand
@@ -308,12 +314,14 @@ class QuitAction(object):
 ### and return an action object telling interpreter how to proceed
 ###
 
-def dereference_variables(operand, instance):
+def dereference_variables(operand, interpreter):
     val, hint = operand
     if hint == OperandTypeHint.variable:
-        return instance.current_routine()[val]
+        return interpreter.current_routine()[val]
     elif hint == OperandTypeHint.signed_variable:
-        return convert_to_signed(instance.current_routine()[val])       
+        return convert_to_signed(interpreter.current_routine()[val])   
+    elif hint == OperandTypeHint.packed_address_variable:
+        return unpack_address(interpreter.current_routine()[val], interpreter.story.header.version)  
     return val
 
 ## Text
@@ -324,6 +332,11 @@ def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_i
 
 def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     interpreter.output_streams.print_str(literal_string)
+    return NextInstructionAction(next_address)
+
+def op_print_paddr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    addr = dereference_variables(operands[0],interpreter)
+    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory, addr))
     return NextInstructionAction(next_address)
 
 def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -424,6 +437,7 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
+(InstructionType.oneOP, 13):  {'name': 'print_paddr','types': (OperandTypeHint.packed_address,), 'handler': op_print_paddr},
 
 (InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},

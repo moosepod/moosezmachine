@@ -14,6 +14,7 @@ from zmachine.instructions import InstructionForm,InstructionType,OperandType,OP
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
                                   JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction
+import zmachine.instructions as instructions
 
 class TestOutputStream(OutputStream):
     def __init__(self,*args,**kwargs):
@@ -391,6 +392,21 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('',self.screen.printed_string)
         result = handler_f(self.zmachine)        
         self.assertEqual('HELLO.\n',self.screen.printed_string)
+
+    def test_print_paddr(self):
+        self.story.game_memory[0x0820] = 0x16
+        self.story.game_memory[0x0821] = 0x45
+        self.story.game_memory[0x0822] = 0x94
+        self.story.game_memory[0x0823] = 0xA5
+        self.zmachine.current_routine().local_variables=[0,0,0]
+        self.zmachine.current_routine()[3] = 0x0410
+
+        memory = Memory(b'\xad\x03')
+        self.assertEqual('',self.screen.printed_string)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('oneOP:print_paddr var3', description)
+        handler_f(self.zmachine)
+        self.assertEqual('.',self.screen.printed_string)
     
     def test_new_line(self):
         memory = Memory(b'\xbb\x00')
