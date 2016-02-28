@@ -356,7 +356,7 @@ class ReturnAction(object):
         self.result = result
 
     def apply(self,interpreter):
-        self.return_from_current(self.result)
+        interpreter.return_from_current_routine(self.result)
 
 class JumpRelativeAction(object):
     """ Interpreter should jump relative to the current program counter """

@@ -5,7 +5,7 @@ import inspect
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
-                                InterpreterException
+                                InterpreterException,QuitException
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -255,19 +255,36 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
 
 class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_next_address(self):
-        self.fail()
+        old_pc = self.zmachine.pc
+        NextInstructionAction(old_pc+10).apply(self.zmachine)
+        self.assertEqual(old_pc+10,self.zmachine.pc)
 
-    def test_call(self):
-        self.fail()
+    def test_call_and_return(self):
+        self.assertEquals(1,len(self.zmachine.routines))
+        old_pc = self.zmachine.pc
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,2,3,4,5,6]
+        
+        CallAction(0x1000,5,old_pc+10).apply(self.zmachine)
+        self.assertEquals(2,len(self.zmachine.routines))
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0x1000,self.zmachine.pc)
+        self.assertEqual(5,routine.store_to)
+        self.assertEqual(old_pc + 10, routine.return_to_address)
 
-    def test_return(self):
-        self.fail()
+        ReturnAction(111).apply(self.zmachine)
+        routine = self.zmachine.current_routine()
+        self.assertEqual(old_pc + 10, self.zmachine.pc)
+        self.assertEqual(111,routine[5])
+        self.assertEquals(1,len(self.zmachine.routines))
 
     def test_jump_relative(self):
-        self.fail()
+        old_pc = self.zmachine.pc
+        JumpRelativeAction(10,old_pc+4).apply(self.zmachine)
+        self.assertEqual(old_pc+12,self.zmachine.pc)
 
     def test_quit(self):
-        self.fail()
+        self.assertRaises(QuitException, QuitAction(self.zmachine.pc).apply,self.zmachine)
 
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_jin(self):

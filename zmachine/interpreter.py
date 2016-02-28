@@ -511,6 +511,17 @@ class Interpreter(object):
                                     self.story.header.version,
                                     no_locals=no_locals))
         self.pc = routine_address
+
+    def return_from_current_routine(self,return_val):
+        """ Pop the call stack and set the return_to variable to return_val. If stack is on last routine,
+            throw exception """
+        if len(self.routines) == 0:
+            raise InterpreterException('Request to return from empty routine at addr %04x' % self.pc)
+
+        return_from_routine = self.routines.pop()
+        store_to = return_from_routine.store_to
+        self.current_routine()[store_to] = return_val
+        self.pc = return_from_routine.return_to_address
     
     def get_ztext(self):
         """ Return the a ztext processor for this interpreter """
