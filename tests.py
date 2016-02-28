@@ -626,6 +626,41 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)        
         self.assertTrue(isinstance(result,NextInstructionAction))
 
+class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_or(self):
+        memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:or 0 255 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(0xff, self.zmachine.current_routine()[200])
+
+        memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0xff),(OperandType.small_constant,0x00)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:or 255 0 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(0xff, self.zmachine.current_routine()[200])
+
+    def test_and(self):
+        memory = create_instruction(InstructionType.twoOP,9,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:and 0 255 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(0, self.zmachine.current_routine()[200])
+
+        memory = create_instruction(InstructionType.twoOP,9,[(OperandType.small_constant,0xff),(OperandType.small_constant,0xff)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:and 255 255 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(0xff, self.zmachine.current_routine()[200])
+
     def test_test(self):
         memory = create_instruction(InstructionType.twoOP,7,[(OperandType.small_constant,0xFF),(OperandType.small_constant,0xFF)],branch_to=0x02)
         handler_f, description, next_address = read_instruction(memory,0,3,None)

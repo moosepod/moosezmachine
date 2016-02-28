@@ -322,6 +322,9 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
     else:
         raise Exception('Not supporting that type yet')
 
+    if store_to:
+        bytes.append(store_to)
+        
     if branch_to:
         if branch_if_true:
             bytes.append(0x80)
@@ -560,6 +563,7 @@ def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
 def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+### Bitwise
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     bitmap = dereference_variables(operands[0],interpreter)
     flags = dereference_variables(operands[1],interpreter)
@@ -568,6 +572,22 @@ def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
         return JumpRelativeAction(branch_offset,next_address)
 
     return NextInstructionAction(next_address)    
+
+def op_or(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+
+    interpreter.current_routine()[store_to] = v1 | v2
+
+    return NextInstructionAction(next_address)   
+
+def op_and(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+
+    interpreter.current_routine()[store_to] = v1 & v2
+
+    return NextInstructionAction(next_address)   
 
 ### 14.1
 OPCODE_HANDLERS = {
@@ -584,6 +604,8 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,6):   {'name': 'jin','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_jin},
 (InstructionType.twoOP,7):   {'name': 'test','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test},
+(InstructionType.twoOP,8):   {'name': 'or','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_or},
+(InstructionType.twoOP,9):   {'name': 'and','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_and},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
