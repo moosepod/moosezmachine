@@ -560,6 +560,15 @@ def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
 def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    bitmap = dereference_variables(operands[0],interpreter)
+    flags = dereference_variables(operands[1],interpreter)
+
+    if bitmap & flags == flags:
+        return JumpRelativeAction(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)    
+
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
@@ -574,6 +583,7 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_dec_chk},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,6):   {'name': 'jin','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_jin},
+(InstructionType.twoOP,7):   {'name': 'test','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
