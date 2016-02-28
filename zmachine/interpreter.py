@@ -312,6 +312,14 @@ class ObjectTableManager(object):
             return 0 # Something's wrong, just return no objects
         return int(count)
 
+    def test_attribute(self,obj_number,attr_number):
+        """ Return true if attribute # attr_number is set on object number obj_number """
+        return False
+
+    def set_attribute(self,obj_number,attr_number,val):
+        """ Set # attr_number is set on object number obj_number to val (True/False)"""
+        pass
+
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}

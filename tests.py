@@ -223,6 +223,19 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
     def test_default_properties(self):
         self.assertEqual([0x0000] * 31, self.story.object_table.property_defaults)
 
+    def test_set_and_test_attribute(self):
+        table = self.story.object_table
+        self.assertTrue(table.test_attribute(1,30))
+        self.assertFalse(table.test_attribute(1,31))
+
+        for i in range(0,32):
+            self.assertFalse(table.test_attribute(10,i))
+            table.set_attribute(10,i,True)
+            self.assertTrue(table.test_attribute(10,i))
+            table.set_attribute(10,i,False)
+            self.assertFalse(table.test_attribute(10,i))
+
+
     def test_get_property(self):
         obj = self.story.object_table[1]
         self.assertEqual({}, obj['properties'])
