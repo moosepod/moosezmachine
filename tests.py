@@ -39,6 +39,8 @@ class TestOutputStreams(OutputStreams):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
 class InstructionTests(unittest.TestCase):
+    def test_brnach(self):
+        self.fail('See 4.7.2. Branches (like je?) are pc + next_address + offset - 2')
     def test_extract_opcode(self):
         # je
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x01\x00\x11\x8d\x19'),0)
