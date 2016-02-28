@@ -292,15 +292,24 @@ class CallAction(object):
         self.return_to = return_to
 
     def apply(self,interpreter):
-        self.call_routine(self.routine_address,self.return_to,self.store_to)
+        interpreter.call_routine(self.routine_address,self.return_to,self.store_to)
+
+class ReturnAction(object):
+    """ Interpreter should return from the current routine with the given result """
+    def __init__(self, result):
+        self.result = result
+
+    def apply(self,interpreter):
+        self.return_from_current(self.result)
 
 class JumpRelativeAction(object):
     """ Interpreter should jump relative to the current program counter """
-    def __init__(self, branch_offset):
+    def __init__(self, branch_offset, next_address):
         self.branch_offset = branch_offset
+        self.next_address = next_address
 
     def apply(self,interpreter):
-        interpreter.pc += self.branch_offset
+        interpreter.pc = self.next_address + self.branch_offset - 2
 
 class QuitAction(object):
     def __init__(self, next_address):
@@ -349,6 +358,12 @@ def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     address,hint = operands[0]  
     return CallAction(address, store_to,next_address)
 
+def op_rtrue(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return ReturnAction(1)
+
+def op_rfalse(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return ReturnAction(0)
+
 def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     do_branch = False
     a = dereference_variables(operands[0],interpreter)
@@ -362,7 +377,7 @@ def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset)
+        return JumpRelativeAction(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -379,13 +394,17 @@ def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset)
+        return JumpRelativeAction(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
 def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_jump(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    offset = dereference_variables(operands[0],interpreter)
+    return JumpRelativeAction(offset,next_address)
+    
 
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     routine = interpreter.current_routine()
@@ -400,7 +419,7 @@ def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
         branch = not branch
 
     if branch:
-        return JumpRelativeAction(branch_offset)
+        return JumpRelativeAction(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -437,6 +456,7 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
+(InstructionType.oneOP,12): {'name': 'jump','handler': op_jump,'types': (OperandTypeHint.signed,) },
 (InstructionType.oneOP, 13):  {'name': 'print_paddr','types': (OperandTypeHint.packed_address,), 'handler': op_print_paddr},
 
 (InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
@@ -448,6 +468,9 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
 (InstructionType.twoOP,22):  {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
 (InstructionType.twoOP,31):   {'name': 'nop','handler': op_nop},
+
+(InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},
+(InstructionType.zeroOP,1):  {'name': 'rfalse', 'handler': op_rfalse},
 
 (InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
 (InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},

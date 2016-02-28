@@ -13,7 +13,7 @@ from zmachine.instructions import InstructionForm,InstructionType,OperandType,OP
                                   read_instruction,extract_opcode,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
-                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction
+                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction,ReturnAction
 import zmachine.instructions as instructions
 
 class TestOutputStream(OutputStream):
@@ -39,8 +39,6 @@ class TestOutputStreams(OutputStreams):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
 class InstructionTests(unittest.TestCase):
-    def test_brnach(self):
-        self.fail('See 4.7.2. Branches (like je?) are pc + next_address + offset - 2')
     def test_extract_opcode(self):
         # je
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x01\x00\x11\x8d\x19'),0)
@@ -256,6 +254,34 @@ class PropertyInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.fail('Exception')
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_rtrue(self):
+        memory = Memory(b'\xb0\x00')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('zeroOP:rtrue',description)
+        result = handler_f(self.zmachine)
+
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(1,result.result)
+
+    def test_rfalse(self):
+        memory = Memory(b'\xb1\x00')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('zeroOP:rfalse',description)
+        result = handler_f(self.zmachine)
+
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(0,result.result)
+
+    def test_jump(self):
+        memory = Memory(b'\x8c\x00\x07')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:jump 7',description)
+        result = handler_f(self.zmachine)
+
+        # Offset is relative. Formula is next address + offset - 2
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(7,result.branch_offset)
+
     def test_je(self):
         memory = Memory(b'\x01\x00\x11\x8d\x19')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
