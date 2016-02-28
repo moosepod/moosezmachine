@@ -82,6 +82,13 @@ class Memory(object):
         """ Set byte at provided address """
         self._raw_data[idx] = val
 
+    def __str__(self):
+        length = len(self)
+        row=[]
+        for i in range(0,length):
+            row.append('%.2x' % self[i])
+        return ''.join(row)
+
     def dump(self, width=16,start_address=0):
         """ Dump all memory in a convienient format """
         counter = 0

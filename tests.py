@@ -10,7 +10,7 @@ from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
 from zmachine.instructions import InstructionForm,InstructionType,OperandType,OPCODE_HANDLERS,\
-                                  read_instruction,extract_opcode,\
+                                  read_instruction,extract_opcode,create_instruction,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
                                   JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction,ReturnAction
@@ -39,6 +39,14 @@ class TestOutputStreams(OutputStreams):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
 class InstructionTests(unittest.TestCase):
+    def test_create_instruction(self):
+        mem = create_instruction(InstructionType.twoOP, 1,[(OperandType.small_constant,0),(OperandType.small_constant,17)],branch_to=0x19)
+        self.assertEqual('0100118019', str(mem))
+
+        mem = create_instruction(InstructionType.twoOP, 1,[(OperandType.large_constant,0),(OperandType.small_constant,17)])
+        self.assertEqual('c11f000011', str(mem))
+
+
     def test_extract_opcode(self):
         # je
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x01\x00\x11\x8d\x19'),0)
@@ -399,12 +407,12 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(29,result.branch_offset)
 
         # Test signed
-        memory = Memory(b'\x23\xff\xff\xb2\xdd')
+        memory = create_instruction(InstructionType.twoOP,3,[(OperandType.large_constant,-2),(OperandType.small_constant,1)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jg 178 -1 ?001d',description)
+        self.assertEqual('twoOP:jg -2 1 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(5,result.next_address)
+        self.assertEqual(7,result.next_address)
 
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
@@ -447,6 +455,37 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4,self.zmachine.current_routine()[2])
+
+    def test_dec_chk(self):
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [0,3,2,3,4,5]
+
+        # Decrement and branch
+        memory=Memory([0x04,0x02,0x06,0xd4])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:dec_chk var2 6 ?0014',description)
+
+        self.assertEqual(3,self.zmachine.current_routine()[2])
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(20,result.branch_offset)
+        self.assertEqual(2,self.zmachine.current_routine()[2])
+
+        # Decrement and don't branch
+        memory=Memory([0x04,0x02,0x00,0xd4])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:dec_chk var2 0 ?0014',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(1,self.zmachine.current_routine()[2])
+
+        # Invert
+        memory=Memory([0x04,0x06,0x05,0x54])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:dec_chk var6 5 ?!0014',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4,self.zmachine.current_routine()[6])
 
     def test_mul(self):
         routine = self.zmachine.current_routine()

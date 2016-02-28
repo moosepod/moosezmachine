@@ -7,6 +7,7 @@
 import re
 from enum import Enum
 from zmachine.text import ZText
+from zmachine.memory import Memory
 
 MIN_SIGNED= -32768
 MAX_SIGNED = 32767
@@ -66,6 +67,7 @@ def operand_from_bitfield(bf):
     elif bf == 0:
         return OperandType.large_constant
     return None
+
 
 ### Passed in memory, address of next instruction, and some context info, return
 ### a handler function (taking an interpreter) and a description of this instruction
@@ -275,6 +277,59 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
         description += ' ?%s%04x' % (branch_invert,branch_offset)
     return description
 
+### For testing purposes. Pass in params and make the memory that represents this instruction
+def create_instruction(instruction_type, opcode_number, operands, store_to=None, branch_to=None, branch_if_true=True):
+    bytes = []
+
+    if instruction_type == InstructionType.twoOP:
+        variables = 0
+        if operands[0][0] == OperandType.large_constant or operands[1][0] == OperandType.large_constant:
+            instruction_form = InstructionForm.variable_form
+            bytes.append(0xC0 | opcode_number)
+        else:
+            instruction_form = InstructionForm.long_form
+            if operands[0][0] == OperandType.variable:
+                variables = variables | 0x40
+            if operands[1][0] == OperandType.variable:
+                variables = variables | 0x20
+            bytes.append(0x00 | opcode_number | variables)
+
+        if instruction_form == InstructionForm.variable_form:
+            variable_types = 0x0F
+
+            opt = operands[0][0]
+            if opt  == OperandType.variable:
+                variable_types = variable_types | 0x80 # 10
+            elif opt == OperandType.small_constant:
+                variable_types = variable_types | 0x40 # 01
+
+            opt = operands[1][0]
+            if opt  == OperandType.variable:
+                variable_types = variable_types | 0x20 # 10
+            elif opt == OperandType.small_constant:
+                variable_types = variable_types | 0x10 # 01    
+
+            bytes.append(variable_types)        
+
+        for optype, operand in operands:
+            if operand < 0:
+                operand = convert_to_unsigned(operand)
+                bytes.append(operand >> 8)
+                bytes.append(operand & 0x00FF)
+            elif optype == OperandType.large_constant:
+                bytes.append(operand >> 8)
+                bytes.append(operand & 0x00FF)
+            else:
+                bytes.append(operand)
+    else:
+        raise Exception('Not supporting that type yet')
+
+    if branch_to:
+        if branch_if_true:
+            bytes.append(0x80)
+            bytes.append(branch_to)
+    return Memory(bytes)
+
 ### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed
 class NextInstructionAction(object):
     """ Interpreter should proceed to next instruction, address provided """
@@ -317,6 +372,7 @@ class QuitAction(object):
 
     def apply(self,interpreter):
         interpreter.quit()
+
 
 ###
 ### All handlers are passed in an interpreter and information about the given instruction
@@ -431,12 +487,30 @@ def op_jump(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     routine = interpreter.current_routine()
     var_num,hint = operands[0]
-    comp_to,hint = operands[1]
+    comp_to = dereference_variables(operands[1],interpreter)
+
     var = routine[var_num]
     var += 1
     routine[var_num] = var
 
     branch = var > comp_to
+    if not branch_if_true:
+        branch = not branch
+
+    if branch:
+        return JumpRelativeAction(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
+def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    routine = interpreter.current_routine()
+    var_num,hint = operands[0]
+    comp_to = dereference_variables(operands[1],interpreter)
+    var = routine[var_num]
+    var -= 1
+    routine[var_num] = var
+
+    branch = var < comp_to
     if not branch_if_true:
         branch = not branch
 
@@ -486,6 +560,7 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
 (InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
 (InstructionType.twoOP,3):   {'name': 'jg','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jg},
+(InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_dec_chk},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
