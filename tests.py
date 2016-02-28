@@ -60,7 +60,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionForm.long_form, instruction_form)
         self.assertEqual(InstructionType.twoOP,instruction_type)
         self.assertEqual(2, opcode_number)
-        self.assertEqual([OperandType.small_constant,OperandType.large_constant], operands)
+        self.assertEqual([OperandType.small_constant,OperandType.variable], operands)
 
         # call
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xe0\x3f\x16\x34\x00'),0)
@@ -115,7 +115,7 @@ class InstructionTests(unittest.TestCase):
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
         handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
         address, operands = process_operands(operands, handler,mem, address,3)
-        self.assertEqual([178,5348],[x[0] for x in operands])
+        self.assertEqual([178,20],[x[0] for x in operands])
 
         # call
         mem = Memory(b'\xe0\x3f\x16\x34\x00')
@@ -167,7 +167,7 @@ class InstructionTests(unittest.TestCase):
         handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
         address, operands = process_operands(operands, handler,mem, address,3)
         address, branch_offset, branch_if_truet = extract_branch_offset(mem,address)
-        self.assertEqual(29,branch_offset)
+        self.assertEqual(36,branch_offset)
 
     def test_extract_literal_string(self):
         mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
@@ -269,7 +269,32 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_quit(self):
         self.fail()
 
-class PropertyInstructionsTests(TestStoryMixin,unittest.TestCase):
+class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_jin(self):
+        # Object 1 is in object 11 (11 is parent of 1)
+        memory = create_instruction(InstructionType.twoOP,6,[(OperandType.small_constant,1),(OperandType.small_constant,11)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jin 1 11 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
+        # Object 11 is not object 1 (11 is parent of 1)
+        memory = create_instruction(InstructionType.twoOP,6,[(OperandType.small_constant,11),(OperandType.small_constant,1)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jin 11 1 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+
+        # Verify var support
+        self.zmachine.current_routine().local_variables = [1,11]
+        memory = create_instruction(InstructionType.twoOP,6,[(OperandType.variable,1),(OperandType.variable,2)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jin var1 var2 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
     def test_get_prop(self):
         self.fail('Normal')
         self.fail('Default')
@@ -334,15 +359,15 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
 
     def test_jl(self):
         # Item is less than, so jump
-        memory = Memory(b'\x22\xb2\x14\xe4\xdd')
+        memory = create_instruction(InstructionType.twoOP,2,[(OperandType.small_constant,178),(OperandType.small_constant,200)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jl 178 5348 ?001d',description)
+        self.assertEqual('twoOP:jl 178 200 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(29,result.branch_offset)
 
         # Gt, don't jump
-        memory = Memory(b'\x22\x14\x00\x01\xdd')
+        memory = create_instruction(InstructionType.twoOP,2,[(OperandType.small_constant,20),(OperandType.small_constant,1)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:jl 20 1 ?001d',description)
         result = handler_f(self.zmachine)    
@@ -350,7 +375,7 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(5,result.next_address)
 
         # equal, don't jump
-        memory = Memory(b'\x22\xb2\x00\xb2\xdd')
+        memory = create_instruction(InstructionType.twoOP,2,[(OperandType.small_constant,178),(OperandType.small_constant,178)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:jl 178 178 ?001d',description)
         result = handler_f(self.zmachine)    
@@ -358,24 +383,24 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(5,result.next_address)
 
         # Test inverse
-        memory = Memory(b'\x22\xb2\x14\xe4\x5d')
+        memory = create_instruction(InstructionType.twoOP,2,[(OperandType.small_constant,1),(OperandType.small_constant,20)],branch_to=0x1d,branch_if_true=False)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jl 178 5348 ?!001d',description)
+        self.assertEqual('twoOP:jl 1 20 ?!001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5,result.next_address)
 
         # Test signed
-        memory = Memory(b'\x22\xb2\xff\xff\xdd')
+        memory = create_instruction(InstructionType.twoOP,2,[(OperandType.small_constant,1),(OperandType.large_constant,-2)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jl 178 -1 ?001d',description)
+        self.assertEqual('twoOP:jl 1 -2 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(5,result.next_address)
+        self.assertEqual(7  ,result.next_address)
 
     def test_jg(self):
         # Item is greater than, so jump
-        memory = Memory(b'\x23\x14\x00\x01\xdd')
+        memory = create_instruction(InstructionType.twoOP,3,[(OperandType.small_constant,20),(OperandType.small_constant,1)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:jg 20 1 ?001d',description)
         result = handler_f(self.zmachine)
@@ -383,15 +408,15 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(29,result.branch_offset)
 
         # less than, don't jump
-        memory = Memory(b'\x23\xb2\x14\xe4\xdd')
+        memory = create_instruction(InstructionType.twoOP,3,[(OperandType.small_constant,20),(OperandType.small_constant,178)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jg 178 5348 ?001d',description)
+        self.assertEqual('twoOP:jg 20 178 ?001d',description)
         result = handler_f(self.zmachine)    
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5,result.next_address)
 
         # equal, don't jump
-        memory = Memory(b'\x23\xb2\x00\xb2\xdd')
+        memory = create_instruction(InstructionType.twoOP,3,[(OperandType.small_constant,178),(OperandType.small_constant,178)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:jg 178 178 ?001d',description)
         result = handler_f(self.zmachine)    
@@ -399,9 +424,9 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(5,result.next_address)
 
         # Test inverse
-        memory = Memory(b'\x23\xb2\x14\xe4\x5d')
+        memory = create_instruction(InstructionType.twoOP,3,[(OperandType.small_constant,20),(OperandType.small_constant,178)],branch_to=0x1d,branch_if_true=False)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jg 178 5348 ?!001d',description)
+        self.assertEqual('twoOP:jg 20 178 ?!001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(29,result.branch_offset)
@@ -412,7 +437,7 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('twoOP:jg -2 1 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(7,result.next_address)
+        self.assertEqual(7  ,result.next_address)
 
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')

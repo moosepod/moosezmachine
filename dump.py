@@ -37,7 +37,7 @@ def load(path):
             return None
     return zmachine
 
-def dump(path,abbrevs=False,dictionary=False,objects=False,start_address=0):
+def dump(path,abbrevs=False,dictionary=False,objects=False,instructions=False,start_address=0):
         zmachine = load(path)
         if not zmachine:
             return
@@ -68,18 +68,19 @@ def dump(path,abbrevs=False,dictionary=False,objects=False,start_address=0):
         header.dump()
         print('')
 
-        print('Current instruction\n--------\n')
-        idx = zmachine.pc
-        try:
-            for t in range(1,30):
-                t = zmachine.instruction_at(idx)
-                (f,description,next_address) = t
-                print('%04x: %s [%04x]' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]]),next_address))
-                print('      %s' %(description,))
-                idx=next_address
-        except InstructionException as e:
-            print(e)
-        print('')
+        if instructions:
+            print('Current instruction\n--------\n')
+            idx = zmachine.pc
+            try:
+                for t in range(1,30):
+                    t = zmachine.instruction_at(idx)
+                    (f,description,next_address) = t
+                    print('%04x: %s [%04x]' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]]),next_address))
+                    print('      %s' %(description,))
+                    idx=next_address
+            except InstructionException as e:
+                print(e)
+            print('')
         
         if objects:
             ztext = zmachine.get_ztext()
@@ -145,12 +146,15 @@ def main():
     parser.add_argument('--dictionary',action='store_true')
     parser.add_argument('--abbrevs',action='store_true')
     parser.add_argument('--objects',action='store_true')
+    parser.add_argument('--instructions',action='store_true')    
     parser.add_argument('--address')
     parser.add_argument('--file')
     data = parser.parse_args()
     abbrevs = data.abbrevs
     dictionary  = data.dictionary
     filename = data.file
+    instructions = data.instructions
+    objects = data.objects
     addr_tmp = data.address or '0x00'
     start_address=0
     if addr_tmp and not addr_tmp.startswith('0x'):
@@ -160,7 +164,7 @@ def main():
         start_address = int(addr_tmp,0)
     except ValueError:
         print('address must starat with 0x and be a valid hex address')
-    dump(filename, abbrevs=abbrevs,dictionary=dictionary,start_address=start_address)
+    dump(filename, abbrevs=abbrevs,dictionary=dictionary,start_address=start_address,objects=objects,instructions=instructions)
 
 if __name__ == "__main__":
     main()

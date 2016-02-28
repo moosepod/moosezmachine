@@ -77,7 +77,7 @@ def read_instruction(memory,address,version,ztext):
     # If opcode is BE, form is extended. Otherwise long.
     start_address=address
 
-    offset = 0 # Offset, in bytes, to move PC
+    branch_offset = 0 # Offset, in bytes, to move PC
     store_to = None # Variable # to store the resulting value to
     zchars = [] # If this instruction works with zcodes, store them here
     literal_string = None # Ascii version of zchars, if any
@@ -90,7 +90,7 @@ def read_instruction(memory,address,version,ztext):
         raise InstructionException('Unknown opcode %s, %s' % (instruction_type, opcode_number)) 
 
     address, operands = process_operands(operands, handler,memory,address,version)
-   
+
     if handler.get('literal_string'):
         address,literal_string = extract_literal_string(memory,address,ztext)
         
@@ -100,7 +100,6 @@ def read_instruction(memory,address,version,ztext):
         address+=1
 
     # 4.7
-    branch_offset = None
     branch_if_true=False
     if handler.get('branch'):
         address, branch_offset,branch_if_true = extract_branch_offset(memory,address)
@@ -172,9 +171,9 @@ def extract_opcode(memory,address):
         opcode_number = b1 & 0x1F # Bottom 5 bits are opcode #        
         operands = [OperandType.small_constant,OperandType.small_constant]
         # 4.4.2
-        # If bit 6 is 1, first operand is large. If bit 5 is 1, second operand is large.
-        if b1 & 0x40: operands[0] = OperandType.large_constant
-        if b1 & 0x20: operands[1] = OperandType.large_constant
+        # If bit 6 is 1, first operand is variable. If bit 5 is 1, second operand is variable.
+        if b1 & 0x40: operands[0] = OperandType.variable
+        if b1 & 0x20: operands[1] = OperandType.variable
     
     return address,instruction_form, instruction_type,  opcode_number,operands
 
@@ -293,7 +292,6 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
             if operands[1][0] == OperandType.variable:
                 variables = variables | 0x20
             bytes.append(0x00 | opcode_number | variables)
-
         if instruction_form == InstructionForm.variable_form:
             variable_types = 0x0F
 
@@ -328,6 +326,9 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
         if branch_if_true:
             bytes.append(0x80)
             bytes.append(branch_to)
+        else:
+            bytes.append(0x00)
+            bytes.append(branch_to)     
     return Memory(bytes)
 
 ### Interpreter actions, returned at end of each instruction to tell interpreter how to proceed
@@ -527,6 +528,16 @@ def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    a = dereference_variables(operands[0],interpreter)
+    b = dereference_variables(operands[1],interpreter)
+
+    obj = interpreter.story.object_table[a]
+    if obj['parent'] == b:
+        return JumpRelativeAction(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
 ## Math
 def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     v1 = dereference_variables(operands[0],interpreter)
@@ -562,6 +573,7 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,3):   {'name': 'jg','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jg},
 (InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_dec_chk},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
+(InstructionType.twoOP,6):   {'name': 'jin','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_jin},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
