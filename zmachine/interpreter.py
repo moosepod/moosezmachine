@@ -312,13 +312,35 @@ class ObjectTableManager(object):
             return 0 # Something's wrong, just return no objects
         return int(count)
 
-    def test_attribute(self,obj_number,attr_number):
-        """ Return true if attribute # attr_number is set on object number obj_number """
-        return False
+    def _find_attribute_start_byte(self,object_number,attribute_number):
+        """ Given a start address and an attribute number, return the byte address and relative
+            attribute number. For example, attribute 0 will return start_addr,0 while attribute 8 will
+            return start_addr+1,0 """
+        address = self._obj_start_addr(object_number)
+        if attribute_number > 31:
+            raise StoryFileException('Request to test invalid attribute number %s on object %s' % (attr_number,object_number))
 
-    def set_attribute(self,obj_number,attr_number,val):
-        """ Set # attr_number is set on object number obj_number to val (True/False)"""
-        pass
+        while attribute_number > 7:
+            address+=1
+            attribute_number -= 8
+
+        return address,attribute_number
+
+    def test_attribute(self,object_number,attribute_number):
+        """ Return true if attribute # attr_number is set on object number object_number """
+        address,attribute_number = self._find_attribute_start_byte(object_number,attribute_number)
+        val = self.game_memory[address]
+        return (val >> (7-attribute_number)) & 0x01 == 1
+ 
+    def set_attribute(self,object_number,attribute_number,new_val):
+        """ Set # attr_number is set on object number object_number to new_val (True/False)"""
+        address,attribute_number = self._find_attribute_start_byte(object_number,attribute_number)
+        val = self.game_memory[address]
+        if new_val:
+            val = val |  (0x80 >> attribute_number)
+        else:
+            val = val & ((0x80 >> attribute_number) ^ 0xff)
+        self.game_memory[address] = val
 
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
@@ -342,6 +364,9 @@ class ObjectTableManager(object):
 
         return properties,short_name_zc
 
+    def _obj_start_addr(self, object_number):
+        return self.objects_start_address + (self._object_record_size() * (object_number-1))
+
     def __getitem__(self,key):
         """ Get the nth object """
         if self.version > 3:
@@ -352,7 +377,7 @@ class ObjectTableManager(object):
             return None
 
         # 12.3.1
-        start_addr = self.objects_start_address + (self._object_record_size() * (key-1))    
+        start_addr = self._obj_start_addr(key)  
 
         property_address = self.game_memory.word(start_addr+7)
         properties,short_name_zc = self._get_properties(property_address)

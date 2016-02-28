@@ -225,8 +225,20 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
 
     def test_set_and_test_attribute(self):
         table = self.story.object_table
-        self.assertTrue(table.test_attribute(1,30))
-        self.assertFalse(table.test_attribute(1,31))
+        self.assertTrue(table.test_attribute(1,26))
+        self.assertFalse(table.test_attribute(1,0))
+
+        obj = self.story.object_table[1]
+        self.assertEqual('00000000000000000000000000100000',str(obj['attributes']))
+        table.set_attribute(1,0,True)
+        table.set_attribute(1,8,True)
+        table.set_attribute(1,16,True)
+        table.set_attribute(1,24,True)
+        obj = self.story.object_table[1]
+        self.assertEqual('10000000100000001000000010100000',str(obj['attributes']))
+        table.set_attribute(1,0,False)
+        obj = self.story.object_table[1]
+        self.assertEqual('00000000100000001000000010100000',str(obj['attributes']))
 
         for i in range(0,32):
             self.assertFalse(table.test_attribute(10,i))
@@ -243,14 +255,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(11, obj['parent'])
         self.assertEqual('THE FIRST ROOM',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
-        self.assertEqual('000000000000000000000000000000100000',str(obj['attributes']))
+        self.assertEqual('00000000000000000000000000100000',str(obj['attributes']))
 
         obj = self.story.object_table[10]
         self.assertEqual(0, obj['child'])
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(0, obj['parent'])
         self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
-        self.assertEqual('000000000000000000000000000000000000',str(obj['attributes']))
+        self.assertEqual('00000000000000000000000000000000',str(obj['attributes']))
         self.assertEqual({16: bytearray(b'\xff'), 17: bytearray(b'\x00\x02'), 10: bytearray(b'\x00\n'), 
             11: bytearray(b'\x00\x00'), 12: bytearray(b'\x00\x00'), 13: bytearray(b'\n'), 14: bytearray(b'\x00\x00'), 15: bytearray(b'\x00\x00')},
             obj['properties'])
@@ -261,7 +273,7 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(0, obj['parent'])
         self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
-        self.assertEqual('000000000000001111011111111011111111',str(obj['attributes']))
+        self.assertEqual('00000000000011111111111111111111',str(obj['attributes']))
 
 class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_next_address(self):
@@ -270,13 +282,13 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(old_pc+10,self.zmachine.pc)
 
     def test_call_and_return(self):
-        self.assertEquals(1,len(self.zmachine.routines))
+        self.assertEqual(1,len(self.zmachine.routines))
         old_pc = self.zmachine.pc
         routine = self.zmachine.current_routine()
         routine.local_variables = [1,2,3,4,5,6]
         
         CallAction(0x1000,5,old_pc+10).apply(self.zmachine)
-        self.assertEquals(2,len(self.zmachine.routines))
+        self.assertEqual(2,len(self.zmachine.routines))
         routine = self.zmachine.current_routine()
         self.assertEqual(0x1000,self.zmachine.pc)
         self.assertEqual(5,routine.store_to)
@@ -286,7 +298,7 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         self.assertEqual(old_pc + 10, self.zmachine.pc)
         self.assertEqual(111,routine[5])
-        self.assertEquals(1,len(self.zmachine.routines))
+        self.assertEqual(1,len(self.zmachine.routines))
 
     def test_jump_relative(self):
         old_pc = self.zmachine.pc
@@ -297,6 +309,64 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         self.assertRaises(QuitException, QuitAction(self.zmachine.pc).apply,self.zmachine)
 
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_test_attr(self):
+        memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.small_constant,26)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:test_attr 1 26 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
+        self.zmachine.current_routine()[200] = 0
+        memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.variable,200)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:test_attr 1 var200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
+
+    def test_set_attr(self):
+        object_table = self.zmachine.story.object_table
+        self.assertFalse(object_table.test_attribute(2,0))
+        memory = create_instruction(InstructionType.twoOP,11,[(OperandType.small_constant,2),(OperandType.small_constant,0)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:set_attr 2 0',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3,result.next_address)
+        self.assertTrue(object_table.test_attribute(2,0))
+
+        self.assertFalse(object_table.test_attribute(2,10))
+        self.zmachine.current_routine()[200] = 10
+        memory = create_instruction(InstructionType.twoOP,11,[(OperandType.small_constant,2),(OperandType.variable,200)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:set_attr 2 var200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3,result.next_address)
+        self.assertTrue(object_table.test_attribute(2,10))
+
+    def test_clear_attr(self):
+        object_table = self.zmachine.story.object_table
+        self.assertTrue(object_table.test_attribute(1,26))
+        memory = create_instruction(InstructionType.twoOP,12,[(OperandType.small_constant,1),(OperandType.small_constant,26)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:clear_attr 1 26',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3,result.next_address)
+        self.assertFalse(object_table.test_attribute(1,26))
+
+        object_table.set_attribute(2,10,True)
+        self.zmachine.current_routine()[200] = 10
+        memory = create_instruction(InstructionType.twoOP,12,[(OperandType.small_constant,2),(OperandType.variable,200)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:clear_attr 2 var200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3,result.next_address)
+        self.assertFalse(object_table.test_attribute(2,10))
+
     def test_jin(self):
         # Object 1 is in object 11 (11 is parent of 1)
         memory = create_instruction(InstructionType.twoOP,6,[(OperandType.small_constant,1),(OperandType.small_constant,11)],branch_to=0x1d)

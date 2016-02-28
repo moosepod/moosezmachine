@@ -324,7 +324,7 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
 
     if store_to:
         bytes.append(store_to)
-        
+
     if branch_to:
         if branch_if_true:
             bytes.append(0x80)
@@ -556,6 +556,31 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    if interpreter.story.object_table.test_attribute(object_number, attribute_number):
+        return JumpRelativeAction(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
+def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    interpreter.story.object_table.set_attribute(object_number, attribute_number,True)
+
+    return NextInstructionAction(next_address)
+
+def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    interpreter.story.object_table.set_attribute(object_number, attribute_number,False)
+
+    return NextInstructionAction(next_address)
+
 ## Misc
 def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return QuitAction(next_address)
@@ -606,11 +631,14 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,7):   {'name': 'test','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test},
 (InstructionType.twoOP,8):   {'name': 'or','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_or},
 (InstructionType.twoOP,9):   {'name': 'and','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_and},
+(InstructionType.twoOP,10):  {'name': 'test_attr','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test_attr},
+(InstructionType.twoOP,11):  {'name': 'set_attr','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_set_attr},
+(InstructionType.twoOP,12):  {'name': 'clear_attr','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_clear_attr},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
 (InstructionType.twoOP,22):  {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
-(InstructionType.twoOP,31):   {'name': 'nop','handler': op_nop},
+(InstructionType.twoOP,31):  {'name': 'nop','handler': op_nop},
 
 (InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},
 (InstructionType.zeroOP,1):  {'name': 'rfalse', 'handler': op_rfalse},

@@ -13,7 +13,7 @@ class BitArray(object):
 
     def __str__(self):
         """ Return bit array formatted as 0 and 1s, with leading 0s in each byte """
-        return (''.join([format(b,'#010b') for b in self.bytes])).replace('b','')
+        return (''.join([format(b,'#010b') for b in self.bytes])).replace('0b','')
 
 class Memory(object):
     SIGNED_INT_MIN = -32768
