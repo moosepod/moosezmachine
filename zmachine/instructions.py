@@ -588,6 +588,15 @@ def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
 def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ### Bitwise
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     bitmap = dereference_variables(operands[0],interpreter)
@@ -632,11 +641,16 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,8):   {'name': 'or','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_or},
 (InstructionType.twoOP,9):   {'name': 'and','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_and},
 (InstructionType.twoOP,10):  {'name': 'test_attr','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test_attr},
+
 (InstructionType.twoOP,11):  {'name': 'set_attr','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_set_attr},
 (InstructionType.twoOP,12):  {'name': 'clear_attr','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_clear_attr},
-(InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
+(InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_store},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
+(InstructionType.twoOP,15):  {'name': 'loadw','store':True,'types': (OperandTypeHint.address,OperandTypeHint.address,),'handler': op_loadw},
+(InstructionType.twoOP,16):  {'name': 'loadb','store':True,'types': (OperandTypeHint.address,OperandTypeHint.address,),'handler': op_loadb},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
+
+
 (InstructionType.twoOP,22):  {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
 (InstructionType.twoOP,31):  {'name': 'nop','handler': op_nop},
 

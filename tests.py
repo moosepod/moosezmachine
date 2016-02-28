@@ -247,6 +247,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
             table.set_attribute(10,i,False)
             self.assertFalse(table.test_attribute(10,i))
 
+    def test_object_in(self):
+        self.fail('is a in b?')
+
+    def test_object_is_sibling(self):
+        self.fail('is b the sibling of a?')
+
+    def test_insert_obj(self):
+        self.fail('Test movement behavior')
 
     def test_get_property(self):
         obj = self.story.object_table[1]
@@ -309,6 +317,22 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         self.assertRaises(QuitException, QuitAction(self.zmachine.pc).apply,self.zmachine)
 
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_insert_obj(self):
+        object_table = self.zmachine.story.object_table
+        self.assertTrue(object_table.object_in(1,11))
+        self.assertFalse(object_table.object_in(2,11))
+        self.assertFalse(object_table.object_is_sibling(1,2))
+
+        memory = create_instruction(InstructionType.twoOP,14,[(OperandType.small_constant,2),(OperandType.small_constant,11)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:insert_obj 2 11',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+
+        self.assertTrue(object_table.object_in(1,11))
+        self.assertTrue(object_table.object_in(2,11))
+        self.assertTrue(object_table.object_is_sibling(1,2))
+
     def test_test_attr(self):
         memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.small_constant,26)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -695,6 +719,61 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('-1',self.screen.printed_string)
 
 class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
+    def test_loadb(self):
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0, routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,16,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('twoOP:loadb 18 0 -> 200',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x31, routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,16,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('twoOP:loadb 18 1 -> 200',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x35, routine[200])
+
+    def test_loadw(self):
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0, routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,15,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:loadw 18 0 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x3135, routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,15,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:loadw 18 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x3530, routine[200])
+
+    def test_store(self):
+        routine = self.zmachine.current_routine()
+        self.assertEqual(0, routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,13,[(OperandType.small_constant,200),(OperandType.small_constant,0xFF)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:store 200 255',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(255, routine[200])
+
+        routine[199] = 5
+        memory = create_instruction(InstructionType.twoOP,13,[(OperandType.small_constant,200),(OperandType.variable,199)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:store 200 var199',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5, routine[200])
+
     def test_quit(self):
         memory = Memory(b'\xba\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
