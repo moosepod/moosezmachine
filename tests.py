@@ -365,6 +365,47 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5,result.next_address)
 
+    def test_jg(self):
+        # Item is greater than, so jump
+        memory = Memory(b'\x23\x14\x00\x01\xdd')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jg 20 1 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
+        # less than, don't jump
+        memory = Memory(b'\x23\xb2\x14\xe4\xdd')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jg 178 5348 ?001d',description)
+        result = handler_f(self.zmachine)    
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
+
+        # equal, don't jump
+        memory = Memory(b'\x23\xb2\x00\xb2\xdd')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jg 178 178 ?001d',description)
+        result = handler_f(self.zmachine)    
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
+
+        # Test inverse
+        memory = Memory(b'\x23\xb2\x14\xe4\x5d')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jg 178 5348 ?!001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
+        # Test signed
+        memory = Memory(b'\x23\xff\xff\xb2\xdd')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:jg 178 -1 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,result.next_address)
+
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)

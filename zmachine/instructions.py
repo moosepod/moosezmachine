@@ -403,6 +403,23 @@ def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
 
     return NextInstructionAction(next_address)
 
+def op_jg(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    do_branch = False
+    a = dereference_variables(operands[0],interpreter)
+    for operand in operands[1:]:
+        b = dereference_variables(operand,interpreter)
+        if a > b:
+            do_branch = True
+            break
+
+    if not branch_if_true:
+        do_branch = not do_branch
+
+    if do_branch:
+        return JumpRelativeAction(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
 def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
@@ -468,6 +485,7 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
 (InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
+(InstructionType.twoOP,3):   {'name': 'jg','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jg},
 (InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,13):  {'name': 'store','types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
 (InstructionType.twoOP,14):  {'name': 'insert_obj','types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_insert_obj},
