@@ -245,6 +245,22 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
     def test_set_property(self):
         self.fail()
 
+class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
+    def test_next_address(self):
+        self.fail()
+
+    def test_call(self):
+        self.fail()
+
+    def test_return(self):
+        self.fail()
+
+    def test_jump_relative(self):
+        self.fail()
+
+    def test_quit(self):
+        self.fail()
+
 class PropertyInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_get_prop(self):
         self.fail('Normal')
@@ -435,7 +451,21 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('oneOP:print_paddr var3', description)
         handler_f(self.zmachine)
         self.assertEqual('.',self.screen.printed_string)
-    
+   
+    def test_print_addr(self):
+        memory = Memory(b'\xa7\xff')
+        self.story.game_memory[0x0820] = 0x16
+        self.story.game_memory[0x0821] = 0x45
+        self.story.game_memory[0x0822] = 0x94
+        self.story.game_memory[0x0823] = 0xA5
+        self.zmachine.current_routine()[255] = 0x0820
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('oneOP:print_addr var255',description)
+        
+        self.assertEqual('',self.screen.printed_string)
+        handler_f(self.zmachine)
+        self.assertEqual('.',self.screen.printed_string)
+
     def test_new_line(self):
         memory = Memory(b'\xbb\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())

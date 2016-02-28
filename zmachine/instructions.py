@@ -348,6 +348,11 @@ def op_print_paddr(interpreter,operands,next_address,store_to,branch_offset,bran
     interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory, addr))
     return NextInstructionAction(next_address)
 
+def op_print_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    addr = dereference_variables(operands[0],interpreter)
+    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory, addr))
+    return NextInstructionAction(next_address)
+
 def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     val = dereference_variables(operands[0],interpreter)
     interpreter.output_streams.print_str(str(val))
@@ -456,7 +461,8 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
-(InstructionType.oneOP,12): {'name': 'jump','handler': op_jump,'types': (OperandTypeHint.signed,) },
+(InstructionType.oneOP, 7):  {'name': 'print_addr','types': (OperandTypeHint.address,), 'handler': op_print_addr},
+(InstructionType.oneOP, 12): {'name': 'jump','handler': op_jump,'types': (OperandTypeHint.signed,) },
 (InstructionType.oneOP, 13):  {'name': 'print_paddr','types': (OperandTypeHint.packed_address,), 'handler': op_print_paddr},
 
 (InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
