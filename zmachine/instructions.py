@@ -552,8 +552,26 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
+def op_add(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_sub(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_div(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ## Properties
 def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -649,9 +667,15 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,15):  {'name': 'loadw','store':True,'types': (OperandTypeHint.address,OperandTypeHint.address,),'handler': op_loadw},
 (InstructionType.twoOP,16):  {'name': 'loadb','store':True,'types': (OperandTypeHint.address,OperandTypeHint.address,),'handler': op_loadb},
 (InstructionType.twoOP,17):  {'name': 'get_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop},
+(InstructionType.twoOP,18):  {'name': 'get_prop_addr','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_prop_addr},
+(InstructionType.twoOP,19):  {'name': 'get_next_prop','store': True, 'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_get_next_prop},
 
-
+(InstructionType.twoOP,20):  {'name': 'add','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_add},
+(InstructionType.twoOP,21):  {'name': 'sub','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_sub},
 (InstructionType.twoOP,22):  {'name': 'mul','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mul},
+(InstructionType.twoOP,23):  {'name': 'div','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_div},
+(InstructionType.twoOP,24):  {'name': 'mod','store': True, 'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_mod},
+
 (InstructionType.twoOP,31):  {'name': 'nop','handler': op_nop},
 
 (InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},

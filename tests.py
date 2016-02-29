@@ -417,12 +417,17 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(29,result.branch_offset)
 
     def test_get_prop(self):
-        pass
-        # self.fail('Normal')
-        # self.fail('Default')
-        # self.fail('One byte')
-        # self.fail('Two byte')
-        # self.fail('Exception')
+        self.fail('Normal')
+        self.fail('Default')
+        self.fail('One byte')
+        self.fail('Two byte')
+        self.fail('Exception')
+
+    def test_get_prop_addr(self):
+        self.fail()
+
+    def test_get_next_prop(self):
+        self.fail()
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_rtrue(self):
@@ -572,6 +577,21 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0,result.store_to)
 
 class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_add(self):
+        self.fail()
+
+    def test_sub(self):
+        self.fail()
+
+    def test_mul(self):
+        self.fail()
+
+    def test_div(self):
+        self.fail()
+
+    def test_mod(self):
+        self.fail()
+
     def test_inc_chk(self):
         routine = self.zmachine.current_routine()
         routine.local_variables = [0,1,2,3,4,5]
