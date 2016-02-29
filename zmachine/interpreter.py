@@ -216,7 +216,7 @@ class Routine(object):
             self.local_variables = [0] * var_count
             if version < 5:
                 for i in range(0,var_count):
-                    self.local_variables = memory.word(idx)
+                    self.local_variables[i] = memory.word(idx)
                     idx+=2
         self.store_to = store_to
         self.return_to_address = return_to_address
