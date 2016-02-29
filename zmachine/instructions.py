@@ -418,12 +418,18 @@ def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch
     interpreter.output_streams.print_str(str(val))
     return NextInstructionAction(next_address)
 
+def op_print_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     address,hint = operands[0]  
     return CallAction(address, store_to,next_address)
 
 def op_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_ret_popped(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 def op_rtrue(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -651,6 +657,24 @@ def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_save(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_restore(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_restart(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_show_status(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ### Bitwise
 def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)    
@@ -682,6 +706,22 @@ def op_and(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 ### 14.1
 OPCODE_HANDLERS = {
+(InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},
+(InstructionType.zeroOP,1):  {'name': 'rfalse', 'handler': op_rfalse},
+(InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
+(InstructionType.zeroOP,3):  {'name': 'print_ret', 'literal_string': True,'handler': op_print_ret},
+(InstructionType.zeroOP,4):  {'name': 'nop', 'handler': op_nop},
+(InstructionType.zeroOP,5):  {'name': 'save','branch':True, 'handler': op_save},
+(InstructionType.zeroOP,6):  {'name': 'restore','branch':True, 'handler': op_restore},
+(InstructionType.zeroOP,7):  {'name': 'quit','restart': op_restart},
+(InstructionType.zeroOP,8):  {'name': 'ret_popped','restart': op_ret_popped},
+(InstructionType.zeroOP,8):  {'name': 'pop','restart': op_pop},
+(InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
+
+(InstructionType.zeroOP,11): {'name': 'new_line','handler': op_newline},
+(InstructionType.zeroOP,12): {'name': 'show_status','handler': op_show_status},
+(InstructionType.zeroOP,13): {'name': 'verify','branch': True, 'handler': op_verify},
+
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
 (InstructionType.oneOP, 1):  {'name': 'get_sibling','branch': True, 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_sibling},
 (InstructionType.oneOP, 2):  {'name': 'get_child','branch': True, 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_child},
@@ -729,12 +769,6 @@ OPCODE_HANDLERS = {
 
 (InstructionType.twoOP,31):  {'name': 'nop','handler': op_nop},
 
-(InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},
-(InstructionType.zeroOP,1):  {'name': 'rfalse', 'handler': op_rfalse},
-
-(InstructionType.zeroOP,2):  {'name': 'print', 'literal_string': True,'handler': op_print},
-(InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
-(InstructionType.zeroOP,11): {'name': 'new_line','handler': op_newline},
 
 (InstructionType.varOP,0):   {'name': 'call','store': True,
                               'types': (OperandTypeHint.packed_address,OperandTypeHint.unsigned,OperandTypeHint.unsigned,

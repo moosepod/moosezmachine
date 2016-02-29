@@ -451,6 +451,9 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_ret(self):
         self.fail()
 
+    def test_ret_popped(self):
+        self.fail()
+
     def test_rtrue(self):
         memory = Memory(b'\xb0\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -711,6 +714,9 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)        
         self.assertEqual('HELLO.\n',self.screen.printed_string)
 
+    def test_print_ret(self):
+        self.fail()
+
     def test_print_paddr(self):
         self.story.game_memory[0x0820] = 0x16
         self.story.game_memory[0x0821] = 0x45
@@ -766,6 +772,15 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('-1',self.screen.printed_string)
 
 class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
+    def test_pop(self):
+        self.fail()
+
+    def test_show_status(self):
+        self.fail()
+
+    def test_verify(self):
+        self.fail()
+
     def test_loadb(self):
         routine = self.zmachine.current_routine()
         self.assertEqual(0, routine[200])
@@ -838,10 +853,19 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
     def test_load(self):
         self.fail()
 
+    def test_save(self):
+        self.fail()
+
+    def test_restore(self):
+        self.fail()
+
+    def test_restart(self):
+        self.fail()
+
 class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_not(self):
         self.fail()
-        
+
     def test_or(self):
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
