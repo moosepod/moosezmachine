@@ -447,6 +447,9 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_print_obj(self):
         self.fail()
 
+    def test_put_prop(self):
+        self.fail()
+
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_ret(self):
         self.fail()
@@ -705,6 +708,21 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(convert_to_unsigned(-1),routine[48])
 
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_sread(self):
+        self.fail()
+
+    def test_set_window(self):
+        self.fail()
+
+    def test_split_window(self):
+        self.fail()
+
+    def test_output_stream(self):
+        self.fail()
+
+    def test_input_stream(self):
+        self.fail()
+
     def test_print(self):
         memory=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
@@ -715,6 +733,9 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('HELLO.\n',self.screen.printed_string)
 
     def test_print_ret(self):
+        self.fail()
+
+    def test_print_char(self):
         self.fail()
 
     def test_print_paddr(self):
@@ -775,10 +796,25 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
     def test_pop(self):
         self.fail()
 
+    def test_randow(self):
+        self.fail()
+
+    def test_push(self):
+        self.fail()
+
+    def test_pull(self):
+        self.fail()
+
     def test_show_status(self):
         self.fail()
 
     def test_verify(self):
+        self.fail()
+
+    def test_storew(self):
+        self.fail()
+
+    def test_storeb(self):
         self.fail()
 
     def test_loadb(self):

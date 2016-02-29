@@ -421,6 +421,24 @@ def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch
 def op_print_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_sread(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_print_char(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_split_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_set_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_output_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     address,hint = operands[0]  
@@ -540,6 +558,9 @@ def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     return NextInstructionAction(next_address)
 
 ## Objects
+def op_put_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
@@ -648,6 +669,12 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_storeb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
@@ -673,6 +700,15 @@ def op_show_status(interpreter,operands,next_address,store_to,branch_offset,bran
     return NextInstructionAction(next_address)
 
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_random(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_push(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_pull(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 ### Bitwise
@@ -773,8 +809,35 @@ OPCODE_HANDLERS = {
 (InstructionType.varOP,0):   {'name': 'call','store': True,
                               'types': (OperandTypeHint.packed_address,OperandTypeHint.unsigned,OperandTypeHint.unsigned,
                                         OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_call},
+(InstructionType.varOP,1):   {'name': 'storew',
+                              'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,OperandTypeHint.unsigned),'handler': op_storew},
+(InstructionType.varOP,2):   {'name': 'storeb',
+                              'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,OperandTypeHint.unsigned),'handler': op_storeb},
+(InstructionType.varOP,3):   {'name': 'put_prop',
+                              'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,OperandTypeHint.unsigned),'handler': op_put_prop},
+(InstructionType.varOP,4):   {'name': 'sread',
+                              'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_sread},
+(InstructionType.varOP,5):   {'name': 'print_char',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_print_char},
+
 (InstructionType.varOP,6):   {'name': 'print_num',
                               'types': (OperandTypeHint.signed,),
                               'handler': op_print_num},
+(InstructionType.varOP,7):   {'name': 'random',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_random},
+(InstructionType.varOP,8):   {'name': 'push',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_push},
+(InstructionType.varOP,9):   {'name': 'pull','store':True,
+                              'types': (OperandTypeHint.unsigned,),'handler': op_pull},
+
+(InstructionType.varOP,10):   {'name': 'split_window',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_split_window},
+(InstructionType.varOP,11):   {'name': 'set_window',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_set_window},
+(InstructionType.varOP,19):   {'name': 'output_stream',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_output_stream},
+(InstructionType.varOP,20):   {'name': 'input_stream',
+                              'types': (OperandTypeHint.unsigned,),'handler': op_input_stream},
+
 }
 
