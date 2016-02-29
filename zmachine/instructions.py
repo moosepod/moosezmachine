@@ -423,6 +423,9 @@ def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     address,hint = operands[0]  
     return CallAction(address, store_to,next_address)
 
+def op_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_rtrue(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return ReturnAction(1)
 
@@ -483,6 +486,9 @@ def op_jg(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
 def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_return(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_jump(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     offset = dereference_variables(operands[0],interpreter)
     return JumpRelativeAction(offset,next_address)
@@ -531,6 +537,24 @@ def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     a = dereference_variables(operands[0],interpreter)
     b = dereference_variables(operands[1],interpreter)
@@ -552,6 +576,12 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
+def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_dec(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_add(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
@@ -559,6 +589,9 @@ def op_sub(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     return NextInstructionAction(next_address)
 
 def op_div(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
+def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -609,6 +642,9 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)
+
 def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
@@ -616,6 +652,9 @@ def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     return NextInstructionAction(next_address)
 
 ### Bitwise
+def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    return NextInstructionAction(next_address)    
+
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     bitmap = dereference_variables(operands[0],interpreter)
     flags = dereference_variables(operands[1],interpreter)
@@ -644,9 +683,21 @@ def op_and(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.oneOP, 0):  {'name': 'jz','branch': True, 'types': (OperandTypeHint.address,), 'handler': op_jz},
+(InstructionType.oneOP, 1):  {'name': 'get_sibling','branch': True, 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_sibling},
+(InstructionType.oneOP, 2):  {'name': 'get_child','branch': True, 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_child},
+(InstructionType.oneOP, 3):  {'name': 'get_parent', 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_parent},
+(InstructionType.oneOP, 4):  {'name': 'get_prop_len', 'store': True, 'types': (OperandTypeHint.address,), 'handler': op_get_prop_len},
+(InstructionType.oneOP, 5):  {'name': 'inc', 'types': (OperandTypeHint.signed,), 'handler': op_inc},
+(InstructionType.oneOP, 6):  {'name': 'dec', 'types': (OperandTypeHint.signed,), 'handler': op_inc},
 (InstructionType.oneOP, 7):  {'name': 'print_addr','types': (OperandTypeHint.address,), 'handler': op_print_addr},
-(InstructionType.oneOP, 12): {'name': 'jump','handler': op_jump,'types': (OperandTypeHint.signed,) },
+(InstructionType.oneOP, 9):  {'name': 'remove_obj','types': (OperandTypeHint.unsigned,), 'handler': op_remove_obj},
+
+(InstructionType.oneOP, 10):  {'name': 'print_obj','types': (OperandTypeHint.unsigned,), 'handler': op_print_obj},
+(InstructionType.oneOP, 11):  {'name': 'ret','types': (OperandTypeHint.unsigned,), 'handler': op_ret},
+(InstructionType.oneOP, 12):  {'name': 'jump','handler': op_jump,'types': (OperandTypeHint.signed,) },
 (InstructionType.oneOP, 13):  {'name': 'print_paddr','types': (OperandTypeHint.packed_address,), 'handler': op_print_paddr},
+(InstructionType.oneOP, 14):  {'name': 'load','store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_load},
+(InstructionType.oneOP, 15):  {'name': 'not','store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_not},
 
 (InstructionType.twoOP,0):   {'name': 'nop','handler': op_nop},
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},

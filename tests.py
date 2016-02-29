@@ -429,7 +429,28 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_get_next_prop(self):
         self.fail()
 
+    def test_get_sibling(self):
+        self.fail()
+
+    def test_get_child(self):
+        self.fail()
+
+    def test_get_parent(self):
+        self.fail()
+
+    def test_get_prop_len(self):
+        self.fail()
+
+    def test_remove_obj(self):
+        self.fail()
+
+    def test_print_obj(self):
+        self.fail()
+
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_ret(self):
+        self.fail()
+
     def test_rtrue(self):
         memory = Memory(b'\xb0\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -591,6 +612,12 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
 
     def test_mod(self):
         self.fail()
+
+    def test_inc(self):
+        self.fail('Test -1 goes to 0')
+
+    def test_dec(self):
+        self.fail('Test 0 goes to -1')
 
     def test_inc_chk(self):
         routine = self.zmachine.current_routine()
@@ -808,7 +835,13 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)        
         self.assertTrue(isinstance(result,NextInstructionAction))
 
+    def test_load(self):
+        self.fail()
+
 class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
+    def test_not(self):
+        self.fail()
+        
     def test_or(self):
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
