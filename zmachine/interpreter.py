@@ -206,8 +206,8 @@ class Routine(object):
         self.version=version
         self.globals_address = globals_address
         self.local_variables = []
+        idx = self.routine_start
         if not no_locals: # First "routine" in earlier story file versions has no locals
-            idx = self.routine_start
             var_count = memory[idx]
             if var_count < 0 or var_count > 15:
                 raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
@@ -222,6 +222,7 @@ class Routine(object):
         self.return_to_address = return_to_address
         self.stack = []
         self.memory = memory
+        self.code_starts_at = idx
 
     def __len__(self):
         # Always return 255 possible variables
@@ -536,14 +537,15 @@ class Interpreter(object):
 
     def call_routine(self, routine_address, next_address,  store_var,  no_locals=False):
         """ Add a routine call to the stack from the current program counter """
-        self.routines.append(Routine(self.story.raw_data, 
+        new_routine = Routine(self.story.raw_data, 
                                     self.story.header.global_variables_address,
                                     routine_address,
                                     next_address,
                                     store_var,
                                     self.story.header.version,
-                                    no_locals=no_locals))
-        self.pc = routine_address
+                                    no_locals=no_locals)
+        self.routines.append(new_routine)
+        self.pc = new_routine.code_starts_at 
 
     def return_from_current_routine(self,return_val):
         """ Pop the call stack and set the return_to variable to return_val. If stack is on last routine,
@@ -559,7 +561,9 @@ class Interpreter(object):
     def get_ztext(self):
         """ Return the a ztext processor for this interpreter """
         self._check_initialized()
-        return ZText(version=self.story.header.version,get_abbrev_f=lambda x:Memory([0x80,0]))
+        version = self.story.header.version
+        abbrev_address = self.story.header.abbrev_address
+        return ZText(version=version,get_abbrev_f=lambda z: self.story.game_memory[abbrev_address + z:abbrev_address + z + 10])
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

@@ -419,12 +419,12 @@ def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 def op_print_paddr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     addr = dereference_variables(operands[0],interpreter)
-    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory, addr))
+    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr))
     return NextInstructionAction(next_address)
 
 def op_print_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     addr = dereference_variables(operands[0],interpreter)
-    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory, addr))
+    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr))
     return NextInstructionAction(next_address)
 
 def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

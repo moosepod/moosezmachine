@@ -39,6 +39,10 @@ class TestOutputStreams(OutputStreams):
     def __init__(self):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
 
+class TodoTests(unittest.TestCase):
+    def test_fix_abbrevs(self):
+        self.fail('Current abbrevs function for ztext is a hack. Fix!')
+
 class InstructionTests(unittest.TestCase):
     def test_create_instruction(self):
         mem = create_instruction(InstructionType.twoOP, 1,[(OperandType.small_constant,0),(OperandType.small_constant,17)],branch_to=0x19)
