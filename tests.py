@@ -13,7 +13,8 @@ from zmachine.instructions import InstructionForm,InstructionType,OperandType,OP
                                   read_instruction,extract_opcode,create_instruction,\
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
-                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction,ReturnAction
+                                  JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction,ReturnAction,\
+                                  InstructionException
 import zmachine.instructions as instructions
 
 class TestOutputStream(OutputStream):
@@ -605,25 +606,182 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
 
 class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_add(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,2]
+
+        # Test unsigned
+        memory = create_instruction(InstructionType.twoOP,20,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:add 18 0 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(18,routine[200])
+
+        # Test signed
+        memory = create_instruction(InstructionType.twoOP,20,[(OperandType.large_constant,0xffff),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:add -1 0 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,routine[200])
+
+        # Test vars
+        routine[202] = 10
+        memory = create_instruction(InstructionType.twoOP,20,[(OperandType.small_constant,5),(OperandType.variable,202)],store_to=0)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:add 5 var202 -> 0',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(15,routine[0])
 
     def test_sub(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,2]
 
-    def test_mul(self):
-        self.fail()
+        # Test unsigned
+        memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:sub 18 0 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(18,routine[200])
+
+        # Test signed
+        memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,0),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:sub 0 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,routine[200])
+
+        # Test vars
+        routine[202] = 10
+        memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:sub 15 var202 -> 0',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5,routine[0])
 
     def test_div(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,2]
+
+        # Test unsigned
+        memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:div 18 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(18,routine[200])
+
+        # Test signed
+        memory = create_instruction(InstructionType.twoOP,23,[(OperandType.large_constant,0xffff),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:div -1 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,routine[200])
+
+        # Test vars
+        routine[202] = 5
+        memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:div 15 var202 -> 0',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3,routine[0])
+
+        # Test round
+        memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,1),(OperandType.small_constant,2)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:div 1 2 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
+
+        # Test exception
+        memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,1),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:div 1 0 -> 200',description)
+        self.assertRaises(InstructionException, handler_f,self.zmachine)
 
     def test_mod(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,2]
+
+        # Test unsigned
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:mod 18 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
+
+        # Test signed
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.large_constant,0xffff),(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:mod -1 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
+
+        # Test vars
+        routine[202] = 5
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:mod 15 var202 -> 0',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[0])
+
+        # Test remainder
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,1),(OperandType.small_constant,2)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:mod 1 2 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(1,routine[200])
+
+        # Test exception
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,1),(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:mod 1 0 -> 200',description)
+        self.assertRaises(InstructionException, handler_f,self.zmachine)
 
     def test_inc(self):
-        self.fail('Test -1 goes to 0')
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [0xffff,10]
+
+        memory = create_instruction(InstructionType.oneOP,5,[(OperandType.variable,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:inc var1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[1])
+
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:inc var1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(1,routine[1])
 
     def test_dec(self):
-        self.fail('Test 0 goes to -1')
+        routine = self.zmachine.current_routine()
+        routine.local_variables = [1,10]
+
+        memory = create_instruction(InstructionType.oneOP,6,[(OperandType.variable,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:dec var1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[1])
+
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:dec var1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,routine[1])
 
     def test_inc_chk(self):
         routine = self.zmachine.current_routine()
@@ -694,7 +852,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mul 1000 var2',description)
+        self.assertEqual('twoOP:mul 1000 var2 -> 0',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(2000,routine[0])

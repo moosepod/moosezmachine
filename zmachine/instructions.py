@@ -266,7 +266,7 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
             description += ' %s' % operand
     if literal_string:
         description += ' (%s)' % repr(literal_string).strip("'")
-    if store_to:
+    if store_to != None:
         description += ' -> %s' % store_to
     if branch_offset:
         if not branch_if_true:
@@ -280,7 +280,21 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
 def create_instruction(instruction_type, opcode_number, operands, store_to=None, branch_to=None, branch_if_true=True):
     bytes = []
 
-    if instruction_type == InstructionType.twoOP:
+    if instruction_type == InstructionType.oneOP:
+        v = 0x80 | opcode_number
+        op1type = operands[0][0]
+        op1val = operands[0][1]
+        if op1type == OperandType.small_constant:
+            v = v | 0x10
+        elif op1type  == OperandType.variable:
+            v = v | 0x20
+        bytes.append(v)
+        if op1val < 255:
+            bytes.append(op1val)
+        else:
+            bytes.append(op1val >> 8)
+            bytes.append(op1val & 0x00ff)
+    elif instruction_type == InstructionType.twoOP:
         variables = 0
         if operands[0][0] == OperandType.large_constant or operands[1][0] == OperandType.large_constant:
             instruction_form = InstructionForm.variable_form
@@ -322,7 +336,7 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
     else:
         raise Exception('Not supporting that type yet')
 
-    if store_to:
+    if store_to != None:
         bytes.append(store_to)
 
     if branch_to:
@@ -599,29 +613,72 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     result = v1 * v2
     if result < MIN_SIGNED or result > MAX_SIGNED:
         raise Interpreter('Overflow in mul of %s * %s: %s' % (v1,v2,result))
-    interpreter.current_routine()[int(store_to)] = result
+    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
 
     return NextInstructionAction(next_address)
 
 def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    var_num,hint = operands[0]
+    result = dereference_variables(operands[0],interpreter)
+    result += 1
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in inc of var %s, val %s' % (var_num,result))
+    interpreter.current_routine()[var_num] = convert_to_unsigned(result)
+
     return NextInstructionAction(next_address)
 
 def op_dec(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    var_num,hint = operands[0]
+    result = dereference_variables(operands[0],interpreter)
+    result -= 1
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in dec of var %s, val %s' % (var_num,result))
+    interpreter.current_routine()[var_num] = convert_to_unsigned(result)
+    
     return NextInstructionAction(next_address)
 
 def op_add(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+    result = v1 + v2
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in add of %s + %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+
     return NextInstructionAction(next_address)
 
 def op_sub(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+    result = v1 - v2
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in sub of %s - %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+
     return NextInstructionAction(next_address)
 
 def op_div(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+    if v2 == 0:
+        raise InstructionException('Divide by zero in div of %s / %s:' % (v1,v2))      
+    result = int(v1 / v2)
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in div of %s * %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+
     return NextInstructionAction(next_address)
 
 def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    return NextInstructionAction(next_address)
+    v1 = dereference_variables(operands[0],interpreter)
+    v2 = dereference_variables(operands[1],interpreter)
+    if v2 == 0:
+        raise InstructionException('Divide by zero in mod of %s %% %s' % (v1,v2))      
+    result = v1 % v2
+    if result < MIN_SIGNED or result > MAX_SIGNED:
+        raise Interpreter('Overflow in mod of %s % %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
 
-def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
 ## Properties
@@ -764,7 +821,7 @@ OPCODE_HANDLERS = {
 (InstructionType.oneOP, 3):  {'name': 'get_parent', 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_parent},
 (InstructionType.oneOP, 4):  {'name': 'get_prop_len', 'store': True, 'types': (OperandTypeHint.address,), 'handler': op_get_prop_len},
 (InstructionType.oneOP, 5):  {'name': 'inc', 'types': (OperandTypeHint.signed,), 'handler': op_inc},
-(InstructionType.oneOP, 6):  {'name': 'dec', 'types': (OperandTypeHint.signed,), 'handler': op_inc},
+(InstructionType.oneOP, 6):  {'name': 'dec', 'types': (OperandTypeHint.signed,), 'handler': op_dec},
 (InstructionType.oneOP, 7):  {'name': 'print_addr','types': (OperandTypeHint.address,), 'handler': op_print_addr},
 (InstructionType.oneOP, 9):  {'name': 'remove_obj','types': (OperandTypeHint.unsigned,), 'handler': op_remove_obj},
 

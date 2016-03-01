@@ -9,6 +9,7 @@ import time
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory
 from zmachine.text import ZTextException
 from zmachine.memory import BitArray
+from zmachine.instructions import InstructionException
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -59,15 +60,21 @@ class StepperWindow(object):
     
     def redraw(self,window,zmachine,height):
         idx = zmachine.pc
-        for i,inst_t in enumerate(zmachine.instructions(10)):
-            if i == 0:
-                prefix = " >>> "
-            else:
-                prefix = "     "
-            (description,next_address) = inst_t
-            window.addstr('%04x: %s\n' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]])))
-            window.addstr("%s%s\n\n" % (prefix,description,))  
-            idx = next_address
+        try:
+            i = 0
+            while i < 10:
+                handler, description,next_address = zmachine.instruction_at(idx)
+                if i == 0:
+                    prefix = " >>> "
+                else:
+                    prefix = "     "
+                window.addstr('%04x: %s\n' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:next_address]])))
+                window.addstr("%s%s\n\n" % (prefix,description,))  
+                idx = next_address
+                i+=1
+        except InstructionException as e:
+            window.addstr('%04x: %s\n' %(idx,e))
+
 
 class MemoryWindow(object):
     def __init__(self):
@@ -268,8 +275,9 @@ class DebuggerWindow(object):
         self.window.refresh()
 
 class MainLoop(object):
-    def __init__(self,zmachine):
+    def __init__(self,zmachine,breakpoint):
         self.zmachine = zmachine
+        self.breakpoint = breakpoint
 
     def loop(self,screen):
         # Disable automatic echo
@@ -310,10 +318,20 @@ class MainLoop(object):
 
         debugger_selected = True
 
-        while True:
-            ch = story.getch()
-            if debugger_selected:
-                debugger.key_pressed(ch)
+
+        try:
+            if self.breakpoint:
+                while self.zmachine.pc != int(self.breakpoint,16):
+                    self.zmachine.step()
+                debugger.redraw()
+
+            while True:
+                ch = story.getch()
+                if debugger_selected:
+                    debugger.key_pressed(ch)
+        except InstructionException as e:
+            print('Instruction exception "%s" at PC %04x' % (e,self.zmachine.pc))
+            return
 
 def load_zmachine(filename):
     with open(filename,'rb') as f:
@@ -330,22 +348,25 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--file')
+    parser.add_argument('--breakpoint')
     data = parser.parse_args()
     filename = data.file
-    
+    breakpoint = data.breakpoint
+    if breakpoint and not breakpoint.startswith('0x'):
+        breakpoint = '0x' + breakpoint
     try:
         while True:
             try:
-                start(filename)    
+                start(filename,breakpoint)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
     except QuitException:
         print("Thanks for playing!")
 
-def start(filename):
+def start(filename,breakpoint):
     zmachine = load_zmachine(filename)
-    loop = MainLoop(zmachine)
+    loop = MainLoop(zmachine,breakpoint)
     wrapper(loop.loop)
 
 if __name__ == "__main__":
