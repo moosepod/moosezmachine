@@ -42,7 +42,7 @@ class TestOutputStreams(OutputStreams):
 class TodoTests(unittest.TestCase):
     def test_fix_abbrevs(self):
         self.fail('Current abbrevs function for ztext is a hack. Fix!')
-
+    
 class InstructionTests(unittest.TestCase):
     def test_create_instruction(self):
         mem = create_instruction(InstructionType.twoOP, 1,[(OperandType.small_constant,0),(OperandType.small_constant,17)],branch_to=0x19)
@@ -1222,12 +1222,7 @@ class ZTextTests(unittest.TestCase):
         self.assertEqual(None,ztext._shift_alphabet)
         self.assertEqual(0,ztext.alphabet)
 
-        ztext.shift()
-        self.assertEqual(0,ztext._current_alphabet)
-        self.assertEqual(1,ztext._shift_alphabet)
-        self.assertEqual(1,ztext.alphabet)
-
-        ztext.shift(reverse=False,permanent=True)
+       reverse=False,permanent=True)
         self.assertEqual(1,ztext._current_alphabet)
         self.assertEqual(None,ztext._shift_alphabet)
         self.assertEqual(1,ztext.alphabet)
@@ -1235,7 +1230,12 @@ class ZTextTests(unittest.TestCase):
         ztext.shift(reverse=True)
         self.assertEqual(1,ztext._current_alphabet)
         self.assertEqual(0,ztext._shift_alphabet)
-        self.assertEqual(0,ztext.alphabet)
+        self.assertEqual(0,ztext.alphabet) ztext.shift()
+        self.assertEqual(0,ztext._current_alphabet)
+        self.assertEqual(1,ztext._shift_alphabet)
+        self.assertEqual(1,ztext.alphabet)
+
+        ztext.shift(
 
     def test_zchars(self):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
@@ -1266,8 +1266,6 @@ class ZTextTests(unittest.TestCase):
         for i in range(0,255):
             if correct_mapping.get(i) != None:
                 self.assertEqual(correct_mapping[i],ztext._map_zscii(i))
-            else:
-                self.assertRaises(ZTextException, ztext._map_zscii,i)
     
     def test_map_zchar(self):
         ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)

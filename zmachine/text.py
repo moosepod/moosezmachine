@@ -112,23 +112,60 @@ class ZText(object):
                 self.state = ZTextState.DEFAULT
                 return self._map_zscii(zchar)
 
-            if zchar >= 1 and zchar < 4:
+            if zchar > 0 and zchar < 6:
+                if self.version < 3:
+                    self._handle_1_5_zchar_pre3(zchar)
+                else:
+                    self._handle_1_5_zchar(zchar)
+            elif zchar == 6 and self.alphabet == 2:
+                self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR1
+            else:
+                result = self._map_zchar(zchar)
+                if self._shift_alphabet:
+                    self._shift_alphabet = None
+                return result
+        finally:
+            self._previous_zchar = zchar
+
+    def _handle_1_5_zchar_pre3(self,zchar):
+        # ZChar logic for versions 1 and 2 for zcharts 1 through 5
+        if zchar == 1:
+            # 3.5.2
+            if self.version == 1:
+                self._map_zchar(zchar)
+            else:
+                # 3.3
                 if self.get_abbrev_f == None:
                     raise ZTextException('Attempt to print abbreviation text that contains abbreviation') 
                 if self.version < 2:
                     return zchar
                 if zchar == 1 or self.version > 2:
                     self.state = ZTextState.WAITING_FOR_ABBREVIATION        
-            elif zchar == 4:
-                self.shift(False,False)
-            elif zchar == 5:
-                self.shift(True,False)
-            elif zchar == 6 and self.alphabet == 2:
-                self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR1
-            else:
-                return self._map_zchar(zchar)
-        finally:
-            self._previous_zchar = zchar
+        if zchar == 2:
+            self.shift(False,False)
+        elif zchar == 3:
+            self.shift(True,False)
+        elif zchar == 4:
+            self.shift(False,True)
+        elif zchar == 5:
+            self.shift(True,True)
+
+    def _handle_1_5_zchar(self,zchar):
+        # ZChar logic for 3 and u[2 for zcharts 1 through 5
+        if zchar >= 1 and zchar < 4:
+            # 3.3
+            if self.get_abbrev_f == None:
+                raise ZTextException('Attempt to print abbreviation text that contains abbreviation') 
+            if self.version < 2:
+                return zchar
+            if zchar == 1 or self.version > 2:
+                self.state = ZTextState.WAITING_FOR_ABBREVIATION        
+        elif zchar == 4:
+            # 3.2.3
+            self._shift_alphabet = 1
+        elif zchar == 5:
+            # 3.2.3
+            self._shift_alphabet = 2
 
     def _map_zchar(self,zchar):
         """ Map a zchar code to an ASCII code (only valid for a subrange of zchars """
