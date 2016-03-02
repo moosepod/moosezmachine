@@ -598,6 +598,32 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(7  ,result.next_address)
 
+    def test_jz(self):
+        # Item is not 0 so don't jump
+        memory = create_instruction(InstructionType.oneOP,0,[(OperandType.small_constant,20)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:jz 20 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4,result.next_address)
+
+        # Zero, jump
+        memory = create_instruction(InstructionType.oneOP,0,[(OperandType.small_constant,0)],branch_to=0x1d)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:jz 0 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(29,result.branch_offset)
+
+        # Test inverse
+        memory = create_instruction(InstructionType.oneOP,0,[(OperandType.small_constant,0)],branch_to=0x1d,branch_if_true=False)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:jz 0 ?!001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4,result.next_address)
+
+
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -1015,6 +1041,13 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x3530, routine[200])
 
+        # Test exception if out of bounds memory
+        memory = create_instruction(InstructionType.twoOP,15,[(OperandType.large_constant,self.story.header.himem_address),(OperandType.small_constant,10)],store_to=0)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('twoOP:loadw %s 10 -> 0' % self.story.header.himem_address,description)
+        self.assertRaises(MemoryAccessException, handler_f, self.zmachine)
+
+
     def test_store(self):
         routine = self.zmachine.current_routine()
         self.assertEqual(0, routine[200])
@@ -1258,8 +1291,9 @@ class ZTextTests(unittest.TestCase):
         # In v3: char 0 is space
         # 1-3 is abbrev
         # 4/5 are single char shifts
+        # 6 uses next to chars for lookup if in A2
         ztext = ZText(version=3,get_abbrev_f=lambda x: b'\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-        self.assertEqual(' Hello.\nHello.\nbHello.\nbBb\nb', ''.join(ztext._handle_zchars([0,1,1,2,7,7,3,7,7,4,7,7,5,7,7])))
+        self.assertEqual(' Hello.\nHello.\nbHello.\nbBb\nbaA[b', ''.join(ztext._handle_zchars([0,1,1,2,7,7,3,7,7,4,7,7,5,7,7,6,4,6,5,6,2,27,7])))
 
     def test_zchars(self):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)

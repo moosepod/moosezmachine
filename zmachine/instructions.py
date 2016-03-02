@@ -522,6 +522,15 @@ def op_jg(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
     return NextInstructionAction(next_address)
 
 def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    a = dereference_variables(operands[0],interpreter)
+    do_branch = a == 0
+
+    if not branch_if_true:
+        do_branch = not do_branch
+
+    if do_branch:
+        return JumpRelativeAction(branch_offset,next_address)
+
     return NextInstructionAction(next_address)
 
 def op_return(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -736,6 +745,12 @@ def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     return NextInstructionAction(next_address)
 
 def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    base_addr = dereference_variables(operands[0],interpreter)
+    index = dereference_variables(operands[1],interpreter)
+
+    routine = interpreter.current_routine()
+    routine[store_to] = interpreter.story.game_memory.word(base_addr+index)
+
     return NextInstructionAction(next_address)
 
 def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

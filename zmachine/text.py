@@ -38,6 +38,14 @@ class ZText(object):
         """ Convert the ztext starting at start_at in memory to an ascii string.
             If length_in_bytes > 0, convert that many bytes. Otherwise convert until the end of 
             string word is found """
+        chars = self._extract_zchars(memory,start_at,length_in_bytes)
+        output_chars = self._handle_zchars(chars)
+        if self.debug:
+            print('-- end')
+
+        return ''.join(output_chars)
+
+    def _extract_zchars(self,memory,start_at,length_in_bytes):
         if length_in_bytes < 1:
             l = 100000000000
         else:
@@ -52,11 +60,7 @@ class ZText(object):
             idx+=2
             if length_in_bytes < 1 and is_last_char:
                 break
-        output_chars = self._handle_zchars(chars)
-        if self.debug:
-            print('-- end')
-
-        return ''.join(output_chars)
+        return chars
 
     def _handle_zchars(self,zchars):
         chars = []
@@ -116,6 +120,7 @@ class ZText(object):
             if self.state == ZTextState.GETTING_10BIT_ZCHAR_CHAR2:
                 zchar = (self._previous_zchar << 5) | zchar                
                 self.state = ZTextState.DEFAULT
+                self._shift_alphabet=None
                 return self._map_zscii(zchar)
 
             if zchar > 0 and zchar < 6:
