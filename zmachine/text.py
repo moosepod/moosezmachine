@@ -48,20 +48,26 @@ class ZText(object):
             print('-- start to_ascii:')
         while idx < l:
             zchars,is_last_char = self.get_zchars_from_memory(memory,idx)
-            for zchar in zchars:
-                ascii_char = self.handle_zchar(zchar)
-                if ascii_char:
-                    chars.append(ascii_char)
-                if self.debug:
-                    print('   %d,%s' % (zchar,ascii_char))
+            chars.extend(zchars)
             idx+=2
             if length_in_bytes < 1 and is_last_char:
                 break
+        output_chars = self._handle_zchars(chars)
         if self.debug:
             print('-- end')
 
-        return ''.join(chars)
-        
+        return ''.join(output_chars)
+
+    def _handle_zchars(self,zchars):
+        chars = []
+        for zchar in zchars:
+            ascii_char = self.handle_zchar(zchar)
+            if ascii_char:
+                chars.append(ascii_char)
+            if self.debug:
+                print('   %d,%s' % (zchar,ascii_char))
+        return chars
+
     def encrypt(self,text):
         """ Encrypt a string for dictionary matching to a six-zchar string, returned as a
             bytearray. See 3.7
@@ -114,9 +120,9 @@ class ZText(object):
 
             if zchar > 0 and zchar < 6:
                 if self.version < 3:
-                    self._handle_1_5_zchar_pre3(zchar)
+                    return self._handle_1_5_zchar_pre3(zchar)
                 else:
-                    self._handle_1_5_zchar(zchar)
+                    return self._handle_1_5_zchar(zchar)
             elif zchar == 6 and self.alphabet == 2:
                 self.state = ZTextState.GETTING_10BIT_ZCHAR_CHAR1
             else:
@@ -126,21 +132,19 @@ class ZText(object):
                 return result
         finally:
             self._previous_zchar = zchar
+        return ''
 
     def _handle_1_5_zchar_pre3(self,zchar):
         # ZChar logic for versions 1 and 2 for zcharts 1 through 5
         if zchar == 1:
             # 3.5.2
             if self.version == 1:
-                self._map_zchar(zchar)
+                return '\n'
             else:
                 # 3.3
                 if self.get_abbrev_f == None:
                     raise ZTextException('Attempt to print abbreviation text that contains abbreviation') 
-                if self.version < 2:
-                    return zchar
-                if zchar == 1 or self.version > 2:
-                    self.state = ZTextState.WAITING_FOR_ABBREVIATION        
+                self.state = ZTextState.WAITING_FOR_ABBREVIATION        
         if zchar == 2:
             self.shift(False,False)
         elif zchar == 3:
@@ -149,6 +153,7 @@ class ZText(object):
             self.shift(False,True)
         elif zchar == 5:
             self.shift(True,True)
+        return ''
 
     def _handle_1_5_zchar(self,zchar):
         # ZChar logic for 3 and u[2 for zcharts 1 through 5
@@ -166,6 +171,7 @@ class ZText(object):
         elif zchar == 5:
             # 3.2.3
             self._shift_alphabet = 2
+        return ''
 
     def _map_zchar(self,zchar):
         """ Map a zchar code to an ASCII code (only valid for a subrange of zchars """

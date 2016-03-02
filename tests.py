@@ -178,7 +178,7 @@ class InstructionTests(unittest.TestCase):
         mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
         address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
-        self.assertEqual("HELLO.\n", literal_string)
+        self.assertEqual("Hello.\n", literal_string)
 
     def test_format_description(self):
         # je
@@ -196,7 +196,7 @@ class InstructionTests(unittest.TestCase):
         handler = OPCODE_HANDLERS.get((instruction_type, opcode_number))
         address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
         description = format_description(instruction_type, handler, [], None, None, False, literal_string)
-        self.assertEqual('zeroOP:print (HELLO.\\n)',description)
+        self.assertEqual('zeroOP:print (Hello.\\n)',description)
 
 
 class TestStoryMixin(object):
@@ -267,7 +267,7 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['child'])
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(11, obj['parent'])
-        self.assertEqual('THE FIRST ROOM',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('The first room',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
         self.assertEqual('00000000000000000000000000100000',str(obj['attributes']))
 
         obj = self.story.object_table[10]
@@ -601,7 +601,7 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('varOP:call 11368',description)
+        self.assertEqual('varOP:call 11368 -> 0',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,CallAction))
         self.assertEqual(5,result.return_to)
@@ -888,11 +888,11 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_print(self):
         memory=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('zeroOP:print (HELLO.\\n)',description)
+        self.assertEqual('zeroOP:print (Hello.\\n)',description)
 
         self.assertEqual('',self.screen.printed_string)
         result = handler_f(self.zmachine)        
-        self.assertEqual('HELLO.\n',self.screen.printed_string)
+        self.assertEqual('Hello.\n',self.screen.printed_string)
 
     def test_print_ret(self):
         self.fail()
@@ -1216,13 +1216,18 @@ class ZTextTests(unittest.TestCase):
         self.screen = ScreenStub()
         self.get_abbrev_f = lambda x: Memory([0x80,0]) # Empty end char
 
-    def test_shift(self):
+    def test_shift_v1(self):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(0,ztext._current_alphabet)
         self.assertEqual(None,ztext._shift_alphabet)
         self.assertEqual(0,ztext.alphabet)
 
-       reverse=False,permanent=True)
+        ztext.shift()
+        self.assertEqual(0,ztext._current_alphabet)
+        self.assertEqual(1,ztext._shift_alphabet)
+        self.assertEqual(1,ztext.alphabet)
+
+        ztext.shift(reverse=False,permanent=True)
         self.assertEqual(1,ztext._current_alphabet)
         self.assertEqual(None,ztext._shift_alphabet)
         self.assertEqual(1,ztext.alphabet)
@@ -1230,12 +1235,31 @@ class ZTextTests(unittest.TestCase):
         ztext.shift(reverse=True)
         self.assertEqual(1,ztext._current_alphabet)
         self.assertEqual(0,ztext._shift_alphabet)
-        self.assertEqual(0,ztext.alphabet) ztext.shift()
-        self.assertEqual(0,ztext._current_alphabet)
-        self.assertEqual(1,ztext._shift_alphabet)
-        self.assertEqual(1,ztext.alphabet)
+        self.assertEqual(0,ztext.alphabet)
 
-        ztext.shift(
+    def test_v1(self):
+        # In v1: char 0 is space
+        # 1 is newline
+        # 2/3 are single char shifts
+        # 4/5 are shift locks
+        # Char 7 A2 is 0, not ^
+        ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
+        self.assertEqual(' \nBb0bBBbb', ''.join(ztext._handle_zchars([0,1,2,7,7,3,7,7,4,7,7,5,7,7])))
+
+    def test_v2(self):
+        # In v2: char 0 is space
+        # 1 is abbrev
+        # 2/3 are single char shifts
+        # 4/5 are shift locks
+        ztext = ZText(version=2,get_abbrev_f=lambda x: b'\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        self.assertEqual(' HELLOm\nBb\nbBBbb', ''.join(ztext._handle_zchars([0,1,1,2,7,7,3,7,7,4,7,7,5,7,7])))
+
+    def test_v3(self):
+        # In v3: char 0 is space
+        # 1-3 is abbrev
+        # 4/5 are single char shifts
+        ztext = ZText(version=3,get_abbrev_f=lambda x: b'\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        self.assertEqual(' Hello.\nHello.\nbHello.\nbBb\nb', ''.join(ztext._handle_zchars([0,1,1,2,7,7,3,7,7,4,7,7,5,7,7])))
 
     def test_zchars(self):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
