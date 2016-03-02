@@ -749,12 +749,19 @@ def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     index = dereference_variables(operands[1],interpreter)
 
     routine = interpreter.current_routine()
-    routine[store_to] = interpreter.story.game_memory.word(base_addr+index)
+    routine[store_to] = interpreter.story.game_memory.word(base_addr+(2*index))
 
     return NextInstructionAction(next_address)
 
 def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    base_addr = dereference_variables(operands[0],interpreter)
+    index = dereference_variables(operands[1],interpreter)
+
+    routine = interpreter.current_routine()
+    routine[store_to] = interpreter.story.game_memory[base_addr+index]
+
     return NextInstructionAction(next_address)
+
 
 def op_save(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)

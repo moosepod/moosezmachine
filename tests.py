@@ -1021,7 +1021,7 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertEqual('twoOP:loadb 18 1 -> 200',description)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(0x35, routine[200])
+        self.assertEqual(53, routine[200])
 
     def test_loadw(self):
         routine = self.zmachine.current_routine()
@@ -1039,7 +1039,7 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('twoOP:loadw 18 1 -> 200',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(0x3530, routine[200])
+        self.assertEqual(12340, routine[200])
 
         # Test exception if out of bounds memory
         memory = create_instruction(InstructionType.twoOP,15,[(OperandType.large_constant,self.story.header.himem_address),(OperandType.small_constant,10)],store_to=0)
