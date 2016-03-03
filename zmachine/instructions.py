@@ -433,24 +433,34 @@ def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch
     return NextInstructionAction(next_address)
 
 def op_print_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_sread(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_print_char(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    ch = dereference_variables(operands[0],interpreter)
+    if ch < 0 or ch > 1024:
+        raise InstructionException('Value %s out of range for print_char' % ch)
+    interpreter.output_streams.print_zchar(ch)
     return NextInstructionAction(next_address)
 
 def op_split_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_set_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_output_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 ## Branching
@@ -459,9 +469,11 @@ def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     return CallAction(address, store_to,next_address)
 
 def op_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_ret_popped(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_rtrue(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -534,6 +546,7 @@ def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
     return NextInstructionAction(next_address)
 
 def op_return(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_jump(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -575,34 +588,37 @@ def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
         return JumpRelativeAction(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
-
-## Memory/Variables
-def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    return NextInstructionAction(next_address)
-
 ## Objects
 def op_put_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -692,12 +708,15 @@ def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 ## Properties
 def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -732,16 +751,25 @@ def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
 def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return NextInstructionAction(next_address)
 
+
 def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    var_num,hint = operands[0]
+    value = dereference_variables(operands[1],interpreter)
+
+    interpreter.current_routine()[var_num] = value
+
     return NextInstructionAction(next_address)
 
 def op_storeb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -764,34 +792,44 @@ def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 
 def op_save(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_restore(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_restart(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_show_status(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_random(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_push(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_pull(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 ### Bitwise
 def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)    
 
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

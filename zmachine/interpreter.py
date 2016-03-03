@@ -407,7 +407,7 @@ class OutputStream(object):
         """ Output a newline to the stream """
         pass
 
-    def print_char(self,chr):
+    def print_zchar(self,chr):
         """ Output ZSCII char """
         pass
 
@@ -426,7 +426,8 @@ class OutputStreams(object):
         self.screen = screen
         self.transcript = transcript
          
-    def reset(self,zmachine):
+    def reset(self,zmachine,ztext):
+        self.ztext = ztext 
         self.streams = [self.screen,self.transcript]
         if zmachine.story.header.version > 3:
             self.streams.append(ZMachineStream(zmachine))
@@ -446,6 +447,12 @@ class OutputStreams(object):
         """ Print the (ascii) string to all active streams """
         for stream in (s for s in self.streams if s.is_active):
             stream.print_str(txt)
+ 
+    def print_zchar(self,ch):
+        """ Print the zchar to all active streams """
+        text = self.ztext._map_zchar(ch)
+        for stream in (s for s in self.streams if s.is_active):
+            stream.print_zchar(text)
         
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
@@ -530,8 +537,9 @@ class Interpreter(object):
         self.story.reset(force_version=force_version)
         self.pc = self.story.header.main_routine_addr
         self.game_state = GameState(self.story)
+        self.last_instruction = None
         if self.output_streams:
-            self.output_streams.reset(self)
+            self.output_streams.reset(self,self.get_ztext())
         self.routines = []
         self.call_routine(self.pc,self.pc,None,no_locals=True)
 
@@ -595,6 +603,7 @@ class Interpreter(object):
     def step(self):
         """ Exaecute the current instruction then increment the program counter """
         handler_f,description,next_address = self.current_instruction()
+        self.last_instruction=description
         result = handler_f(self)
         result.apply(self)
 

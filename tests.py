@@ -924,8 +924,13 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.fail()
 
     def test_print_char(self):
-        self.fail()
-
+        memory = create_instruction(InstructionType.varOP,5,[(OperandType.small_constant,0x00)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:print_char',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(' ',self.screen.printed_string)
+        
     def test_print_paddr(self):
         self.story.game_memory[0x0820] = 0x16
         self.story.game_memory[0x0821] = 0x45

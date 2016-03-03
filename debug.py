@@ -6,9 +6,10 @@ from curses import wrapper
 import argparse
 import time
 
-from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory
+from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
+                                 StoryFileException,InterpreterException,MemoryAccessException
 from zmachine.text import ZTextException
-from zmachine.memory import BitArray
+from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
 # Window constants
@@ -18,7 +19,7 @@ STATUS_BAR_HEIGHT = 1
 STORY_WINDOW_WIDTH = 80 
 STORY_RIGHT_MARGIN = 1
 
-class QuitException(Exception):
+class DebugQuitException(Exception):
     pass
 
 class ResetException(Exception):
@@ -49,6 +50,9 @@ class CursesStream(OutputStream):
         self._println('')
         
     def print_str(self,txt):
+        self._print(txt)
+
+    def print_char(self,txt):
         self._print(txt)
 
 class StepperWindow(object):
@@ -228,6 +232,7 @@ class DebuggerWindow(object):
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
+        self.is_running = False
 
     def status(self,msg):
         self.window.move(2,10)
@@ -235,7 +240,7 @@ class DebuggerWindow(object):
         self.window.refresh()
     
     def quit(self):
-        raise QuitException()
+        raise DebugQuitException()
     
     def reset(self):
         raise ResetException()
@@ -243,6 +248,7 @@ class DebuggerWindow(object):
     def key_pressed(self,key):  
         """ Key pressed while debugger active """
         ch = chr(key).lower()
+        self.is_running = False
         if ch == 'q':
             self.quit()
         elif ch == 'r':
@@ -251,6 +257,9 @@ class DebuggerWindow(object):
             self.current_handler = self.window_handlers['s']
             self.zmachine.step()
             self.redraw()
+        elif ch == 'g':
+            self.current_handler = self.window_handlers['s']
+            self.is_running = True
         elif ch == '.' or ch == '>':
             if self.current_handler.next_line():
                 self.redraw()
@@ -266,12 +275,19 @@ class DebuggerWindow(object):
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
-        self.window.addstr(0,0,"(Q)uit (R)eset (S)tep (M)emory (H)eader (D)ictionary (V)ars (O)bjects",curses.A_REVERSE)
+        self.window.addstr(0,0,"(Q)uit (R)eset (M)emory (H)eader (D)ictionary (V)ars (O)bjects (S)tep (G)o",curses.A_REVERSE)
         
         self.window.move(2,0)
         if self.current_handler:
             self.current_handler.redraw(self.window, self.zmachine, self.window_height-3) # 3 is height of header + buffer
-        
+        self.window.refresh()
+
+class ErrorWindow(object):
+    def __init__(self,window):
+        self.window = window
+
+    def error(self,msg):
+        self.window.addstr(0, 0, msg, curses.A_REVERSE)
         self.window.refresh()
 
 class MainLoop(object):
@@ -306,11 +322,12 @@ class MainLoop(object):
                               STATUS_BAR_HEIGHT+STORY_TOP_MARGIN,
                               0)
         story.refresh()
+        curses.halfdelay(1) # Delay 0.1 seconds and wait for a key
         self.zmachine.output_streams.set_screen_stream(CursesStream(story))
 
         # The debugger window
         debugger = DebuggerWindow(self.zmachine,
-                                curses.newwin(screen_height,
+                                curses.newwin(screen_height-2,
                                  screen_width-STORY_WINDOW_WIDTH-STORY_RIGHT_MARGIN,
                                  0,
                                  STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
@@ -318,20 +335,45 @@ class MainLoop(object):
 
         debugger_selected = True
 
-
-        try:
-            if self.breakpoint:
-                while self.zmachine.pc != int(self.breakpoint,16):
-                    self.zmachine.step()
-                debugger.redraw()
-
+        # Area for error messages
+        error_window = ErrorWindow(curses.newwin(2,
+                                screen_width-STORY_WINDOW_WIDTH-STORY_RIGHT_MARGIN,
+                                screen_height-2,
+                                STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
+        with open('/tmp/zcode.log','w') as f:
+            f.write('Starting')
             while True:
-                ch = story.getch()
-                if debugger_selected:
-                    debugger.key_pressed(ch)
-        except InstructionException as e:
-            print('Instruction exception "%s" at PC %04x' % (e,self.zmachine.pc))
-            return
+                try:
+                    if debugger.is_running:
+                        if self.breakpoint and self.zmachine.pc != int(self.breakpoint,16):
+                            debugger.is_running = False
+                        else:
+                            self.zmachine.step()
+                            f.write(self.zmachine.last_instruction)
+                            f.write('\n')
+                            debugger.redraw()
+
+                    ch = story.getch()
+                    if debugger_selected and ch !=  curses.ERR:
+                        debugger.key_pressed(ch)
+                except InstructionException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
+                except MemoryException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
+                except MemoryAccessException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
+                except ZTextException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
+                except StoryFileException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
+                except InterpreterException as e:
+                    error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                    debugger.is_running=False
 
 def load_zmachine(filename):
     with open(filename,'rb') as f:
