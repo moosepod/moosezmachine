@@ -644,7 +644,7 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     var_num,hint = operands[0]
-    result = dereference_variables(operands[0],interpreter)
+    result = interpreter.current_routine()[var_num]
     result += 1
     if result < MIN_SIGNED or result > MAX_SIGNED:
         raise Interpreter('Overflow in inc of var %s, val %s' % (var_num,result))
@@ -654,7 +654,7 @@ def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 def op_dec(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     var_num,hint = operands[0]
-    result = dereference_variables(operands[0],interpreter)
+    result = interpreter.current_routine()[var_num]
     result -= 1
     if result < MIN_SIGNED or result > MAX_SIGNED:
         raise Interpreter('Overflow in dec of var %s, val %s' % (var_num,result))
@@ -857,6 +857,16 @@ def op_and(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)   
 
+def op_sound_effect(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    v1=v2=v3=v4=0
+    if len(operands): v1 = dereference_variables(operands[0],interpreter)
+    if len(operands) > 1: v2 = dereference_variables(operands[1],interpreter)
+    if len(operands) > 2: v3 = dereference_variables(operands[2],interpreter)
+    if len(operands) > 3: v4 = dereference_variables(operands[3],interpreter)
+
+    interpreter.play_sound(v1,v2,v3,v4)
+    return NextInstructionAction(next_address)   
+
 ### 14.1
 OPCODE_HANDLERS = {
 (InstructionType.zeroOP,0):  {'name': 'rtrue', 'handler': op_rtrue},
@@ -955,6 +965,7 @@ OPCODE_HANDLERS = {
                               'types': (OperandTypeHint.unsigned,),'handler': op_output_stream},
 (InstructionType.varOP,20):   {'name': 'input_stream',
                               'types': (OperandTypeHint.unsigned,),'handler': op_input_stream},
-
+(InstructionType.varOP,21):   {'name': 'sound_effect',
+                              'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_sound_effect},
 }
 

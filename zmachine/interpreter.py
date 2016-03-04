@@ -242,7 +242,7 @@ class Routine(object):
                 return 0
             return self.local_variables[local_var]
         else:
-            return self.memory.word(self.globals_address+key-GLOBAL_VAR_START)
+            return self.memory.word(self.globals_address+((key-GLOBAL_VAR_START)*2))
         return None
 
     def __setitem__(self,key,val):
@@ -258,7 +258,7 @@ class Routine(object):
                 raise InterpreterException('Reference to local var %d when only %d local vars' % (local_var,len(self.local_variables)))
             self.local_variables[local_var] = val
         else:
-            self.memory.set_word(self.globals_address + key - GLOBAL_VAR_START, val)
+            self.memory.set_word(self.globals_address+((key-GLOBAL_VAR_START)*2), val)
 
     def peek_stack(self):
         if len(self.stack):
@@ -623,6 +623,10 @@ class Interpreter(object):
         if self.story.header.version > 3:
             return address * 4
         return address * 2
+
+    def play_sound(self,number,effect,volume,routine):
+        # No sound currently supported
+        pass
 
     def quit(self):
         raise QuitException()

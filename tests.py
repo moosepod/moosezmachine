@@ -930,7 +930,7 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(' ',self.screen.printed_string)
-        
+
     def test_print_paddr(self):
         self.story.game_memory[0x0820] = 0x16
         self.story.game_memory[0x0821] = 0x45
@@ -1632,8 +1632,14 @@ class SampleFileTests(unittest.TestCase):
 
     def test_vars_global(self):
         routine = self.zmachine.current_routine()
-        self.assertEqual(0x026d, routine[22]) # Check default value from story file
+        self.assertEqual(4, routine[21]) # Check default value from story file
         routine[22] = 0xFFFF
         self.assertEqual(0xFFFF,routine[22])
+        routine[17] = 0x12
+        self.assertEqual(0x12,routine[17])
+        # Verify stored in right place in memory
+        self.assertEqual(0x0012,self.zmachine.story.game_memory.word(self.zmachine.story.header.global_variables_address+(17-0x10)*2))
+
+
 if __name__ == '__main__':
     unittest.main()
