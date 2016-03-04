@@ -148,11 +148,10 @@ def extract_opcode(memory,address):
             operand_from_bitfield((b2 & 0xC0) >> 6),
             operand_from_bitfield((b2 & 0x30) >> 4),
         ]
-        if instruction_type == InstructionType.varOP:
-            operands.extend([
-                operand_from_bitfield((b2 & 0x0C) >> 2),
-                operand_from_bitfield(b2 & 0x03)         
-            ])
+        operands.extend([
+            operand_from_bitfield((b2 & 0x0C) >> 2),
+            operand_from_bitfield(b2 & 0x03)         
+        ])
     elif b1 >> 6 == 2:
         # 4.3.1 (Short form)
         instruction_form = InstructionForm.short_form

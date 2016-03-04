@@ -60,6 +60,13 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(1, opcode_number)
         self.assertEqual([OperandType.small_constant,OperandType.small_constant], operands)
 
+        # je with multiple
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xc1\x57\x05\x04\x05\x01\x16'),0)
+        self.assertEqual(InstructionForm.variable_form, instruction_form)
+        self.assertEqual(InstructionType.twoOP,instruction_type)
+        self.assertEqual(1, opcode_number)
+        self.assertEqual([OperandType.small_constant,OperandType.small_constant,OperandType.small_constant,OperandType.omitted], operands)
+
         # jl
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\x22\xb2\x14\xe4\x5d'),0)
         self.assertEqual(InstructionForm.long_form, instruction_form)
@@ -93,7 +100,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(InstructionForm.variable_form, instruction_form)
         self.assertEqual(InstructionType.twoOP, instruction_type)
         self.assertEqual(22, opcode_number)
-        self.assertEqual([OperandType.large_constant,OperandType.variable], operands)
+        self.assertEqual([OperandType.large_constant,OperandType.variable,OperandType.omitted, OperandType.omitted], operands)
 
         # print
         address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5'),0)

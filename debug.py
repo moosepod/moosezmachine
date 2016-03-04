@@ -77,6 +77,7 @@ class StepperWindow(object):
                 idx = next_address
                 i+=1
         except InstructionException as e:
+            window.addstr('%04x: %s\n' %(idx,' '.join(['%02x' % x for x in zmachine.story.raw_data[idx:idx+8]])))
             window.addstr('%04x: %s\n' %(idx,e))
 
 
