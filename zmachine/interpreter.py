@@ -541,6 +541,7 @@ class Interpreter(object):
         if self.output_streams:
             self.output_streams.reset(self,self.get_ztext())
         self.routines = []
+        self.game_state = []
         self.call_routine(self.pc,self.pc,None,no_locals=True)
 
     def call_routine(self, routine_address, next_address,  store_var,  no_locals=False):
@@ -631,3 +632,11 @@ class Interpreter(object):
     def quit(self):
         raise QuitException()
 
+    def push_game_stack(self,val):
+        self.current_routine().push_to_stack(val)
+
+    def pop_game_stack(self):
+        return self.current_routine().pop_from_stack()
+
+    def peek_game_stack(self):
+        return self.current_routine().peek_stack() 

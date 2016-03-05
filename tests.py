@@ -630,6 +630,14 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4,result.next_address)
 
+        # Test variant
+        memory=Memory(b'\x90\x00\xc0')
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:jz 0 RFALSE',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(0,result.result)
+
 
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
@@ -992,7 +1000,7 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)        
         self.assertEqual('-1',self.screen.printed_string)
 
-class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
+class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_pop(self):
         self.fail()
 
@@ -1000,10 +1008,45 @@ class MiscInstructionTests(TestStoryMixin,unittest.TestCase):
         self.fail()
 
     def test_push(self):
-        self.fail()
+        self.assertEqual(None,self.zmachine.peek_game_stack())
+        memory = create_instruction(InstructionType.varOP,8,[(OperandType.small_constant,0x12)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:push 18',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(0x12,self.zmachine.peek_game_stack())
+
+        self.zmachine.current_routine()[200] = 0x18
+        memory = create_instruction(InstructionType.varOP,8,[(OperandType.variable,200)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:push var200',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(0x18,self.zmachine.pop_game_stack())
+        self.assertEqual(0x12,self.zmachine.pop_game_stack())
+        self.assertRaises(InterpreterException, self.zmachine.pop_game_stack)
 
     def test_pull(self):
-        self.fail()
+        current_routine = self.zmachine.current_routine()
+        self.zmachine.push_game_stack(0x23)
+        self.assertEqual(0,current_routine[199])
+        memory = create_instruction(InstructionType.varOP,9,[(OperandType.small_constant,199)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:pull 199',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(0x23,current_routine[199])
+
+        self.assertRaises(InterpreterException, handler_f,self.zmachine)
+
+    def test_pop(self):
+        current_routine = self.zmachine.current_routine()
+        self.zmachine.push_game_stack(0x23)
+        self.zmachine.push_game_stack(0x32)
+        memory = create_instruction(InstructionType.zeroOP,9,[])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:pop',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(0x23,self.zmachine.pop_game_stack())
+
+        self.assertRaises(InterpreterException, handler_f,self.zmachine)
 
     def test_show_status(self):
         self.fail()

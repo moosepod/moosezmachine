@@ -116,10 +116,10 @@ def read_instruction(memory,address,version,ztext):
 def extract_opcode(memory,address):
     """ Handle section 4.3 """
     b1 = memory[address]
-    b2 = memory[address+1]
+    if address+1 < len(memory):
+        b2 = memory[address+1]
     address+=1
     opcode_byte=b1
-
     if b1 == 0xbe and version >= 5:
         # 4.3.4 (Extended form)
         instruction_form = InstructionForm.extended_form
@@ -158,11 +158,12 @@ def extract_opcode(memory,address):
         bf45 = (b1 & 0x30) >> 4 # Bits 4 & 5
         if bf45  == 3: 
             instruction_type = InstructionType.zeroOP
+            operands = []
         else:
             instruction_type = InstructionType.oneOP
+            operands = [operand_from_bitfield(bf45)]  
         opcode_number = b1 & 0x0F
         # 4.4.1
-        operands = [operand_from_bitfield(bf45)]  
     else:
         # 4.3.2 (Long form)
         instruction_form = InstructionForm.long_form
@@ -247,7 +248,7 @@ def extract_branch_offset(memory,address):
         branch_if_true = False
     if (b & 0x40) >> 6:
         # Bit 6 set, offset is bottom 6 bits of byte
-        branch_offset = b & 0x3F
+        branch_offset = b & 0x3F        
     else:
         # Bit 6 not set, offset is bottom 6 bits + next byte
         next_byte = memory[address]
@@ -267,7 +268,11 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
         description += ' (%s)' % repr(literal_string).strip("'")
     if store_to != None:
         description += ' -> %s' % store_to
-    if branch_offset:
+    if branch_offset == 0:
+        description += ' RFALSE'
+    elif branch_offset == 1:
+        description += ' RTRUE'
+    elif branch_offset:
         if not branch_if_true:
             branch_invert = '!'
         else:
@@ -279,7 +284,10 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
 def create_instruction(instruction_type, opcode_number, operands, store_to=None, branch_to=None, branch_if_true=True):
     bytes = []
 
-    if instruction_type == InstructionType.oneOP:
+    if instruction_type == InstructionType.zeroOP:
+        v = 0xb0 | opcode_number
+        bytes.append(v)        
+    elif instruction_type == InstructionType.oneOP:
         v = 0x80 | opcode_number
         op1type = operands[0][0]
         op1val = operands[0][1]
@@ -293,6 +301,36 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
         else:
             bytes.append(op1val >> 8)
             bytes.append(op1val & 0x00ff)
+    elif instruction_type == InstructionType.varOP:
+        v = 0xe0 | opcode_number
+        bytes.append(v)
+        variables = 0
+        for i in range(0,4):
+            if i >= len(operands):
+                mask = 0x03 << (3-i)*2
+            else:
+                operand = operands[i]
+                if operand[0] == OperandType.large_constant:
+                    mask = 0x00
+                elif operand[0] == OperandType.small_constant:
+                    mask = 0x01
+                elif operand[0] == OperandType.variable:
+                    mask = 0x02
+                else:
+                    mask = 0x03
+                mask = mask << (3-i)*2
+            variables = variables | mask
+        bytes.append(variables)
+        for optype, operand in operands:
+            if operand < 0:
+                operand = convert_to_unsigned(operand)
+                bytes.append(operand >> 8)
+                bytes.append(operand & 0x00FF)
+            elif optype == OperandType.large_constant:
+                bytes.append(operand >> 8)
+                bytes.append(operand & 0x00FF)
+            else:
+                bytes.append(operand)
     elif instruction_type == InstructionType.twoOP:
         variables = 0
         if operands[0][0] == OperandType.large_constant or operands[1][0] == OperandType.large_constant:
@@ -406,6 +444,14 @@ def dereference_variables(operand, interpreter):
         return unpack_address(interpreter.current_routine()[val], interpreter.story.header.version)  
     return val
 
+def find_jump_option(branch_offset,next_address):
+    if branch_offset == 0:
+        return ReturnAction(0)
+    elif branch_offset == 1:
+        return ReturnAction(1)
+
+    return JumpRelativeAction(branch_offset,next_address)
+
 ## Text
 
 def op_newline(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -494,7 +540,7 @@ def op_je(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -511,7 +557,7 @@ def op_jl(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -528,7 +574,7 @@ def op_jg(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -540,7 +586,7 @@ def op_jz(interpreter,operands,next_address,store_to,branch_offset,branch_if_tru
         do_branch = not do_branch
 
     if do_branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -567,7 +613,7 @@ def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
         branch = not branch
 
     if branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -584,7 +630,7 @@ def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
         branch = not branch
 
     if branch:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 ## Objects
@@ -626,7 +672,7 @@ def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     obj = interpreter.story.object_table[a]
     if obj['parent'] == b:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -723,7 +769,7 @@ def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch
     attribute_number = dereference_variables(operands[1],interpreter)
 
     if interpreter.story.object_table.test_attribute(object_number, attribute_number):
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
 
@@ -819,11 +865,17 @@ def op_random(interpreter,operands,next_address,store_to,branch_offset,branch_if
     return NextInstructionAction(next_address)
 
 def op_push(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    v1 = dereference_variables(operands[0],interpreter)
+    interpreter.push_game_stack(v1)
     return NextInstructionAction(next_address)
 
 def op_pull(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    var_num,hint = operands[0]
+    interpreter.current_routine()[var_num] = interpreter.pop_game_stack()
+    return NextInstructionAction(next_address)
+
+def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    interpreter.pop_game_stack()
     return NextInstructionAction(next_address)
 
 ### Bitwise
@@ -836,7 +888,7 @@ def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     flags = dereference_variables(operands[1],interpreter)
 
     if bitmap & flags == flags:
-        return JumpRelativeAction(branch_offset,next_address)
+        return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)    
 
@@ -877,7 +929,7 @@ OPCODE_HANDLERS = {
 (InstructionType.zeroOP,6):  {'name': 'restore','branch':True, 'handler': op_restore},
 (InstructionType.zeroOP,7):  {'name': 'quit','restart': op_restart},
 (InstructionType.zeroOP,8):  {'name': 'ret_popped','restart': op_ret_popped},
-(InstructionType.zeroOP,8):  {'name': 'pop','restart': op_pop},
+(InstructionType.zeroOP,9):  {'name': 'pop','handler': op_pop},
 (InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
 
 (InstructionType.zeroOP,11): {'name': 'new_line','handler': op_newline},
@@ -953,7 +1005,7 @@ OPCODE_HANDLERS = {
                               'types': (OperandTypeHint.unsigned,),'handler': op_random},
 (InstructionType.varOP,8):   {'name': 'push',
                               'types': (OperandTypeHint.unsigned,),'handler': op_push},
-(InstructionType.varOP,9):   {'name': 'pull','store':True,
+(InstructionType.varOP,9):   {'name': 'pull',
                               'types': (OperandTypeHint.unsigned,),'handler': op_pull},
 
 (InstructionType.varOP,10):   {'name': 'split_window',
