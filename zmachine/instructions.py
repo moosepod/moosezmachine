@@ -671,7 +671,9 @@ def op_put_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
     return NextInstructionAction(next_address)
 
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    into_id = dereference_variables(operands[1],interpreter)
+    interpreter.story.object_table.insert_obj(obj_id,into_id)
     return NextInstructionAction(next_address)
 
 def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -683,7 +685,9 @@ def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch
     return NextInstructionAction(next_address)
 
 def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    obj = interpreter.story.object_table[obj_id]
+    interpreter.current_routine()[store_to] = obj['parent']
     return NextInstructionAction(next_address)
 
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -691,7 +695,8 @@ def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,bra
     return NextInstructionAction(next_address)
 
 def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    interpreter.story.object_table.remove_obj(obj_id)
     return NextInstructionAction(next_address)
 
 def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

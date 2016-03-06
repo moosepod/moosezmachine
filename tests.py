@@ -405,9 +405,9 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_insert_obj(self):
         object_table = self.zmachine.story.object_table
-        self.assertTrue(object_table.object_in(1,11))
-        self.assertFalse(object_table.object_in(2,11))
-        self.assertFalse(object_table.object_is_sibling(1,2))
+        self.assertTrue(object_table.is_child_of(1,11))
+        self.assertFalse(object_table.is_child_of(2,11))
+        self.assertFalse(object_table.is_sibling_of(1,2))
 
         memory = create_instruction(InstructionType.twoOP,14,[(OperandType.small_constant,2),(OperandType.small_constant,11)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
@@ -415,9 +415,9 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
 
-        self.assertTrue(object_table.object_in(1,11))
-        self.assertTrue(object_table.object_in(2,11))
-        self.assertTrue(object_table.object_is_sibling(1,2))
+        self.assertTrue(object_table.is_child_of(1,11))
+        self.assertTrue(object_table.is_child_of(2,11))
+        self.assertTrue(object_table.is_sibling_of(1,2))
 
     def test_test_attr(self):
         memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.small_constant,26)],branch_to=0x1d)
@@ -542,16 +542,16 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_get_parent(self):
         routine = self.zmachine.current_routine()
         table = self.zmachine.story.object_table
-        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,11)],store_to=200)
+        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('oneOP:get_parent 1 -> 200',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(11,routine[200])
 
-        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,1)],store_to=200)
+        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,11)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_parent 11 -> 200 ?001d',description)
+        self.assertEqual('oneOP:get_parent 11 -> 200',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
