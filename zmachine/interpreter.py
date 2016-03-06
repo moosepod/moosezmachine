@@ -439,7 +439,7 @@ class OutputStreams(object):
 
     def select_stream(self,stream_num):
         if stream_num >= 0 and stream_num < len(self.streams):
-            self.streams[0].is_active = True
+            self.streams[stream_num].is_active = True
 
     def set_screen_stream(self,stream):
         """ Assign the screen stream, setting it active by default """
@@ -469,7 +469,8 @@ class OutputStreams(object):
     def __getitem__(self,idx):
         return self.streams[idx]
 
-
+    def __setitem__(self,idx,val):
+        self.streams[idx] = val
         
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.

@@ -496,10 +496,23 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_ret(self):
-        self.fail()
+        memory = create_instruction(InstructionType.oneOP,0x0b,[(OperandType.small_constant,178)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:ret 178',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(178,result.result)
 
     def test_ret_popped(self):
-        self.fail()
+        self.zmachine.push_game_stack(0xfa)
+        self.zmachine.push_game_stack(0xff)
+        memory = create_instruction(InstructionType.zeroOP,8,[])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('zeroOP:ret_popped',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(0xff,result.result)
+        self.assertEqual(0xfa, self.zmachine.peek_game_stack())
 
     def test_rtrue(self):
         memory = Memory(b'\xb0\x00')

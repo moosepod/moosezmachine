@@ -534,7 +534,11 @@ def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,bra
 
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    address,hint = operands[0]
+    address = dereference_variables(operands[0],interpreter)
+    if address == 0:
+        self.current_routine()[store_to] = 0
+        return NextInstructionAction(next_address)
+
     local_vars = []
     if len(operands):
         for i,operand in enumerate(operands[1:]):
@@ -543,12 +547,11 @@ def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     return CallAction(address, store_to,next_address,local_vars)
 
 def op_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    rval = dereference_variables(operands[0],interpreter)
+    return ReturnAction(rval)
 
 def op_ret_popped(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    return ReturnAction(interpreter.pop_game_stack())
 
 def op_rtrue(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return ReturnAction(1)
@@ -1003,7 +1006,7 @@ OPCODE_HANDLERS = {
 (InstructionType.zeroOP,5):  {'name': 'save','branch':True, 'handler': op_save},
 (InstructionType.zeroOP,6):  {'name': 'restore','branch':True, 'handler': op_restore},
 (InstructionType.zeroOP,7):  {'name': 'quit','handler': op_restart},
-(InstructionType.zeroOP,8):  {'name': 'ret_popped','restart': op_ret_popped},
+(InstructionType.zeroOP,8):  {'name': 'ret_popped','handler': op_ret_popped},
 (InstructionType.zeroOP,9):  {'name': 'pop','handler': op_pop},
 (InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
 

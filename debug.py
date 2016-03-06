@@ -63,6 +63,33 @@ class CursesStream(OutputStream):
     def show_status(self, msg, time=None, score=None):
         raise Exception('Show status not implemented')
 
+class FileTranscriptStream(OutputStream):
+    def __init__(self,path):
+        super(FileTranscriptStream,self).__init__()
+        self.path = path
+
+    def refresh(self):
+        pass
+            
+    def _println(self,msg):
+        self._print(msg + '\n')
+
+    def _print(self,msg):
+        with open(self.path, 'a') as f:
+            f.write(msg)
+
+    def new_line(self):
+        self._println('')
+        
+    def print_str(self,txt):
+        self._print(txt)
+
+    def print_char(self,txt):
+        self._print(txt)
+
+    def show_status(self, msg, time=None, score=None):
+        pass
+
 class StepperWindow(object):
     def next_line(self):
         return False
@@ -309,12 +336,13 @@ class ErrorWindow(object):
         self.window.refresh()
 
 class MainLoop(object):
-    def __init__(self,zmachine,breakpoint,breakattext):
+    def __init__(self,zmachine,breakpoint,breakattext,transcript):
         self.zmachine = zmachine
         self.breakpoint = breakpoint
         self.is_running_slow = True
         self.is_running = False
         self.breakattext = breakattext
+        self.transcript = transcript
 
     def loop(self,screen):
         # Disable automatic echo
@@ -345,6 +373,9 @@ class MainLoop(object):
         story.refresh()
         curses_stream = CursesStream(story)
         self.zmachine.output_streams.set_screen_stream(curses_stream)
+        if self.transcript:
+            self.zmachine.output_streams[OutputStreams.TRANSCRIPT] = FileTranscriptStream(self.transcript)
+            self.zmachine.output_streams.select_stream(OutputStreams.TRANSCRIPT)
 
         # The debugger window
         debugger = DebuggerWindow(self.zmachine,
@@ -370,7 +401,7 @@ class MainLoop(object):
         while True:
             try:
                 if debugger.is_running:
-                    if self.breakpoint and self.zmachine.pc != int(self.breakpoint,16):
+                    if self.breakpoint and self.zmachine.pc == int(self.breakpoint,16):
                         debugger.is_running = False
                         debugger.redraw()
                         self.breakpoint = None
@@ -387,23 +418,25 @@ class MainLoop(object):
                 if debugger_selected and ch !=  curses.ERR:
                     debugger.key_pressed(ch)
             except InstructionException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
             except MemoryException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
             except MemoryAccessException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
             except ZTextException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
             except StoryFileException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
             except InterpreterException as e:
-                error_window.error('%s at PC %04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
+                error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
+            except Exception as e:
+                raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
 
 def load_zmachine(filename):
     with open(filename,'rb') as f:
@@ -421,26 +454,28 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--file')
     parser.add_argument('--breakpoint')
+    parser.add_argument('--transcript')
     parser.add_argument('--breakattext')
     data = parser.parse_args()
     filename = data.file
     breakpoint = data.breakpoint
     breakattext = data.breakattext
+    transcript = data.transcript
     if breakpoint and not breakpoint.startswith('0x'):
         breakpoint = '0x' + breakpoint
     try:
         while True:
             try:
-                start(filename,breakpoint,breakattext)    
+                start(filename,breakpoint,breakattext,transcript)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
     except QuitException:
         print("Thanks for playing!")
 
-def start(filename,breakpoint,breakattext):
+def start(filename,breakpoint,breakattext,transcript):
     zmachine = load_zmachine(filename)
-    loop = MainLoop(zmachine,breakpoint,breakattext)
+    loop = MainLoop(zmachine,breakpoint,breakattext,transcript)
     wrapper(loop.loop)
 
 if __name__ == "__main__":
