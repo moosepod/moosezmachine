@@ -899,7 +899,20 @@ def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if
     return NextInstructionAction(next_address)
 
 def op_random(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    v1 = dereference_variables(operands[0],interpreter)
+    rval=0
+
+    if v1 > 0:
+        # Positive value is random in that range
+        rval = interpreter.story.rng.randint(v1)
+    elif v1 < 0:
+        # Negative value is reseed to that value, 
+        interpreter.story.rng.enter_predictable_mode(convert_to_unsigned(v1))
+    else:
+        # Zero value is reseed, return zero
+        interpreter.story.rng.enter_random_mode()
+
+    interpreter.current_routine()[store_to] = rval
     return NextInstructionAction(next_address)
 
 def op_push(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -1043,7 +1056,8 @@ OPCODE_HANDLERS = {
                               'types': (OperandTypeHint.signed,),
                               'handler': op_print_num},
 (InstructionType.varOP,7):   {'name': 'random',
-                              'types': (OperandTypeHint.unsigned,),'handler': op_random},
+                              'store': True,
+                              'types': (OperandTypeHint.signed,),'handler': op_random},
 (InstructionType.varOP,8):   {'name': 'push',
                               'types': (OperandTypeHint.unsigned,),'handler': op_push},
 (InstructionType.varOP,9):   {'name': 'pull',

@@ -1062,11 +1062,33 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('-1',self.screen.printed_string)
 
 class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
-    def test_pop(self):
-        self.fail()
+    def test_random(self):
+        rng = self.zmachine.story.rng
+        rng.enter_predictable_mode(1)
+        old_seed = rng.seed
+        current_routine = self.zmachine.current_routine()
+        memory = create_instruction(InstructionType.varOP,7,[(OperandType.small_constant,0x12)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:random 18 -> 200',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(5, current_routine[200])
+        self.assertEqual(old_seed, rng.seed)
 
-    def test_randow(self):
-        self.fail()
+        # Range of 0 should randomize seed
+        memory = create_instruction(InstructionType.varOP,7,[(OperandType.small_constant,0)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:random 0 -> 200',description)
+        result = handler_f(self.zmachine)        
+        self.assertNotEqual(old_seed, rng.seed)
+
+        # Negative range should set random to that seed
+        memory = create_instruction(InstructionType.varOP,7,[(OperandType.large_constant,0xffff)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('varOP:random -1 -> 200',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(0, current_routine[200])
+        self.assertEqual(0xffff, rng.seed)
+
 
     def test_push(self):
         self.assertEqual(None,self.zmachine.peek_game_stack())
