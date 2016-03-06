@@ -268,13 +268,37 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
             self.assertFalse(table.test_attribute(10,i))
 
     def test_object_in(self):
-        self.fail('is a in b?')
+        table = self.story.object_table
+        self.assertTrue(table.is_child_of(1,11))
+        self.assertFalse(table.is_child_of(8,5))
+        self.assertFalse(table.is_child_of(1,1))
 
     def test_object_is_sibling(self):
-        self.fail('is b the sibling of a?')
+        table = self.story.object_table
+        self.assertFalse(table.is_sibling_of(7,5))
+        self.assertFalse(table.is_sibling_of(8,5))
+        self.assertFalse(table.is_sibling_of(1,1))
 
     def test_insert_obj(self):
-        self.fail('Test movement behavior')
+        table = self.story.object_table
+        self.assertTrue(1,table[11]['child'])
+        self.assertTrue(table.is_child_of(1,11))
+
+        table.insert_obj(7,11)
+        self.assertTrue(table.is_child_of(7,11))
+        self.assertTrue(table.is_sibling_of(1,7))
+        self.assertTrue(7,table[11]['child'])
+        self.assertTrue(table.is_child_of(1,11))
+
+    def test_remove_obj(self):
+        table = self.story.object_table
+        self.assertEqual(11,table[1]['parent'])
+        table.remove_obj(1)
+        self.assertEqual(0,table[1]['parent'])
+
+        self.assertEqual(0,table[11]['parent'])
+        table.remove_obj(11)
+        self.assertEqual(0,table[11]['parent'])
 
     def test_get_property(self):
         obj = self.story.object_table[1]
@@ -291,8 +315,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['parent'])
         self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
         self.assertEqual('00000000000000000000000000000000',str(obj['attributes']))
-        self.assertEqual({16: bytearray(b'\xff'), 17: bytearray(b'\x00\x02'), 10: bytearray(b'\x00\n'), 
-            11: bytearray(b'\x00\x00'), 12: bytearray(b'\x00\x00'), 13: bytearray(b'\n'), 14: bytearray(b'\x00\x00'), 15: bytearray(b'\x00\x00')},
+        self.assertEqual({16: {'size': 1, 'data': bytearray(b'\xff'), 'address': 558}, 
+            17: {'size': 2, 'data': bytearray(b'\x00\x02'), 'address': 555}, 
+            10: {'size': 2, 'data': bytearray(b'\x00\n'), 'address': 574}, 
+            11: {'size': 2, 'data': bytearray(b'\x00\x00'), 'address': 571}, 
+            12: {'size': 2, 'data': bytearray(b'\x00\x00'), 'address': 568}, 
+            13: {'size': 1, 'data': bytearray(b'\n'), 'address': 566}, 
+            14: {'size': 2, 'data': bytearray(b'\x00\x00'), 'address': 563}, 
+            15: {'size': 2, 'data': bytearray(b'\x00\x00'), 'address': 560}},
             obj['properties'])
 
         obj = self.story.object_table[11]
@@ -302,6 +332,18 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['parent'])
         self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
         self.assertEqual('00000000000011111111111111111111',str(obj['attributes']))
+
+    def test_get_property_address(self):
+        table = self.zmachine.story.object_table
+        self.assertEqual(508, table.get_property_address(2,18))
+        self.assertEqual(503, table.get_property_address(2,19))
+        self.assertEqual(0, table.get_property_address(2,3))
+
+    def test_get_property_lengths(self):
+        table = self.zmachine.story.object_table
+        self.assertEqual(49, table.get_property_length(18))
+        self.assertEqual(53, table.get_property_length(19))
+        self.assertEqual(0, table.get_property_length(0))
 
 class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_next_address(self):
@@ -460,39 +502,189 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(29,result.branch_offset)
 
-    def test_get_prop(self):
-        self.fail('Normal')
-        self.fail('Default')
-        self.fail('One byte')
-        self.fail('Two byte')
-        self.fail('Exception')
-
-    def test_get_prop_addr(self):
-        self.fail()
-
-    def test_get_next_prop(self):
-        self.fail()
-
     def test_get_sibling(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        table.insert_obj(7,11)
+        memory = create_instruction(InstructionType.oneOO,1,[(OperandType.small_constant,7)],branch_to=0x1d,store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_sibling 7 -> 200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(0x1d,result.branch_offset)
+        self.assertEqual(11,routine[200])
+
+        memory = create_instruction(InstructionType.oneOO,1,[(OperandType.small_constant,11)],branch_to=0x1d,store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_sibling 11 -> 200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
 
     def test_get_child(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        memory = create_instruction(InstructionType.oneOP,2,[(OperandType.small_constant,11)],branch_to=0x1d,store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_child 11 -> 200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(0x1d,result.branch_offset)
+        self.assertEqual(1,routine[200])
+
+        memory = create_instruction(InstructionType.oneOP,2,[(OperandType.small_constant,1)],branch_to=0x1d,store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_child 1 -> 200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
 
     def test_get_parent(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,11)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_parent 1 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(11,routine[200])
+
+        memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,1)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_parent 11 -> 200 ?001d',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
 
     def test_get_prop_len(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        addr = table.get_property_address(18)
+        memory = create_instruction(InstructionType.oneOP,4,[(OperandType.long_constant,addr)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(6,routine[200])
+
+        addr = table.get_property_address(19)
+        memory = create_instruction(InstructionType.oneOP,4,[(OperandType.long_constant,addr)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
+        self.assertRaise(InstructionException, handler_f, self.zmachine)
+
+    def test_get_prop_addr(self):
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        memory = create_instruction(InstructionType.twoOP,0x12,[(OperandType.small_constant,2),(OperandType.small_constant,18)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop_addr 2 18 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(6,routine[200])
+
+        addr = table.get_property_address(19)
+        memory = create_instruction(InstructionType.twoOP,0x12,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop_addr 2 19 -> 200' % addr,description)
+        self.assertRaise(InstructionException, handler_f, self.zmachine)
 
     def test_remove_obj(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        self.assertEqual(11, table[1]['parent'])
+        memory = create_instruction(InstructionType.oneOP,9,[(OperandType.small_constant,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:remove_obj 1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0, table[1]['parent'])
+
+        memory = create_instruction(InstructionType.oneOP,9,[(OperandType.small_constant,11)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:remove_obj 11',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0, table[11]['parent'])
 
     def test_print_obj(self):
-        self.fail()
+        memory = create_instruction(InstructionType.oneOP,0x0A,[(OperandType.small_constant,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:print_obj 1',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual('The first room',self.screen.printed_string)
+
+        memory = create_instruction(InstructionType.oneOP,0x0A,[(OperandType.small_constant,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:print_obj 111',description)
+        self.assertRaises(InterpreterException, handler_f, self.zmachine)
 
     def test_put_prop(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        memory = create_instruction(InstructionType.varOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,16),(OperandType.large_constant,0xffff)],
+                                                                store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:put_prop 10 16 255 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xff,routine[200])
+
+        memory = create_instruction(InstructionType.varOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,17),(OperandType.large_constant,0xffff)],
+                                                                store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:put_prop 10 17 255 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,routine[200])
+
+        memory = create_instruction(InstructionType.varOP,0x11,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:put_prop 2 19 -> 200' % addr,description)
+        self.assertRaises(InterpreterException, handler_f, self.zmachine)
+
+    def test_get_prop(self):
+        routine = self.zmachine.current_routine()
+        memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,16)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop 10 16 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xff,routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,17)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop 10 17 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x0002,routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop 2 19 -> 200' % addr,description)
+        self.assertRaises(InterpreterException, handler_f, self.zmachine)
+
+    def test_get_next_prop(self):
+        routine = self.zmachine.current_routine()
+        table = self.zmachine.story.object_table
+        memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,18)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_next_prop 2 18 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(19,routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_next_prop 2 19 -> 200' % addr,description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0,routine[200])
+
+        memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,20)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_next_prop 2 20 -> 200' % addr,description)
+        self.assertRaises(InterpreterException, handler_f, self.zmachine)
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_ret(self):

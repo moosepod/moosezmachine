@@ -162,8 +162,12 @@ class ObjectsWindow(object):
             obj = zmachine.story.object_table[i]
             zc = obj['short_name_zc']
             window.addstr('%d: %s\n' % (i,ztext.to_ascii(zc,0,len(zc))))
+            if obj['parent']:
+                window.addstr('   child of: %d\n' % (obj['parent']))
+            if obj['sibling']:
+                window.addstr('   sibling is: %d\n' % (obj['sibling']))
             for number,data in obj['properties'].items():
-                window.addstr('   %s: %s \n' % (number,''.join(['%02x' % x for x in data])))
+                window.addstr('   %s: %s \n' % (number,''.join(['%02x' % x for x in data['data']])))
 
 class DictionaryWindow(object):
     def __init__(self):

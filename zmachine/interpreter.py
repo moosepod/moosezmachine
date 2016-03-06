@@ -281,6 +281,11 @@ class Routine(object):
 class ObjectTableManager(object):
     """ Handles the object table (see section 12.1). Note that requests to the table pass through, since we don't
         know for sure where the object table ends """
+    PROPERTY_ADDRESS_OFFSET=7
+    PARENT_OFFSET=4
+    SIBLING_OFFSET=5
+    CHILD_OFFSET=6
+
     def __init__(self,story):
         self.version = story.header.version
         self.game_memory = story.game_memory
@@ -347,6 +352,55 @@ class ObjectTableManager(object):
             val = val & ((0x80 >> attribute_number) ^ 0xff)
         self.game_memory[address] = val
 
+    def is_sibling_of(self,sibling_obj_id,obj_id):
+        """ Return True of obj is the sibling of obj """
+        obj = self[obj_id]
+        return obj['sibling'] == sibling_obj_id
+
+    def is_child_of(self,child_obj_id,parent_obj_id):
+        """ Return True if child_obj is child of parent_obj """
+        obj = self[child_obj_id]
+        return obj['parent'] == parent_obj_id
+
+    def remove_obj(self,obj_id):
+        """ Remove this objects from its parent (leaving its children) """
+        start_addr = self._obj_start_addr(obj_id)
+        self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = 0
+
+    def insert_obj(self,obj_id,parent_id):
+        """ Insert the obj obj_id at the front of parent_id """
+        obj = self[parent_id]
+        if obj['child']:
+            old_child_id = obj['child']
+        else:
+            old_child_id = 0
+
+        start_addr = self._obj_start_addr(obj_id)
+        self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = parent_id
+        self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET] = old_child_id
+
+        start_addr = self._obj_start_addr(parent_id)
+        self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = obj_id
+
+
+    def get_property_address(self,obj_id, property_id):
+        """ Return the address of the given property """
+        obj = self[obj_id]
+        start_addr = 0
+        try:
+            start_addr = obj['properties'][property_id]['address']
+        except KeyError:
+            start_addr = 0
+
+        return start_addr
+
+    def get_property_length(self, prop_addr):
+        """ Return the length of the property starting at the given address """
+        size = 0
+        if prop_addr == 0:
+            return 0
+        return self.game_memory[prop_addr]
+
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}
@@ -363,7 +417,7 @@ class ObjectTableManager(object):
             property_number = size_byte & 0x1F
             property_size = ((size_byte & 0xE0) >> 5) + 1 
             data = self.game_memory._raw_data[start_addr:start_addr+property_size]
-            properties[property_number] = data
+            properties[property_number] = {'data': data, 'size': property_size, 'address': start_addr}
             start_addr+=property_size
             size_byte = self.game_memory[start_addr]
 
@@ -384,12 +438,12 @@ class ObjectTableManager(object):
         # 12.3.1
         start_addr = self._obj_start_addr(key)  
 
-        property_address = self.game_memory.word(start_addr+7)
+        property_address = self.game_memory.word(start_addr+ObjectTableManager.PROPERTY_ADDRESS_OFFSET)
         properties,short_name_zc = self._get_properties(property_address)
         obj = {'attributes': BitArray(self.game_memory._raw_data[start_addr:start_addr+4]),
-              'parent': self.game_memory[start_addr+4], 
-              'sibling': self.game_memory[start_addr+5], 
-              'child': self.game_memory[start_addr+6], 
+              'parent': self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET], 
+              'sibling': self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET], 
+              'child': self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET], 
               'property_address': property_address,
               'short_name_zc': short_name_zc,
               'properties': properties
