@@ -60,6 +60,9 @@ class CursesStream(OutputStream):
     def print_char(self,txt):
         self._print(txt)
 
+    def show_status(self, msg, time=None, score=None):
+        raise Exception('Show status not implemented')
+
 class StepperWindow(object):
     def next_line(self):
         return False

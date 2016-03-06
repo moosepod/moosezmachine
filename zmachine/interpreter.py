@@ -437,6 +437,10 @@ class OutputStreams(object):
             self.streams.append(ZMachineStream(zmachine))
             self.streams.append(script)
 
+    def select_stream(self,stream_num):
+        if stream_num >= 0 and stream_num < len(self.streams):
+            self.streams[0].is_active = True
+
     def set_screen_stream(self,stream):
         """ Assign the screen stream, setting it active by default """
         self.streams[OutputStreams.SCREEN] = stream
@@ -457,6 +461,15 @@ class OutputStreams(object):
         text = self.ztext._map_zchar(ch)
         for stream in (s for s in self.streams if s.is_active):
             stream.print_zchar(text)
+
+    def show_status(self,msg,score=None,time=None):
+        if self[OutputStreams.SCREEN].is_active:
+            self[OutputStreams.SCREEN].show_status(msg,score=score,time=time)
+
+    def __getitem__(self,idx):
+        return self.streams[idx]
+
+
         
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
@@ -495,10 +508,6 @@ class Story(object):
         self.game_memory = GameMemory(self.raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
-
-        # some early files have no checksum -- skip the check in that case
-        if self.header.checksum and self.header.checksum != self.calculate_checksum():
-            raise StoryFileException('Checksum of %.8x does not match %.8x' % (self.header.checksum, self.calculate_checksum()))
 
         self.object_table = ObjectTableManager(self)
 
@@ -596,7 +605,6 @@ class Interpreter(object):
                             self.story.header.version,
                             self.get_ztext())
         
-
     def current_instruction(self):
         """ Return the current instruction """
         return self.instruction_at(self.pc)
@@ -631,10 +639,26 @@ class Interpreter(object):
 
     def play_sound(self,number,effect,volume,routine):
         # No sound currently supported
-        pass
+        raise Exception('Sound not currently supported')
+
+    def show_status(self):
+        """ Update the statushow_statuss line with our current status """
+        self.output_streams.show_status('A',score=1)
+
 
     def quit(self):
         raise QuitException()
+
+    def restart(self):
+        raise InterpreterException('Restart not implemented')
+
+    def save(self,branch_offset,next_address):
+        """ Handle a save. Branch info is used to move pc post save """
+        raise InterpreterException('Save not implemented')
+
+    def restore(self,branch_offset,next_address):
+        """ Handle a restore. Branch info is passed in but ignored in version 3 """
+        raise InterpreterException('Restore not implemented')
 
     def push_game_stack(self,val):
         self.current_routine().push_to_stack(val)

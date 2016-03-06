@@ -14,7 +14,7 @@ from zmachine.instructions import InstructionForm,InstructionType,OperandType,OP
                                   process_operands, extract_literal_string, extract_branch_offset,\
                                   format_description,convert_to_unsigned,\
                                   JumpRelativeAction,CallAction,NextInstructionAction,OperandTypeHint,QuitAction,ReturnAction,\
-                                  InstructionException
+                                  InstructionException,RestoreAction,RestartAction,SaveAction
 import zmachine.instructions as instructions
 
 class TestOutputStream(OutputStream):
@@ -22,12 +22,16 @@ class TestOutputStream(OutputStream):
         super(TestOutputStream,self).__init__(*args,**kwargs)
         self.new_line_called = False
         self.printed_string = ''
+        self.status_shown=False
 
     def new_line(self):
         self.new_line_called = True
 
     def print_str(self,msg):
         self.printed_string += msg
+
+    def show_status(self, msg, time=None, score=None):
+        self.status_shown=True
 
 class TestSaveHandler(SaveHandler):
     pass
@@ -213,14 +217,18 @@ class TestStoryMixin(object):
         if not os.path.exists(path):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
-            self.story = Story(f.read())
-            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+            self.data = f.read()
 
     def setUp(self):
-        self.zmachine.reset()
+        self._load_zmachine()
+
+    def _load_zmachine(self,version=3):
+        self.story = Story(self.data)
+        self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+        self.zmachine.reset(force_version=version)
         self.screen = TestOutputStream()
         self.zmachine.output_streams.set_screen_stream(self.screen)
-    
+
 
 class ObjectTableTests(TestStoryMixin,unittest.TestCase):
     def __init__(self,*args,**kwargs):
@@ -342,6 +350,15 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
 
     def test_quit(self):
         self.assertRaises(QuitException, QuitAction(self.zmachine.pc).apply,self.zmachine)
+
+    def test_restart(self):
+        self.fail('Check that only bit 0 of flags 2 and bit 1 of flags 2 are preserved')
+
+    def test_save(self):
+        self.fail('Save action.')
+
+    def test_restore(self):
+        self.fail('Check that only bit 0 of flags 2 and bit 1 of flags 2 are preserved')
 
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_insert_obj(self):
@@ -1132,10 +1149,23 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertRaises(InterpreterException, handler_f,self.zmachine)
 
     def test_show_status(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,0x0C,[])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('zeroOP:show_status',description)
+        self.assertTrue(self.zmachine.output_streams[0].status_shown)
 
     def test_verify(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,0x0D,[],branch_to=0x02)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('zeroOP:verify ?0002',description)
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(2,result.branch_offset)
+
+        self.zmachine.story.game_memory._raw_data[0x1000] = 0xff
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
 
     def test_storew(self):
         self.assertNotEqual(0xff,self.zmachine.story.game_memory.word(0x500))
@@ -1258,15 +1288,30 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x31, routine[150])
 
-
     def test_save(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,5,[],branch_to=0x10)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:save ?0010',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,SaveAction))
+        self.assertEqual(0x10, result.branch_offset)
+        self.assertEqual(next_address, result.next_address)
 
     def test_restore(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,6,[],branch_to=0x10)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:restore ?0010',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,RestoreAction))
+        self.assertEqual(0x10, result.branch_offset)
+        self.assertEqual(next_address, result.next_address)
 
     def test_restart(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,7,[])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:quit',description)
+        result = handler_f(self.zmachine)        
+        self.assertTrue(isinstance(result,RestartAction))
 
 class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_not(self):

@@ -433,6 +433,25 @@ class QuitAction(object):
     def apply(self,interpreter):
         interpreter.quit()
 
+class RestartAction(object):
+    def apply(self,interpreter):
+        interpreter.restart()
+
+class RestoreAction(object):
+    def __init__(self, branch_offset, next_address):
+        self.branch_offset = branch_offset
+        self.next_address = next_address
+
+    def apply(self,interpreter):
+        interpreter.restore(self.branch_offset,self.next_address)
+
+class SaveAction(object):
+    def __init__(self, branch_offset, next_address):
+        self.branch_offset = branch_offset
+        self.next_address = next_address
+
+    def apply(self,interpreter):
+        interpreter.save(self.branch_offset,self.next_address)
 
 ###
 ### All handlers are passed in an interpreter and information about the given instruction
@@ -875,27 +894,29 @@ def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 
 def op_save(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    return SaveAction(branch_offset, next_address)
 
 def op_restore(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    return RestoreAction(branch_offset, next_address)
 
 def op_restart(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    return RestartAction()
 
 def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     raise InstructionException('Not implemented')
     return NextInstructionAction(next_address)
 
 def op_show_status(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    # Only show status via opcode in versions 1-3
+    if interpreter.story.header.version < 4:
+        interpreter.show_status()
     return NextInstructionAction(next_address)
 
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    # some early files have no checksum -- skip the check in that case
+    if interpreter.story.header.checksum == interpreter.story.calculate_checksum():
+        return JumpRelativeAction(branch_offset, next_address)
+
     return NextInstructionAction(next_address)
 
 def op_random(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -981,7 +1002,7 @@ OPCODE_HANDLERS = {
 (InstructionType.zeroOP,4):  {'name': 'nop', 'handler': op_nop},
 (InstructionType.zeroOP,5):  {'name': 'save','branch':True, 'handler': op_save},
 (InstructionType.zeroOP,6):  {'name': 'restore','branch':True, 'handler': op_restore},
-(InstructionType.zeroOP,7):  {'name': 'quit','restart': op_restart},
+(InstructionType.zeroOP,7):  {'name': 'quit','handler': op_restart},
 (InstructionType.zeroOP,8):  {'name': 'ret_popped','restart': op_ret_popped},
 (InstructionType.zeroOP,9):  {'name': 'pop','handler': op_pop},
 (InstructionType.zeroOP,10): {'name': 'quit','handler': op_quit},
