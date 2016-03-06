@@ -799,7 +799,23 @@ def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 ## Properties
 def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    object_number = dereference_variables(operands[0],interpreter)
+    property_number = dereference_variables(operands[1],interpreter)
+    obj = interpreter.story.object_table[object_number]
+    if not obj:
+        raise InstructionException('get_prop called with non-existant object id %d' % object_number)
+    try:
+        prop = obj['properties'][property_number]['data']
+        mem = Memory(prop)
+        if len(mem) > 2:
+            raise InstructionException('get_prop called with larger than 2byte property %d for object id %d' % (property_number,object_number))
+        elif len(mem) > 1:
+            interpreter.current_routine()[store_to] = mem.word(0)
+        else:
+            interpreter.current_routine()[store_to] = mem[0]
+    except IndexError:
+        raise InstructionException('get_prop called with non-existant property %d for object id %d' % (property_number,object_number))
+
     return NextInstructionAction(next_address)
 
 def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

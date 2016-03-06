@@ -647,22 +647,22 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,16)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 10 16 -> 200' % addr,description)
+        self.assertEqual('twoOP:get_prop 10 16 -> 200',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xff,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,17)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 10 17 -> 200' % addr,description)
+        self.assertEqual('twoOP:get_prop 10 17 -> 200',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x0002,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 2 19 -> 200' % addr,description)
-        self.assertRaises(InterpreterException, handler_f, self.zmachine)
+        self.assertEqual('twoOP:get_prop 2 19 -> 200',description)
+        self.assertRaises(InstructionException, handler_f, self.zmachine)
 
     def test_get_next_prop(self):
         routine = self.zmachine.current_routine()
