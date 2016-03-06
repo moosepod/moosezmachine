@@ -830,11 +830,23 @@ def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     return NextInstructionAction(next_address)
 
 def op_storeb(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    base_addr = dereference_variables(operands[0],interpreter)
+    index = dereference_variables(operands[1],interpreter)
+    val = dereference_variables(operands[2],interpreter)
+
+    memory = interpreter.story.game_memory
+    memory[base_addr+index] = val
+
     return NextInstructionAction(next_address)
 
 def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    base_addr = dereference_variables(operands[0],interpreter)
+    index = dereference_variables(operands[1],interpreter)
+    val = dereference_variables(operands[2],interpreter)
+
+    memory = interpreter.story.game_memory
+    memory.set_word(base_addr+(2*index),val)
+
     return NextInstructionAction(next_address)
 
 def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

@@ -1116,10 +1116,38 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.fail()
 
     def test_storew(self):
-        self.fail()
+        self.assertNotEqual(0xff,self.zmachine.story.game_memory.word(0x500))
+        memory = create_instruction(InstructionType.varOP,1,[(OperandType.large_constant,0x500),(OperandType.small_constant,0),(OperandType.large_constant,0xffff)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('varOP:storew 1280 0 65535',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xffff,self.zmachine.story.game_memory.word(0x500))
+
+        self.assertNotEqual(0xff,self.zmachine.story.game_memory.word(0x501))
+        memory = create_instruction(InstructionType.varOP,1,[(OperandType.large_constant,0x500),(OperandType.small_constant,1),(OperandType.large_constant,0xfffc)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('varOP:storew 1280 1 65532',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xfffc,self.zmachine.story.game_memory.word(0x502))
 
     def test_storeb(self):
-        self.fail()
+        self.assertNotEqual(0xff,self.zmachine.story.game_memory[0x500])
+        memory = create_instruction(InstructionType.varOP,2,[(OperandType.large_constant,0x500),(OperandType.small_constant,0),(OperandType.small_constant,0xff)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('varOP:storeb 1280 0 255',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xff,self.zmachine.story.game_memory[0x500])
+
+        self.assertNotEqual(0xff,self.zmachine.story.game_memory[0x501])
+        memory = create_instruction(InstructionType.varOP,2,[(OperandType.large_constant,0x500),(OperandType.small_constant,1),(OperandType.small_constant,0xfc)])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('varOP:storeb 1280 1 252',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0xfc,self.zmachine.story.game_memory[0x501])
 
     def test_loadb(self):
         routine = self.zmachine.current_routine()
