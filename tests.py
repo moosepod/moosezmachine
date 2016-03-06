@@ -307,10 +307,10 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         routine.local_variables = [1,2,3,4,5,6]
         
-        CallAction(0x1000,5,old_pc+10).apply(self.zmachine)
+        CallAction(0x1000,5,old_pc+10,[]).apply(self.zmachine)
         self.assertEqual(2,len(self.zmachine.routines))
         routine = self.zmachine.current_routine()
-        self.assertEqual(0x1000,self.zmachine.pc)
+        self.assertEqual(0x1009,self.zmachine.pc)
         self.assertEqual(5,routine.store_to)
         self.assertEqual(old_pc + 10, routine.return_to_address)
 
@@ -319,6 +319,21 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(old_pc + 10, self.zmachine.pc)
         self.assertEqual(111,routine[5])
         self.assertEqual(1,len(self.zmachine.routines))
+
+    def test_call_with_locals(self):
+        self.assertEqual(1,len(self.zmachine.routines))
+        old_pc = self.zmachine.pc
+        routine = self.zmachine.current_routine()
+        
+        CallAction(0x1000,5,old_pc+10,[1,2,3]).apply(self.zmachine)
+        self.assertEqual(2,len(self.zmachine.routines))
+        routine = self.zmachine.current_routine()
+        self.assertEqual(4105   ,self.zmachine.pc)
+        self.assertEqual(5,routine.store_to)
+        self.assertEqual(old_pc + 10, routine.return_to_address)
+        self.assertEqual(1, routine[1])
+        self.assertEqual(2, routine[2])
+        self.assertEqual(3, routine[3])
 
     def test_jump_relative(self):
         old_pc = self.zmachine.pc
@@ -648,6 +663,17 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(5,result.return_to)
         self.assertEqual(11368,result.routine_address)
         self.assertEqual(0,result.store_to)
+        self.assertEqual([], result.local_vars)
+
+        self.zmachine.current_routine()[200] = 3
+        memory = create_instruction(InstructionType.varOP,0,[(OperandType.large_constant,987),(OperandType.small_constant,1),(OperandType.small_constant,2),(OperandType.variable,200)],store_to=150)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('varOP:call 1974 1 2 var200 -> 150',description)
+        result = handler_f(self.zmachine)
+        self.assertEqual(8,result.return_to)
+        self.assertEqual(1974,result.routine_address)
+        self.assertEqual(150,result.store_to)
+        self.assertEqual([1,2,3], result.local_vars)
 
 class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_add(self):
@@ -794,6 +820,16 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('twoOP:mod 1 0 -> 200',description)
         self.assertRaises(InstructionException, handler_f,self.zmachine)
 
+        # Test negative
+        routine[201] = convert_to_unsigned(-13)
+        routine[202] = convert_to_unsigned(5)
+        memory = create_instruction(InstructionType.twoOP,24,[(OperandType.variable,201),(OperandType.variable,202)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        result = handler_f(self.zmachine)
+        self.assertEqual('twoOP:mod var201 var202 -> 200',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(convert_to_unsigned(-3),routine[200])
+
     def test_inc(self):
         routine = self.zmachine.current_routine()
         routine.local_variables = [0xffff,10]
@@ -859,6 +895,15 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4,self.zmachine.current_routine()[2])
 
+        # Negative 
+        routine[100] = 0xFFFA
+        memory = create_instruction(InstructionType.twoOP,5,[(OperandType.small_constant,100),(OperandType.large_constant,1000)],branch_to=0x14)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:inc_chk var100 1000 ?0014',description)
+        result = handler_f(self.zmachine)
+        self.assertEqual(0xFFFB, routine[100])
+        self.assertTrue(isinstance(result,NextInstructionAction))
+
     def test_dec_chk(self):
         routine = self.zmachine.current_routine()
         routine.local_variables = [0,3,2,3,4,5]
@@ -889,6 +934,16 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4,self.zmachine.current_routine()[6])
+
+        # Negative 
+        routine[100] = 0XFFFF
+        memory = create_instruction(InstructionType.twoOP,4,[(OperandType.small_constant,100),(OperandType.large_constant,-1)],branch_to=0x14)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:dec_chk var100 -1 ?0014',description)
+        result = handler_f(self.zmachine)
+        self.assertEqual(0xFFFE, routine[100])
+        self.assertTrue(isinstance(result,JumpRelativeAction))
+        self.assertEqual(0x14,result.branch_offset)
 
     def test_mul(self):
         routine = self.zmachine.current_routine()
@@ -936,7 +991,13 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('Hello.\n',self.screen.printed_string)
 
     def test_print_ret(self):
-        self.fail()
+        memory = create_instruction(InstructionType.zeroOP,3,[],literal_string_bytes=[0x16,0x45,0x94,0xA5])
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        self.assertEqual('zeroOP:print_ret (.)',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,ReturnAction))
+        self.assertEqual(result.result, 1)
+        self.assertEqual('.\n',self.screen.printed_string)
 
     def test_print_char(self):
         memory = create_instruction(InstructionType.varOP,5,[(OperandType.small_constant,0x00)])
@@ -1137,7 +1198,16 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
 
     def test_load(self):
-        self.fail()
+        routine = self.zmachine.current_routine()
+        routine[200] = 0x31
+        routine[150] = 0
+        memory = create_instruction(InstructionType.oneOP,0x0E,[(OperandType.small_constant,200)],store_to=150)
+        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
+        result = handler_f(self.zmachine)
+        self.assertEqual('oneOP:load 200 -> 150',description)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(0x31, routine[150])
+
 
     def test_save(self):
         self.fail()
@@ -1150,7 +1220,21 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
 
 class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_not(self):
-        self.fail()
+        memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.small_constant,0)],store_to=150)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:not 0 -> 150',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(3  ,result.next_address)
+        self.assertEqual(0xffff, self.zmachine.current_routine()[150])
+
+        memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.large_constant,0xffff)],store_to=150)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:not 65535 -> 150',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(0x0000, self.zmachine.current_routine()[150])
 
     def test_or(self):
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)

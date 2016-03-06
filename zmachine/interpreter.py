@@ -200,15 +200,16 @@ class GameMemory(Memory):
 
 class Routine(object):
     """ Context for a routine in memory """
-    def __init__(self,memory,globals_address,routine_start,return_to_address,store_to,version,no_locals=False):
+    def __init__(self,memory,globals_address,routine_start,return_to_address,store_to,version,local_vars):
         """ Initialize this routine from location idx at the memory passed in """
         self.routine_start = routine_start
         self.version=version
         self.globals_address = globals_address
         self.local_variables = []
         idx = self.routine_start
-        if not no_locals: # First "routine" in earlier story file versions has no locals
-            var_count = memory[idx]
+        if local_vars != None: 
+            # First "routine" in earlier story file versions has no locals
+            var_count = memory[idx] or len(local_vars)
             if var_count < 0 or var_count > 15:
                 raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
             # 5.2.1
@@ -218,6 +219,9 @@ class Routine(object):
                 for i in range(0,var_count):
                     self.local_variables[i] = memory.word(idx)
                     idx+=2
+            for i,val in enumerate(local_vars):
+                self.local_variables[i] = val
+
         self.store_to = store_to
         self.return_to_address = return_to_address
         self.stack = []
@@ -542,9 +546,9 @@ class Interpreter(object):
             self.output_streams.reset(self,self.get_ztext())
         self.routines = []
         self.game_state = []
-        self.call_routine(self.pc,self.pc,None,no_locals=True)
+        self.call_routine(self.pc,self.pc,None,None)
 
-    def call_routine(self, routine_address, next_address,  store_var,  no_locals=False):
+    def call_routine(self, routine_address, next_address,  store_var,  local_vars):
         """ Add a routine call to the stack from the current program counter """
         new_routine = Routine(self.story.raw_data, 
                                     self.story.header.global_variables_address,
@@ -552,7 +556,7 @@ class Interpreter(object):
                                     next_address,
                                     store_var,
                                     self.story.header.version,
-                                    no_locals=no_locals)
+                                    local_vars)
         self.routines.append(new_routine)
         self.pc = new_routine.code_starts_at 
 

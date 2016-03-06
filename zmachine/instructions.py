@@ -77,7 +77,7 @@ def read_instruction(memory,address,version,ztext):
     # If opcode is BE, form is extended. Otherwise long.
     start_address=address
 
-    branch_offset = 0 # Offset, in bytes, to move PC
+    branch_offset = None # Offset, in bytes, to move PC
     store_to = None # Variable # to store the resulting value to
     zchars = [] # If this instruction works with zcodes, store them here
     literal_string = None # Ascii version of zchars, if any
@@ -281,7 +281,7 @@ def format_description(instruction_type, handler, operands, store_to, branch_off
     return description
 
 ### For testing purposes. Pass in params and make the memory that represents this instruction
-def create_instruction(instruction_type, opcode_number, operands, store_to=None, branch_to=None, branch_if_true=True):
+def create_instruction(instruction_type, opcode_number, operands, store_to=None, branch_to=None, branch_if_true=True,literal_string_bytes=None):
     bytes = []
 
     if instruction_type == InstructionType.zeroOP:
@@ -376,6 +376,9 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
     if store_to != None:
         bytes.append(store_to)
 
+    if literal_string_bytes:
+        bytes.extend(literal_string_bytes)
+
     if branch_to:
         if branch_if_true:
             bytes.append(0x80)
@@ -396,13 +399,15 @@ class NextInstructionAction(object):
 
 class CallAction(object):
     """ Interpreter should call the routine with the provide info """
-    def __init__(self, routine_address, store_to, return_to):
+    def __init__(self, routine_address, store_to, return_to, local_vars):
         self.routine_address = routine_address
         self.store_to = store_to
         self.return_to = return_to
+        self.local_vars = local_vars
 
     def apply(self,interpreter):
-        interpreter.call_routine(self.routine_address,self.return_to,self.store_to)
+        interpreter.call_routine(self.routine_address,self.return_to,self.store_to,self.local_vars)
+
 
 class ReturnAction(object):
     """ Interpreter should return from the current routine with the given result """
@@ -478,8 +483,8 @@ def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch
     return NextInstructionAction(next_address)
 
 def op_print_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
+    interpreter.output_streams.print_str(literal_string + '\n')
+    return ReturnAction(1)
 
 def op_sread(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     raise InstructionException('Not implemented')
@@ -510,8 +515,13 @@ def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,bra
 
 ## Branching
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    address,hint = operands[0]  
-    return CallAction(address, store_to,next_address)
+    address,hint = operands[0]
+    local_vars = []
+    if len(operands):
+        for i,operand in enumerate(operands[1:]):
+            local_vars.append(dereference_variables(operands[i+1],interpreter))
+
+    return CallAction(address, store_to,next_address,local_vars)
 
 def op_ret(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     raise InstructionException('Not implemented')
@@ -604,9 +614,9 @@ def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
     var_num,hint = operands[0]
     comp_to = dereference_variables(operands[1],interpreter)
 
-    var = routine[var_num]
+    var = convert_to_signed(routine[var_num])
     var += 1
-    routine[var_num] = var
+    routine[var_num] = convert_to_unsigned(var)
 
     branch = var > comp_to
     if not branch_if_true:
@@ -621,9 +631,9 @@ def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
     routine = interpreter.current_routine()
     var_num,hint = operands[0]
     comp_to = dereference_variables(operands[1],interpreter)
-    var = routine[var_num]
+    var = convert_to_signed(routine[var_num])
     var -= 1
-    routine[var_num] = var
+    routine[var_num] = convert_to_unsigned(var)
 
     branch = var < comp_to
     if not branch_if_true:
@@ -681,29 +691,32 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     v1 = dereference_variables(operands[0],interpreter)
     v2 = dereference_variables(operands[1],interpreter)
     result = v1 * v2
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in mul of %s * %s: %s' % (v1,v2,result))
-    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+    result = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in mul of %s * %s: %s' % (v1,v2,result))
+    interpreter.current_routine()[int(store_to)] = result
 
     return NextInstructionAction(next_address)
 
 def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     var_num,hint = operands[0]
-    result = interpreter.current_routine()[var_num]
+    result = convert_to_signed(interpreter.current_routine()[var_num])
     result += 1
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in inc of var %s, val %s' % (var_num,result))
-    interpreter.current_routine()[var_num] = convert_to_unsigned(result)
+    result = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in inc of var %s, val %s' % (var_num,result))
+    interpreter.current_routine()[int(var_num)] = result
 
     return NextInstructionAction(next_address)
 
 def op_dec(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     var_num,hint = operands[0]
-    result = interpreter.current_routine()[var_num]
+    result = convert_to_signed(interpreter.current_routine()[var_num])
     result -= 1
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in dec of var %s, val %s' % (var_num,result))
-    interpreter.current_routine()[var_num] = convert_to_unsigned(result)
+    result = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in dec of var %s, val %s' % (var_num,result))
+    interpreter.current_routine()[int(var_num)] = result
     
     return NextInstructionAction(next_address)
 
@@ -711,9 +724,9 @@ def op_add(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     v1 = dereference_variables(operands[0],interpreter)
     v2 = dereference_variables(operands[1],interpreter)
     result = v1 + v2
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in add of %s + %s: %s' % (v1,v2,result))        
-    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in add of %s + %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = result
 
     return NextInstructionAction(next_address)
 
@@ -721,9 +734,10 @@ def op_sub(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     v1 = dereference_variables(operands[0],interpreter)
     v2 = dereference_variables(operands[1],interpreter)
     result = v1 - v2
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in sub of %s - %s: %s' % (v1,v2,result))        
-    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+    result = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in sub of %s - %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = result
 
     return NextInstructionAction(next_address)
 
@@ -733,21 +747,31 @@ def op_div(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     if v2 == 0:
         raise InstructionException('Divide by zero in div of %s / %s:' % (v1,v2))      
     result = int(v1 / v2)
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in div of %s * %s: %s' % (v1,v2,result))        
-    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+    result = convert_to_unsigned(result)
+    if result > MAX_UNSIGNED:
+        raise InstructionException('Overflow in div of %s * %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = result
 
     return NextInstructionAction(next_address)
+
+# From http://stackoverflow.com/questions/18499458/python-remainder-operator/18499611#18499611
+# Python's mod operator works different than what the z-machine expects with negative numbers
+def trunc_divmod(a, b):
+    q = a / b
+    q = -int(-q) if q<0 else int(q)
+    r = a - b * q
+    return q, r
 
 def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     v1 = dereference_variables(operands[0],interpreter)
     v2 = dereference_variables(operands[1],interpreter)
     if v2 == 0:
-        raise InstructionException('Divide by zero in mod of %s %% %s' % (v1,v2))      
-    result = v1 % v2
-    if result < MIN_SIGNED or result > MAX_SIGNED:
-        raise Interpreter('Overflow in mod of %s % %s: %s' % (v1,v2,result))        
-    interpreter.current_routine()[int(store_to)] = convert_to_unsigned(result)
+        raise InstructionException('Divide by zero in mod of %s %% %s' % (v1,v2))    
+    quotient,remainder = trunc_divmod(v1,v2)
+    result = convert_to_unsigned(remainder)
+    if result > MAX_UNSIGNED:
+        raise InterpreterException('Overflow in mod of %s % %s: %s' % (v1,v2,result))        
+    interpreter.current_routine()[int(store_to)] = result
 
     return NextInstructionAction(next_address)
 
@@ -814,7 +838,9 @@ def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if
     return NextInstructionAction(next_address)
 
 def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    var_num,hint = operands[0]
+    routine =  interpreter.current_routine()
+    routine[store_to] = routine[var_num]
     return NextInstructionAction(next_address)
 
 def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -880,7 +906,10 @@ def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 ### Bitwise
 def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    v1 = dereference_variables(operands[0],interpreter)
+    if v1 > MAX_UNSIGNED:
+        raise InstructionException('%s is out of range for not' % v1)
+    interpreter.current_routine()[store_to] = ~v1
     return NextInstructionAction(next_address)    
 
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -941,8 +970,8 @@ OPCODE_HANDLERS = {
 (InstructionType.oneOP, 2):  {'name': 'get_child','branch': True, 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_child},
 (InstructionType.oneOP, 3):  {'name': 'get_parent', 'store': True, 'types': (OperandTypeHint.unsigned,), 'handler': op_get_parent},
 (InstructionType.oneOP, 4):  {'name': 'get_prop_len', 'store': True, 'types': (OperandTypeHint.address,), 'handler': op_get_prop_len},
-(InstructionType.oneOP, 5):  {'name': 'inc', 'types': (OperandTypeHint.signed,), 'handler': op_inc},
-(InstructionType.oneOP, 6):  {'name': 'dec', 'types': (OperandTypeHint.signed,), 'handler': op_dec},
+(InstructionType.oneOP, 5):  {'name': 'inc', 'types': (OperandTypeHint.unsigned,), 'handler': op_inc},
+(InstructionType.oneOP, 6):  {'name': 'dec', 'types': (OperandTypeHint.unsigned,), 'handler': op_dec},
 (InstructionType.oneOP, 7):  {'name': 'print_addr','types': (OperandTypeHint.address,), 'handler': op_print_addr},
 (InstructionType.oneOP, 9):  {'name': 'remove_obj','types': (OperandTypeHint.unsigned,), 'handler': op_remove_obj},
 
@@ -957,8 +986,8 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
 (InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
 (InstructionType.twoOP,3):   {'name': 'jg','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jg},
-(InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_dec_chk},
-(InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.unsigned,),'handler': op_inc_chk},
+(InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.signed,),'handler': op_dec_chk},
+(InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.signed,),'handler': op_inc_chk},
 (InstructionType.twoOP,6):   {'name': 'jin','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_jin},
 (InstructionType.twoOP,7):   {'name': 'test','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test},
 (InstructionType.twoOP,8):   {'name': 'or','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_or},
