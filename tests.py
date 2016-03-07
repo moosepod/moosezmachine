@@ -1542,6 +1542,15 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(4  ,result.next_address)
         self.assertEqual(0x0000, self.zmachine.current_routine()[150])
 
+        memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.large_constant,43690)],store_to=150)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('oneOP:not 43690 -> 150',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(4  ,result.next_address)
+        self.assertEqual(21845, self.zmachine.current_routine()[150])
+        
+
     def test_or(self):
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)

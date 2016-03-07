@@ -749,7 +749,7 @@ def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
             interpreter.current_routine()[store_to] = mem.word(0)
         else:
             interpreter.current_routine()[store_to] = mem[0]
-    except IndexError:
+    except KeyError:
         raise InstructionException('get_prop called with non-existant property %d for object id %d' % (property_number,object_number))
 
     return NextInstructionAction(next_address)
@@ -1008,7 +1008,7 @@ def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     v1 = dereference_variables(operands[0],interpreter)
     if v1 > MAX_UNSIGNED:
         raise InstructionException('%s is out of range for not' % v1)
-    interpreter.current_routine()[store_to] = ~v1
+    interpreter.current_routine()[store_to] = ~v1 & 0xffff
     return NextInstructionAction(next_address)    
 
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
