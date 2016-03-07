@@ -665,9 +665,13 @@ def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
         return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)
+
 ## Objects
 def op_put_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    prop_id = dereference_variables(operands[1],interpreter)
+    val = dereference_variables(operands[2],interpreter)
+    interpreter.story.object_table.put_prop(obj_id,prop_id,val)
     return NextInstructionAction(next_address)
 
 def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -677,11 +681,21 @@ def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branc
     return NextInstructionAction(next_address)
 
 def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    obj = interpreter.story.object_table[obj_id]
+    sibling = obj['sibling']
+    interpreter.current_routine()[store_to] = sibling
+    if sibling:
+        return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)
 
 def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    obj = interpreter.story.object_table[obj_id]
+    child = obj['child']
+    interpreter.current_routine()[store_to] = child
+    if child:
+        return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)
 
 def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -691,7 +705,10 @@ def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branc
     return NextInstructionAction(next_address)
 
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    property_addr = dereference_variables(operands[0],interpreter)
+    
+    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_property_length(property_addr)
+
     return NextInstructionAction(next_address)
 
 def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -700,7 +717,11 @@ def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branc
     return NextInstructionAction(next_address)
 
 def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    obj_id = dereference_variables(operands[0],interpreter)
+    obj = interpreter.story.object_table[obj_id]
+    if not obj:
+        raise InstructionException('print_obj called with non-existant obj id %d' % obj_id)
+    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(obj['short_name_zc']))
     return NextInstructionAction(next_address)
 
 def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -710,6 +731,67 @@ def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     obj = interpreter.story.object_table[a]
     if obj['parent'] == b:
         return find_jump_option(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
+def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    property_number = dereference_variables(operands[1],interpreter)
+    obj = interpreter.story.object_table[object_number]
+    if not obj:
+        raise InstructionException('get_prop called with non-existant object id %d' % object_number)
+    try:
+        prop = obj['properties'][property_number]['data']
+        mem = Memory(prop)
+        if len(mem) > 2:
+            raise InstructionException('get_prop called with larger than 2byte property %d for object id %d' % (property_number,object_number))
+        elif len(mem) > 1:
+            interpreter.current_routine()[store_to] = mem.word(0)
+        else:
+            interpreter.current_routine()[store_to] = mem[0]
+    except IndexError:
+        raise InstructionException('get_prop called with non-existant property %d for object id %d' % (property_number,object_number))
+
+    return NextInstructionAction(next_address)
+
+def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    property_number = dereference_variables(operands[1],interpreter)
+    
+    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_property_address(object_number,property_number)
+
+    return NextInstructionAction(next_address)
+
+def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    property_number = dereference_variables(operands[1],interpreter)
+
+    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_next_prop(object_number,property_number)
+
+    return NextInstructionAction(next_address)
+
+def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    if interpreter.story.object_table.test_attribute(object_number, attribute_number):
+        return find_jump_option(branch_offset,next_address)
+
+    return NextInstructionAction(next_address)
+
+def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    interpreter.story.object_table.set_attribute(object_number, attribute_number,True)
+
+    return NextInstructionAction(next_address)
+
+def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+    object_number = dereference_variables(operands[0],interpreter)
+    attribute_number = dereference_variables(operands[1],interpreter)
+
+    interpreter.story.object_table.set_attribute(object_number, attribute_number,False)
 
     return NextInstructionAction(next_address)
 
@@ -802,59 +884,6 @@ def op_mod(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
-## Properties
-def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    object_number = dereference_variables(operands[0],interpreter)
-    property_number = dereference_variables(operands[1],interpreter)
-    obj = interpreter.story.object_table[object_number]
-    if not obj:
-        raise InstructionException('get_prop called with non-existant object id %d' % object_number)
-    try:
-        prop = obj['properties'][property_number]['data']
-        mem = Memory(prop)
-        if len(mem) > 2:
-            raise InstructionException('get_prop called with larger than 2byte property %d for object id %d' % (property_number,object_number))
-        elif len(mem) > 1:
-            interpreter.current_routine()[store_to] = mem.word(0)
-        else:
-            interpreter.current_routine()[store_to] = mem[0]
-    except IndexError:
-        raise InstructionException('get_prop called with non-existant property %d for object id %d' % (property_number,object_number))
-
-    return NextInstructionAction(next_address)
-
-def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
-
-def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
-    return NextInstructionAction(next_address)
-
-def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    object_number = dereference_variables(operands[0],interpreter)
-    attribute_number = dereference_variables(operands[1],interpreter)
-
-    if interpreter.story.object_table.test_attribute(object_number, attribute_number):
-        return find_jump_option(branch_offset,next_address)
-
-    return NextInstructionAction(next_address)
-
-def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    object_number = dereference_variables(operands[0],interpreter)
-    attribute_number = dereference_variables(operands[1],interpreter)
-
-    interpreter.story.object_table.set_attribute(object_number, attribute_number,True)
-
-    return NextInstructionAction(next_address)
-
-def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    object_number = dereference_variables(operands[0],interpreter)
-    attribute_number = dereference_variables(operands[1],interpreter)
-
-    interpreter.story.object_table.set_attribute(object_number, attribute_number,False)
-
-    return NextInstructionAction(next_address)
 
 ## Misc
 def op_quit(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

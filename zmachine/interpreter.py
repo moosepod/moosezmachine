@@ -382,6 +382,16 @@ class ObjectTableManager(object):
         start_addr = self._obj_start_addr(parent_id)
         self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = obj_id
 
+    def get_next_prop(self,obj_id, property_id):
+        """ Find the property after the identified property. If 0, first property. If property
+            is last property, return 0. If no such property, error """
+        obj = self[obj_id]
+        if property_id and not obj['properties'].get(property_id):
+            raise InterpreterException('No property %d for object id %d' % (property_id, obj_id))
+        for property_id in range(property_id+1, 255):
+            if obj['properties'].get(property_id):
+                return property_id
+        return 0
 
     def get_property_address(self,obj_id, property_id):
         """ Return the address of the given property """
@@ -433,6 +443,9 @@ class ObjectTableManager(object):
         
         # 0th object is nothing, we should return no data
         if key == 0:
+            return None
+
+        if key > 255:
             return None
 
         # 12.3.1
@@ -514,7 +527,7 @@ class OutputStreams(object):
         """ Print the zchar to all active streams """
         text = self.ztext._map_zchar(ch)
         for stream in (s for s in self.streams if s.is_active):
-            stream.print_zchar(text)
+            stream.print_str(text)
 
     def show_status(self,msg,score=None,time=None):
         if self[OutputStreams.SCREEN].is_active:
