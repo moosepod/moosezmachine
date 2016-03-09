@@ -692,7 +692,10 @@ class Interpreter(object):
         self._check_initialized()
         version = self.story.header.version
         abbrev_address = self.story.header.abbrev_address
-        return ZText(version=version,get_abbrev_f=lambda z: abbrev_address + z)
+        return ZText(version=version,get_abbrev_f=self.get_abbrev)
+
+    def get_abbrev(self, index):
+        return self.story.raw_data[index:index+1000]
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

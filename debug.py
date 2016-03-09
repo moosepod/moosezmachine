@@ -27,13 +27,14 @@ class ResetException(Exception):
     pass
 
 class CursesStream(OutputStream):
-    def __init__(self,window):
+    def __init__(self,window,status_window):
         super(CursesStream,self).__init__()
         self.window = window
         self.height,self.width = window.getmaxyx()
         self.window.move(self.height-1,0)
         self.window.scrollok(True)
         self.buffer = ''
+        self.satus_window = status_window
 
     def refresh(self):
         """ Redraw this screen """
@@ -61,7 +62,8 @@ class CursesStream(OutputStream):
         self._print(txt)
 
     def show_status(self, msg, time=None, score=None):
-        raise Exception('Show status not implemented')
+        status.addstr(0,0,"TEST",curses.A_REVERSE)
+        status.refresh()
 
 class FileTranscriptStream(OutputStream):
     def __init__(self,path):
@@ -375,7 +377,7 @@ class MainLoop(object):
                               STATUS_BAR_HEIGHT+STORY_TOP_MARGIN,
                               0)
         story.refresh()
-        curses_stream = CursesStream(story)
+        curses_stream = CursesStream(story,status)
         self.zmachine.output_streams.set_screen_stream(curses_stream)
         if self.transcript:
             self.zmachine.output_streams[OutputStreams.TRANSCRIPT] = FileTranscriptStream(self.transcript)

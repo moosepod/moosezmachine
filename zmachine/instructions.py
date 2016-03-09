@@ -536,7 +536,7 @@ def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,bra
 def op_call(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     address = dereference_variables(operands[0],interpreter)
     if address == 0:
-        self.current_routine()[store_to] = 0
+        interpreter.current_routine()[store_to] = 0
         return NextInstructionAction(next_address)
 
     local_vars = []
