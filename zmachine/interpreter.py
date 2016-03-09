@@ -367,8 +367,23 @@ class ObjectTableManager(object):
 
     def remove_obj(self,obj_id):
         """ Remove this objects from its parent (leaving its children) """
-        start_addr = self._obj_start_addr(obj_id)
-        self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = 0
+        obj_start_addr = self._obj_start_addr(obj_id)
+        
+        # need to identify this object's previous siblign, if any, and link to next sibling
+        obj = self[obj_id]
+        parent_obj = obj['parent']
+        parent_obj_start_addr = self._obj_start_addr(obj_id)
+        child_obj = self[parent_obj]['child']
+        while child_obj:
+            if child_obj == obj_id:
+                self.game_memory[parent_obj_start_addr+ObjectTableManager.CHILD_OFFSET] = obj['sibling']
+            else:
+                child_obj = self[child_obj['sibling']]
+
+        # Now remove this obj from parent
+        self.game_memory[obj_start_addr+ObjectTableManager.PARENT_OFFSET] = 0
+
+        raise Exception('Remove obj needs to (a) make first sibling the child of parent if obj is first in list, or link up siblings otherwise')
 
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """
