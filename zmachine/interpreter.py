@@ -307,6 +307,9 @@ class ObjectTableManager(object):
             self.property_defaults.append(self.game_memory.word(self.objects_start_address))
             self.objects_start_address+=2
 
+    def get_default_property(self,property_number):
+        return self.property_defaults[property_number-1]
+
     def _object_record_size(self):
         if self.version < 4:
             return 9
@@ -386,11 +389,20 @@ class ObjectTableManager(object):
         """ Find the property after the identified property. If 0, first property. If property
             is last property, return 0. If no such property, error """
         obj = self[obj_id]
+
+        if property_id == 0:
+            return obj['property_ids_ordered'][0]
+
         if property_id and not obj['properties'].get(property_id):
             raise InterpreterException('No property %d for object id %d' % (property_id, obj_id))
-        for property_id in range(property_id+1, 255):
-            if obj['properties'].get(property_id):
-                return property_id
+
+        return_next = False
+        for i,tmp_id in enumerate(obj['property_ids_ordered']):
+            if return_next:
+                return tmp_id
+            if tmp_id == property_id:
+                return_next = True
+
         return 0
 
     def get_property_address(self,obj_id, property_id):
@@ -409,11 +421,35 @@ class ObjectTableManager(object):
         size = 0
         if prop_addr == 0:
             return 0
-        return self.game_memory[prop_addr]
+        property_number,property_size = self._extract_property_info(prop_addr)
+        return property_size
+
+    def _extract_property_info(self,prop_addr):
+        """ Return the property number and size extracted from size byte at location """
+        size_byte = self.game_memory[prop_addr]
+        property_number = size_byte & 0x1F
+        property_size = ((size_byte & 0xE0) >> 5) + 1 
+
+        return property_number,property_size
+
+    def put_prop(self,obj_id, property_id,value):
+        """ Store a property in the property table """
+        prop_addr = self.get_property_address(obj_id, property_id)
+        if not prop_addr:
+            raise InterpreterException("Request to set non-existent property %s of obj %s to %s." % (obj_id, property_id, value))
+        prop_len = self.get_property_length(prop_addr)
+        prop_addr+=1 # Skip size byte
+        if prop_len > 2:
+            raise InterpreterException("Request to set non-existent property %s of obj %s to %s for property greater than 2 bytes." % (obj_id, property_id, value))
+        elif prop_len == 2:
+            self.game_memory.set_word(prop_addr,value)
+        else:
+            self.game_memory[prop_addr] = value & 0xFF
 
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}
+        property_ids_ordered = []
 
         # 12.4
         text_length = self.game_memory[start_addr]
@@ -421,17 +457,19 @@ class ObjectTableManager(object):
         short_name_zc = self.game_memory._raw_data[start_addr:start_addr+(text_length*2)]
 
         start_addr+=text_length*2
-        size_byte = self.game_memory[start_addr]
+        size_byte_addr = start_addr
+        size_byte = self.game_memory[size_byte_addr]
         while size_byte:
             start_addr+=1
-            property_number = size_byte & 0x1F
-            property_size = ((size_byte & 0xE0) >> 5) + 1 
+            property_number,property_size = self._extract_property_info(size_byte_addr)
             data = self.game_memory._raw_data[start_addr:start_addr+property_size]
-            properties[property_number] = {'data': data, 'size': property_size, 'address': start_addr}
+            properties[property_number] = {'data': data, 'size': property_size, 'address': size_byte_addr}
+            property_ids_ordered.append(property_number)
             start_addr+=property_size
             size_byte = self.game_memory[start_addr]
+            size_byte_addr = start_addr
 
-        return properties,short_name_zc
+        return properties,property_ids_ordered,short_name_zc
 
     def _obj_start_addr(self, object_number):
         return self.objects_start_address + (self._object_record_size() * (object_number-1))
@@ -452,14 +490,15 @@ class ObjectTableManager(object):
         start_addr = self._obj_start_addr(key)  
 
         property_address = self.game_memory.word(start_addr+ObjectTableManager.PROPERTY_ADDRESS_OFFSET)
-        properties,short_name_zc = self._get_properties(property_address)
+        properties,property_ids_ordered,short_name_zc = self._get_properties(property_address)
         obj = {'attributes': BitArray(self.game_memory._raw_data[start_addr:start_addr+4]),
               'parent': self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET], 
               'sibling': self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET], 
               'child': self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET], 
               'property_address': property_address,
               'short_name_zc': short_name_zc,
-              'properties': properties
+              'properties': properties,
+              'property_ids_ordered': property_ids_ordered
               }
         return obj
 
@@ -653,7 +692,7 @@ class Interpreter(object):
         self._check_initialized()
         version = self.story.header.version
         abbrev_address = self.story.header.abbrev_address
-        return ZText(version=version,get_abbrev_f=lambda z: self.story.game_memory[abbrev_address + z:abbrev_address + z + 10])
+        return ZText(version=version,get_abbrev_f=lambda z: abbrev_address + z)
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

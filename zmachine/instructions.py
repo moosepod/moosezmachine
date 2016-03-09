@@ -707,7 +707,8 @@ def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branc
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     property_addr = dereference_variables(operands[0],interpreter)
     
-    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_property_length(property_addr)
+    prop_len = interpreter.story.object_table.get_property_length(property_addr)
+    interpreter.current_routine()[store_to] = prop_len
 
     return NextInstructionAction(next_address)
 
@@ -740,17 +741,20 @@ def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
     obj = interpreter.story.object_table[object_number]
     if not obj:
         raise InstructionException('get_prop called with non-existant object id %d' % object_number)
+    value = 0
     try:
         prop = obj['properties'][property_number]['data']
         mem = Memory(prop)
         if len(mem) > 2:
             raise InstructionException('get_prop called with larger than 2byte property %d for object id %d' % (property_number,object_number))
         elif len(mem) > 1:
-            interpreter.current_routine()[store_to] = mem.word(0)
+            value = mem.word(0)
         else:
-            interpreter.current_routine()[store_to] = mem[0]
+            value = mem[0]
     except KeyError:
-        raise InstructionException('get_prop called with non-existant property %d for object id %d' % (property_number,object_number))
+        value = interpreter.story.object_table.get_default_property(property_number)
+
+    interpreter.current_routine()[store_to]= value
 
     return NextInstructionAction(next_address)
 
@@ -758,7 +762,8 @@ def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,br
     object_number = dereference_variables(operands[0],interpreter)
     property_number = dereference_variables(operands[1],interpreter)
     
-    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_property_address(object_number,property_number)
+    prop_addr = interpreter.story.object_table.get_property_address(object_number,property_number)
+    interpreter.current_routine()[store_to] = prop_addr 
 
     return NextInstructionAction(next_address)
 
@@ -774,7 +779,11 @@ def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch
     object_number = dereference_variables(operands[0],interpreter)
     attribute_number = dereference_variables(operands[1],interpreter)
 
-    if interpreter.story.object_table.test_attribute(object_number, attribute_number):
+    branch = interpreter.story.object_table.test_attribute(object_number, attribute_number)
+    if not branch_if_true:
+        branch = not branch
+
+    if branch:
         return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)

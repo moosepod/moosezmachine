@@ -351,6 +351,9 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(53, table.get_property_length(19))
         self.assertEqual(0, table.get_property_length(0))
 
+    def test_get_default(self):
+        self.fail()
+
 class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_next_address(self):
         old_pc = self.zmachine.pc
@@ -669,6 +672,8 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:get_prop 2 19 -> 200',description)
         self.assertRaises(InstructionException, handler_f, self.zmachine)
+
+        self.fail('default')
 
     def test_get_next_prop(self):
         routine = self.zmachine.current_routine()
