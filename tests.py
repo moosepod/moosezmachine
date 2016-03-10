@@ -633,23 +633,24 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
 
     def test_put_prop(self):
         routine = self.zmachine.current_routine()
+        object_table = self.zmachine.story.object_table
         memory = create_instruction(InstructionType.varOP,3,[(OperandType.small_constant,10),(OperandType.small_constant,16),(OperandType.large_constant,0xffff)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('varOP:put_prop 10 16 65535' ,description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(0xff,self.zmachine.object_table[10][16]['data'])
+        self.assertEqual(bytearray(b'\xff'),object_table[10]['properties'][16]['data'])
 
         memory = create_instruction(InstructionType.varOP,3,[(OperandType.small_constant,10),(OperandType.small_constant,17),(OperandType.large_constant,0xffff)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('varOP:put_prop 10 17 65535',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(0xffff,self.zmachine.object_table[10][17]['data'])
+        self.assertEqual(bytearray(b'\xff\xff'),object_table[10]['properties'][17]['data'])
 
         memory = create_instruction(InstructionType.varOP,3,[(OperandType.small_constant,2),(OperandType.small_constant,19),(OperandType.large_constant,0xffff)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('varOP:put_prop 2 19' ,description)
+        self.assertEqual('varOP:put_prop 2 19 65535' ,description)
         self.assertRaises(InterpreterException, handler_f, self.zmachine)
 
     def test_get_prop(self):

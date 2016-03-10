@@ -369,21 +369,30 @@ class ObjectTableManager(object):
         """ Remove this objects from its parent (leaving its children) """
         obj_start_addr = self._obj_start_addr(obj_id)
         
-        # need to identify this object's previous siblign, if any, and link to next sibling
+        # need to identify this object's previous sibling, if any, and link to next sibling
         obj = self[obj_id]
         parent_obj = obj['parent']
+        if not parent_obj:
+            return
         parent_obj_start_addr = self._obj_start_addr(obj_id)
-        child_obj = self[parent_obj]['child']
-        while child_obj:
-            if child_obj == obj_id:
-                self.game_memory[parent_obj_start_addr+ObjectTableManager.CHILD_OFFSET] = obj['sibling']
+        child_obj_id = self[parent_obj]['child']
+        if child_obj_id == obj_id:
+            self.game_memory[parent_obj_start_addr+ObjectTableManager.CHILD_OFFSET] = obj['sibling']
+        else:
+           previous_obj_id = None
+           while child_obj_id:
+            if child_obj_id == obj_id:
+                addr = self._obj_start_addr(previous_obj_id)
+                self.game_memory[addr+ObjectTableManager.SIBLING_OFFSET] = obj['sibling']
+                break
             else:
-                child_obj = self[child_obj['sibling']]
+                previous_obj_id = child_obj_id
+                child_obj_id = self[child_obj_id]['sibling']
 
         # Now remove this obj from parent
         self.game_memory[obj_start_addr+ObjectTableManager.PARENT_OFFSET] = 0
+        self.game_memory[obj_start_addr+ObjectTableManager.SIBLING_OFFSET] = 0
 
-        raise Exception('Remove obj needs to (a) make first sibling the child of parent if obj is first in list, or link up siblings otherwise')
 
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """

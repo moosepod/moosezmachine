@@ -166,6 +166,8 @@ class ObjectsWindow(object):
             window.addstr('%d: %s\n' % (i,ztext.to_ascii(zc,0,len(zc))))
             if obj['parent']:
                 window.addstr('   child of: %d\n' % (obj['parent']))
+            if obj['child']:
+                window.addstr('   child is: %d\n' % (obj['child']))
             if obj['sibling']:
                 window.addstr('   sibling is: %d\n' % (obj['sibling']))
             for number,data in obj['properties'].items():
