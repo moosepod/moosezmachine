@@ -272,6 +272,10 @@ class Routine(object):
     def push_to_stack(self,val):
         self.stack.append(val)
 
+    def set_stack(self,val):
+        # Set last element of stack to the value
+        self.stack[-1] = val
+
     def pop_from_stack(self):
         try:
             return self.stack.pop()
@@ -280,7 +284,11 @@ class Routine(object):
 
 class ObjectTableManager(object):
     """ Handles the object table (see section 12.1). Note that requests to the table pass through, since we don't
-        know for sure where the object table ends """
+        know for sure where the object table ends.
+
+        This abstraction needs to be refactored. The original intent was to organize the data in python dicts/lists,
+        but enough of the instructions work directly on addresses this proved messy to work around. 
+        """
     PROPERTY_ADDRESS_OFFSET=7
     PARENT_OFFSET=4
     SIBLING_OFFSET=5
@@ -719,7 +727,9 @@ class Interpreter(object):
         return ZText(version=version,get_abbrev_f=self.get_abbrev)
 
     def get_abbrev(self, index):
-        return self.story.raw_data[index:index+1000]
+        # 3,3
+        abbrev_address = self.story.raw_data.word(index)
+        return self.story.raw_data[abbrev_address:abbrev_address+100]
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

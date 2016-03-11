@@ -468,6 +468,13 @@ def dereference_variables(operand, interpreter):
         return unpack_address(interpreter.current_routine()[val], interpreter.story.header.version)  
     return val
 
+def dereference_indirect(operand,interpreter):
+    # Handle variable dereferencing as in 6.3.4
+    val, hint = operand
+    if hint == OperandTypeHint.variable:
+        return interpreter.current_routine()[val],True
+    return val,False
+
 def find_jump_option(branch_offset,next_address):
     if branch_offset == 0:
         return ReturnAction(0)
@@ -632,13 +639,24 @@ def op_jump(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     
 
 def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    routine = interpreter.current_routine()
-    var_num,hint = operands[0]
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
     comp_to = dereference_variables(operands[1],interpreter)
+    routine = interpreter.current_routine()
 
-    var = convert_to_signed(routine[var_num])
+    # 6.3.4 - inc_chk references stack indirectly, just peeking
+    if var_num == 0 and not indirect:
+        val = routine.peek_stack()
+    else:
+        val = routine[var_num]
+
+    var = convert_to_signed(val)
     var += 1
-    routine[var_num] = convert_to_unsigned(var)
+    val = convert_to_unsigned(var)
+
+    if var_num == 0 and not indirect:
+        routine.set_stack(val)
+    else:
+        routine[var_num] = val
 
     branch = var > comp_to
     if not branch_if_true:
@@ -650,12 +668,24 @@ def op_inc_chk(interpreter,operands,next_address,store_to,branch_offset,branch_i
     return NextInstructionAction(next_address)
 
 def op_dec_chk(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    routine = interpreter.current_routine()
-    var_num,hint = operands[0]
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
     comp_to = dereference_variables(operands[1],interpreter)
-    var = convert_to_signed(routine[var_num])
+    routine = interpreter.current_routine()
+
+    # 6.3.4 - dec_chk references stack indirectly, just peeking
+    if var_num == 0 and not indirect:
+        val = routine.peek_stack()
+    else:
+        val = routine[var_num]   
+
+    var = convert_to_signed(val)
     var -= 1
-    routine[var_num] = convert_to_unsigned(var)
+    val = convert_to_unsigned(var)
+
+    if var_num == 0 and not indirect:
+        routine.set_stack(val)
+    else:
+        routine[var_num] = val
 
     branch = var < comp_to
     if not branch_if_true:
@@ -817,25 +847,51 @@ def op_mul(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     return NextInstructionAction(next_address)
 
 def op_inc(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    var_num,hint = operands[0]
-    result = convert_to_signed(interpreter.current_routine()[var_num])
-    result += 1
-    result = convert_to_unsigned(result)
-    if result > MAX_UNSIGNED:
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
+    routine = interpreter.current_routine()
+
+    # 6.3.4 - inc references stack indirectly, just peeking
+    if var_num == 0 and not indirect:
+        val = routine.peek_stack()
+    else:
+        val = routine[var_num]
+
+    var = convert_to_signed(val)
+    var += 1
+    val = convert_to_unsigned(var)
+
+    if val > MAX_UNSIGNED:
         raise InstructionException('Overflow in inc of var %s, val %s' % (var_num,result))
-    interpreter.current_routine()[int(var_num)] = result
+
+    if var_num == 0 and not indirect:
+        routine.set_stack(val)
+    else:
+        routine[var_num] = val
 
     return NextInstructionAction(next_address)
 
 def op_dec(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    var_num,hint = operands[0]
-    result = convert_to_signed(interpreter.current_routine()[var_num])
-    result -= 1
-    result = convert_to_unsigned(result)
-    if result > MAX_UNSIGNED:
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
+    routine = interpreter.current_routine()
+
+    # 6.3.4 - dec references stack indirectly, just peeking
+    if var_num == 0 and not indirect:
+        val = routine.peek_stack()
+    else:
+        val = routine[var_num]
+
+    var = convert_to_signed(val)
+    var -= 1
+    val = convert_to_unsigned(var)
+
+    if val > MAX_UNSIGNED:
         raise InstructionException('Overflow in dec of var %s, val %s' % (var_num,result))
-    interpreter.current_routine()[int(var_num)] = result
-    
+
+    if var_num == 0 and not indirect:
+        routine.set_stack(val)
+    else:
+        routine[var_num] = val    
+
     return NextInstructionAction(next_address)
 
 def op_add(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -903,10 +959,15 @@ def op_nop(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
 
 def op_store(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    var_num,hint = operands[0]
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
     value = dereference_variables(operands[1],interpreter)
+    
+    routine = interpreter.current_routine()
 
-    interpreter.current_routine()[var_num] = value
+    if var_num == 0:
+        routine.set_stack(value)
+    else:
+        routine[var_num] = value    
 
     return NextInstructionAction(next_address)
 
@@ -931,9 +992,15 @@ def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if
     return NextInstructionAction(next_address)
 
 def op_load(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    var_num,hint = operands[0]
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
     routine =  interpreter.current_routine()
-    routine[store_to] = routine[var_num]
+
+    # 6.3.4 - load references stack indirectly, just peeking
+    if var_num == 0:
+        val = routine.peek_stack()
+    else:
+        val = routine[var_num]
+    routine[store_to] = val
     return NextInstructionAction(next_address)
 
 def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -1004,8 +1071,12 @@ def op_push(interpreter,operands,next_address,store_to,branch_offset,branch_if_t
     return NextInstructionAction(next_address)
 
 def op_pull(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    var_num,hint = operands[0]
-    interpreter.current_routine()[var_num] = interpreter.pop_game_stack()
+    var_num,indirect = dereference_indirect(operands[0],interpreter)
+    if var_num == 0:
+        # 6.3.4
+        interpreter.current_routine().set_stack(interpreter.pop_game_stack())
+    else:
+        interpreter.current_routine()[var_num] = interpreter.pop_game_stack()
     return NextInstructionAction(next_address)
 
 def op_pop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -1094,8 +1165,8 @@ OPCODE_HANDLERS = {
 (InstructionType.twoOP,1):   {'name': 'je','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_je},
 (InstructionType.twoOP,2):   {'name': 'jl','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jl},
 (InstructionType.twoOP,3):   {'name': 'jg','branch': True,'types': (OperandTypeHint.signed,OperandTypeHint.signed,),'handler': op_jg},
-(InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.signed,),'handler': op_dec_chk},
-(InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.variable,OperandTypeHint.signed,),'handler': op_inc_chk},
+(InstructionType.twoOP,4):   {'name': 'dec_chk','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.signed,),'handler': op_dec_chk},
+(InstructionType.twoOP,5):   {'name': 'inc_chk','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.signed,),'handler': op_inc_chk},
 (InstructionType.twoOP,6):   {'name': 'jin','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_jin},
 (InstructionType.twoOP,7):   {'name': 'test','branch': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_test},
 (InstructionType.twoOP,8):   {'name': 'or','store': True,'types': (OperandTypeHint.unsigned,OperandTypeHint.unsigned,),'handler': op_or},

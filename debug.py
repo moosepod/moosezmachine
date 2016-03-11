@@ -69,6 +69,8 @@ class FileTranscriptStream(OutputStream):
     def __init__(self,path):
         super(FileTranscriptStream,self).__init__()
         self.path = path
+        with open(self.path, 'w') as f:
+            f.write('Starting run...')
 
     def refresh(self):
         pass
