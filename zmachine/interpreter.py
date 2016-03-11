@@ -728,8 +728,8 @@ class Interpreter(object):
         return ZText(version=version,get_abbrev_f=self.get_abbrev)
 
     def get_abbrev(self, index):
-        # 3,3
-        abbrev_address = self.story.raw_data.word(index)
+        # 3.3, 1.2.2 (word address = address / 2)
+        abbrev_address = self.story.raw_data.word(index)*2
         return self.story.raw_data[abbrev_address:abbrev_address+100]
 
     def get_memory(self,start_addr,end_addr):
