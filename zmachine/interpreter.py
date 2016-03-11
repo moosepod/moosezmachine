@@ -641,6 +641,7 @@ class Story(object):
         self.raw_data = Memory(self.story_data)
         if len(self.story_data) < Story.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
+        self._checksum = sum(self.raw_data[0x40:]) % 65536 # Store checksum at this point, since data will change post-load
         self.header = Header(self.raw_data[0:Story.MIN_FILE_SIZE],force_version=force_version)
         self.header.reset()
         self.dictionary = Dictionary(self.raw_data, self.header.dictionary_address)
@@ -655,8 +656,8 @@ class Story(object):
 
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
-            of all bytes past 0x0040 """
-        return sum(self.raw_data[0x40:]) % 65536
+            of all bytes past 0x0040. """
+        return self._checksum
 
 
 class GameState(object):

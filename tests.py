@@ -428,7 +428,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(object_table.is_child_of(2,11))
         self.assertTrue(object_table.is_sibling_of(1,2))
 
-    def test_test_attr(self):
+    def test_tst_attr(self):
         memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.small_constant,26)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('twoOP:test_attr 1 26 ?001d',description)
@@ -1598,6 +1598,13 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(2,result.branch_offset)
+
+        memory = create_instruction(InstructionType.twoOP,7,[(OperandType.small_constant,0xFF),(OperandType.small_constant,0xFF)],branch_to=0x02,branch_if_true=False)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:test 255 255 ?!0002',description)
+        result = handler_f(self.zmachine)
+        self.assertTrue(isinstance(result,NextInstructionAction))
+        self.assertEqual(5  ,result.next_address)
 
         memory = create_instruction(InstructionType.twoOP,7,[(OperandType.small_constant,0x01),(OperandType.small_constant,0x10)],branch_to=0x02)
         handler_f, description, next_address = read_instruction(memory,0,3,None)

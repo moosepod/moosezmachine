@@ -1044,7 +1044,6 @@ def op_show_status(interpreter,operands,next_address,store_to,branch_offset,bran
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     # some early files have no checksum -- skip the check in that case
     if interpreter.story.header.checksum == interpreter.story.calculate_checksum():
-        raise('%s %s' % (interpreter.story.header.checksum,interpreter.story.calculate_checksum))
         return JumpRelativeAction(branch_offset, next_address)
 
     return NextInstructionAction(next_address)
@@ -1093,10 +1092,14 @@ def op_not(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     return NextInstructionAction(next_address)    
 
 def op_test(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    bitmap = dereference_variables(operands[0],interpreter)
-    flags = dereference_variables(operands[1],interpreter)
+    bitmap = dereference_variables(operands[0],interpreter) & 0xffff
+    flags = dereference_variables(operands[1],interpreter) & 0xffff
 
-    if bitmap & flags == flags:
+    branch = bitmap & flags == flags
+    if not branch_if_true:
+        branch = not branch
+
+    if branch:
         return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)    
