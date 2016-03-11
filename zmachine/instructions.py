@@ -1044,6 +1044,7 @@ def op_show_status(interpreter,operands,next_address,store_to,branch_offset,bran
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     # some early files have no checksum -- skip the check in that case
     if interpreter.story.header.checksum == interpreter.story.calculate_checksum():
+        raise('%s %s' % (interpreter.story.header.checksum,interpreter.story.calculate_checksum))
         return JumpRelativeAction(branch_offset, next_address)
 
     return NextInstructionAction(next_address)
