@@ -6,3 +6,4 @@ venv
 .vagrant
 local_settings.py
 build/**
+localtestdata/**

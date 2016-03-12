@@ -520,7 +520,7 @@ def op_print_char(interpreter,operands,next_address,store_to,branch_offset,branc
     ch = dereference_variables(operands[0],interpreter)
     if ch < 0 or ch > 1024:
         raise InstructionException('Value %s out of range for print_char' % ch)
-    interpreter.output_streams.print_zchar(ch)
+    interpreter.output_streams.print_str('%s'% chr(ch))
     return NextInstructionAction(next_address)
 
 def op_split_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

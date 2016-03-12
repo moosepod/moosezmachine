@@ -214,7 +214,7 @@ class ZText(object):
     def _waiting_for_abbreviation(self,zchar):
         ztext = ZText(version=self.version,get_abbrev_f=None)
         self.state = ZTextState.DEFAULT
-        return ztext.to_ascii(self.get_abbrev_f((32 * self._previous_zchar-1) + zchar),0,0)
+        return ztext.to_ascii(self.get_abbrev_f((32 * (self._previous_zchar-1)) + zchar),0,0)
 
     @property
     def alphabet(self):

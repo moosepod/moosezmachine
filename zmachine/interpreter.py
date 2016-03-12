@@ -171,9 +171,16 @@ class Header(Memory):
         self.set_flag(Header.FLAGS_2,7,0) # Game requests sound
         self.set_flag(Header.FLAGS_2_1,0,0) # Game requests menu
     
-        # We aren't fully implementing the zcode spec yet, so set to 0, as per spec
-        self[Header.INTERPRETER_NUMBER] = 0
-        self[Header.INTERPRETER_VERSION] = 0
+        self[Header.INTERPRETER_NUMBER] = 1
+        self[Header.INTERPRETER_VERSION] = ord('0')
+
+    def set_debug_mode(self):
+        """ Force the version number in the header and some other flags. Used when running against czech or other
+            test files """
+        self[Header.REVISION_NUMBER] = 1
+        self[Header.REVISION_NUMBER+1] = 0
+        self.set_flag(Header.FLAGS_1,5,1) # Screen splitting not available
+        self.set_flag(Header.FLAGS_1,6,1) # Font is not variable width
 
 class GameMemory(Memory):
     """ Wrapper around the memory that restricts access to valid locations """
@@ -729,8 +736,8 @@ class Interpreter(object):
 
     def get_abbrev(self, index):
         # 3.3, 1.2.2 (word address = address / 2)
-        abbrev_address = self.story.raw_data.word(index)*2
-        return self.story.raw_data[abbrev_address:abbrev_address+100]
+        abbrev_address = self.story.raw_data.word(self.story.header.abbrev_address + (index*2))*2
+        return self.story.raw_data[abbrev_address:abbrev_address+20]
 
     def get_memory(self,start_addr,end_addr):
         """ Return a chunk of memory """

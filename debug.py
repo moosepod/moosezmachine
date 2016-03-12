@@ -69,8 +69,10 @@ class FileTranscriptStream(OutputStream):
     def __init__(self,path):
         super(FileTranscriptStream,self).__init__()
         self.path = path
+
+        # Clear the transcript on starting the stream
         with open(self.path, 'w') as f:
-            f.write('Starting run...')
+            f.write('')
 
     def refresh(self):
         pass
@@ -213,6 +215,40 @@ class DictionaryWindow(object):
                                     dictionary[idx][3],
                                      text))
 
+class AbbreviationWindow(object):
+    def __init__(self):
+        self.abbrev_index = 0
+
+    def next_line(self):
+        self.abbrev_index += 1
+        return True
+
+    def previous_line(self):
+        self.abbrev_index -= 1
+        if self.abbrev_index < 0:
+            self.abbrev_index = 0
+        return True
+    
+    def redraw(self,window,zmachine,height):
+        ztext = zmachine.get_ztext()
+
+        window.addstr('Use , and . to scroll abbrevs\n\n')
+        y,x = window.getyx()
+        zchar=1
+        max_val = 32*3
+        if zmachine.story.header.version == 2:
+            max_val = 32
+        for i in range(0,min(height-y,max_val - self.abbrev_index)): 
+            idx = self.abbrev_index + i
+            try:
+                ztext.reset()
+                text = ztext.to_ascii(zmachine.get_abbrev(idx),0,0)
+                if text:
+                    window.addstr('%d: %s\n' % (idx,text))
+                else:
+                    window.addstr('%d\n' % (idx))
+            except ZTextException as e: 
+                window.addstr('%d/%d: ztext error\n' % (zchar,i))
 
 class VariablesWindow(object):
     def __init__(self):
@@ -274,6 +310,7 @@ class DebuggerWindow(object):
                                 'h': HeaderWindow(),
                                 'm': MemoryWindow(),
                                 'v': VariablesWindow(),
+                                'a': AbbreviationWindow(),
                                 'o': ObjectsWindow(zmachine.story.object_table.estimate_number_of_objects()),
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
@@ -330,7 +367,7 @@ class DebuggerWindow(object):
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
-        self.window.addstr(0,0,"(Q)uit (R)eset (M)em (H)eader (D)ict (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
+        self.window.addstr(0,0,"(Q)uit (R)eset (M)em (H)eader (D)ict (A)bbr (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
         
         self.window.move(2,0)
         if self.current_handler:
@@ -445,6 +482,9 @@ class MainLoop(object):
             except InterpreterException as e:
                 error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
+            except QuitException as e:
+                error_window.error('Request to quit at at PC 0x%04x [%s]' % (self.zmachine.pc,self.zmachine.last_instruction))
+                debugger.is_running=False
             except Exception as e:
                 raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
 
@@ -454,6 +494,7 @@ def load_zmachine(filename):
         outputs = OutputStreams(OutputStream(),OutputStream())
         zmachine = Interpreter(story,outputs,None,None)
         zmachine.reset()
+        zmachine.story.header.set_debug_mode()
 
     return zmachine
 
