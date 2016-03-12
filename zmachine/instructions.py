@@ -513,7 +513,9 @@ def op_print_ret(interpreter,operands,next_address,store_to,branch_offset,branch
     return ReturnAction(1)
 
 def op_sread(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    text_buffer_addr = dereference_variables(operands[0],interpreter)
+    parse_buffer_addr = dereference_variables(operands[1],interpreter)
+    interpreter.read_and_process(text_buffer_addr,parse_buffer_addr)
     return NextInstructionAction(next_address)
 
 def op_print_char(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):

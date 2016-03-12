@@ -30,7 +30,7 @@ class TestOutputStream(OutputStream):
     def print_str(self,msg):
         self.printed_string += msg
 
-    def show_status(self, msg, time=None, score=None):
+    def show_status(self, msg, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         self.status_shown=True
 
 class TestSaveHandler(SaveHandler):
@@ -1199,6 +1199,10 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(convert_to_unsigned(-1),routine[48])
 
+class InputStreamTests(unittest.TestCase):
+    def test_fail(self):
+        self.fail()
+
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_sread(self):
         self.fail()
@@ -1715,6 +1719,13 @@ class ZTextTests(unittest.TestCase):
     def setUp(self):
         self.screen = ScreenStub()
         self.get_abbrev_f = lambda x: Memory([0x80,0]) # Empty end char
+
+    def test_to_zchars(self):
+        ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
+        self.assertEqual((0,),ztext.to_zchars(' '))
+        self.assertEqual((6,),ztext.to_zchars('a'))
+        self.assertEqual((4,6),ztext.to_zchars('A'))
+        self.assertEqual((5,8),ztext.to_zchars('0'))
 
     def test_shift_v1(self):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)

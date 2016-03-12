@@ -8,7 +8,8 @@ import argparse
 import time
 
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
-                                 StoryFileException,InterpreterException,MemoryAccessException
+                                 StoryFileException,InterpreterException,MemoryAccessException,\
+                                 InputStreams,InputStream
 from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
@@ -26,15 +27,27 @@ class DebugQuitException(Exception):
 class ResetException(Exception):
     pass
 
-class CursesStream(OutputStream):
+class CursesInputStream(object):
+    def __init__(self,window):
+        super(CursesInputStream,self).__init__()
+        self.window = window
+
+    def readline(self):
+        line = 'North'
+        self.window.addstr(line)
+        self.window.refresh()
+        return line
+
+class CursesOutputStream(OutputStream):
     def __init__(self,window,status_window):
-        super(CursesStream,self).__init__()
+        super(CursesOutputStream,self).__init__()
         self.window = window
         self.height,self.width = window.getmaxyx()
+        self.status_height,self.status_width = status_window.getmaxyx()
         self.window.move(self.height-1,0)
         self.window.scrollok(True)
         self.buffer = ''
-        self.satus_window = status_window
+        self.status_window = status_window
 
     def refresh(self):
         """ Redraw this screen """
@@ -61,9 +74,17 @@ class CursesStream(OutputStream):
     def print_char(self,txt):
         self._print(txt)
 
-    def show_status(self, msg, time=None, score=None):
-        status.addstr(0,0,"TEST",curses.A_REVERSE)
-        status.refresh()
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
+        if score_mode:
+            right_string = '%s/%s' % (score or 0,turns or 0)
+        else:
+            right_string = '{:02}:{:02}' % (hours,minutes)
+
+        status_format = '{:%d}{:>%d}' % (self.status_width-len(right_string)-1,len(right_string))
+        status_msg = status_format.format(room_name,right_string)
+
+        self.status_window.addstr(0,0,status_msg,curses.A_REVERSE)
+        self.status_window.refresh()
 
 class FileTranscriptStream(OutputStream):
     def __init__(self,path):
@@ -409,7 +430,7 @@ class MainLoop(object):
 
         # The status bar
         status = curses.newwin(STATUS_BAR_HEIGHT,STORY_WINDOW_WIDTH,0,0)
-        status.addstr(0,0,"Status bar",curses.A_REVERSE)
+        status.addstr(0,0,"",curses.A_REVERSE)
         status.refresh()
 
         # The story window
@@ -418,11 +439,15 @@ class MainLoop(object):
                               STATUS_BAR_HEIGHT+STORY_TOP_MARGIN,
                               0)
         story.refresh()
-        curses_stream = CursesStream(story,status)
-        self.zmachine.output_streams.set_screen_stream(curses_stream)
+        curses_output_stream = CursesOutputStream(story,status)
+        self.zmachine.output_streams.set_screen_stream(curses_output_stream)
         if self.transcript:
             self.zmachine.output_streams[OutputStreams.TRANSCRIPT] = FileTranscriptStream(self.transcript)
             self.zmachine.output_streams.select_stream(OutputStreams.TRANSCRIPT)
+
+        curses_input_stream = CursesInputStream(story)
+        self.zmachine.input_streams.keyboard_stream = curses_input_stream
+        self.zmachine.input_streams.select_stream(0)
 
         # The debugger window
         debugger = DebuggerWindow(self.zmachine,
@@ -492,7 +517,8 @@ def load_zmachine(filename):
     with open(filename,'rb') as f:
         story = Story(f.read())
         outputs = OutputStreams(OutputStream(),OutputStream())
-        zmachine = Interpreter(story,outputs,None,None)
+        inputs = InputStreams(InputStream(),InputStream())
+        zmachine = Interpreter(story,outputs,inputs,None,None)
         zmachine.reset()
         zmachine.story.header.set_debug_mode()
 

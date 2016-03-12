@@ -222,6 +222,35 @@ class ZText(object):
             return self._shift_alphabet
         return self._current_alphabet
 
+    def to_zchars(self,char):
+        """ Convert a unicode char to one or more zchars """
+        if self.version == 1:
+            raise Exception('Version 1 zchar reading not yet supported')
+        if char == ' ':
+            return (0,) 
+
+        if self.version == 2:
+            shift_up, shift_down = 2,3
+        else:
+            shift_up, shift_down = 4,5
+
+        for alphabet_id, alphabet in enumerate(ZText.ZCHARS):
+            for char_idx, c in enumerate(alphabet):
+                if c == char:
+                    if alphabet_id == 0:
+                        return (char_idx+6,)
+                    elif alphabet_id == 1:
+                        return (shift_up,char_idx+6)
+                    else:
+                        return (shift_down,char_idx+6)
+
+        # Return spaces for any unknown chars
+        return (0,)
+
+    def write_zchars_to_memory(self,zchars,memory,idx):
+        """ Given a list of zchars, write them to memory starting at idx, 0 terminated """
+        pass
+
     def get_zchars_from_memory(self,memory,idx):    
         """ Return the three zchars at the word at index idx of memory, as well
             as whether or not this has the end bit set.

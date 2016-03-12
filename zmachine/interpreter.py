@@ -276,6 +276,10 @@ class Routine(object):
             return self.stack[-1]
         return None
 
+    def get_nth_global(self,global_id):
+        """ Return the 0-based global. """
+        return self[GLOBAL_VAR_START+global_id]
+
     def push_to_stack(self,val):
         self.stack.append(val)
 
@@ -513,6 +517,11 @@ class ObjectTableManager(object):
     def _obj_start_addr(self, object_number):
         return self.objects_start_address + (self._object_record_size() * (object_number-1))
 
+    def is_valid_object_id(self,obj_id):
+        if obj_id < 0 or obj_id > 255:
+            return False
+        return True
+
     def __getitem__(self,key):
         """ Get the nth object """
         if self.version > 3:
@@ -607,15 +616,47 @@ class OutputStreams(object):
         for stream in (s for s in self.streams if s.is_active):
             stream.print_str(text)
 
-    def show_status(self,msg,score=None,time=None):
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if self[OutputStreams.SCREEN].is_active:
-            self[OutputStreams.SCREEN].show_status(msg,score=score,time=time)
-
+            self[OutputStreams.SCREEN].show_status(room_name,score_mode=score_mode,hours=hours,minutes=minutes, score=score,turns=turns)
+            
     def __getitem__(self,idx):
         return self.streams[idx]
 
     def __setitem__(self,idx,val):
         self.streams[idx] = val
+
+class InputStream(object):
+    def readline(self):
+        return None
+
+class InputStreams(object):
+    """ See section 10. Handles input """
+    KEYBOARD = 0
+    FILE = 1
+
+    def __init__(self,keyboard_stream,command_file_stream):
+        self.keyboard_stream = keyboard_stream
+        self.command_file_stream = command_file_stream
+        self.active_stream = None
+         
+    def reset(self):
+        self.active_stream = self.keyboard_stream
+
+    def select_stream(self,stream_id):
+        if stream_id == InputStreams.KEYBOARD:
+            self.active_stream = self.keyboard_stream
+        else:
+            self.active_stream = self.command_file_stream
+
+    def readline(self,ztext):
+        # Note this expects that the returned characters will be unicode
+        zchars = []
+        for char in self.active_stream.readline().lower():
+            # Note one ascii can go to multiple zchars due to a shift
+            zchars.extend(ztext.to_zchars(char))
+
+        return zchars
         
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
@@ -681,9 +722,10 @@ class Interpreter(object):
     """ Main interface to the game. Combines Story, GameState, OutputScreens, SaveHandler,
         RestoreHandler. Call reset to start the interpreter. 
     """
-    def __init__(self,story, output_streams, save_handler, restore_handler):
+    def __init__(self,story, output_streams, input_streams, save_handler, restore_handler):
         self.story = story
         self.output_streams = output_streams
+        self.input_streams = input_streams
         self.save_handler = save_handler
         self.restore_handler = restore_handler
         self.initialized = False
@@ -700,6 +742,8 @@ class Interpreter(object):
         self.last_instruction = None
         if self.output_streams:
             self.output_streams.reset(self,self.get_ztext())
+        if self.input_streams:
+            self.input_streams.reset()
         self.routines = []
         self.game_state = []
         self.call_routine(self.pc,self.pc,None,None)
@@ -793,10 +837,50 @@ class Interpreter(object):
         # No sound currently supported
         raise Exception('Sound not currently supported')
 
+    def read_and_process(self,text_buffer_addr, parse_buffer_addr):
+        if self.story.header.version < 4:
+            self.show_status()
+
+        ztext = self.get_ztext()
+
+        # Line will be array of zchars
+        line = self.input_streams.readline(ztext)
+
+        # Cap at the number of letters provided in first byte of dest text buffer
+        max_letters = self.story.game_memory[text_buffer_addr]-1
+        if len(line) > max_letters:
+            line = line[0:max_letters]
+
+        # Write our zchars to the address, zero terminated
+        idx = text_buffer_addr+1
+        for zchar in line:
+            self.story.game_memory._raw_data[idx] = zchar
+            idx+=1
+        self.story.game_memory._raw_data[idx] = 0
+
+        # Draw a newline
+        self.output_streams.new_line() 
+
+        # Handle parse data
+
+
     def show_status(self):
         """ Update the statushow_statuss line with our current status """
-        self.output_streams.show_status('A',score=1)
+        # 8.2.2
+        routine = self.current_routine()
+        current_obj_id = routine.get_nth_global(0)
+        if not self.story.object_table.is_valid_object_id(current_obj_id):
+            room_name = 'INVALID OBJECT'
+        else:
+            current_obj = self.story.object_table[current_obj_id]
+            room_name = self.get_ztext().to_ascii(current_obj['short_name_zc'])
 
+        if self.story.header.flag_status_line_type == 0:
+            # 8.2.3.1
+            self.output_streams.show_status(room_name,score_mode=True,score=routine.get_nth_global(1),turns=routine.get_nth_global(2))
+        else:
+            # 8.2.3.2
+            self.output_streams.show_status(room_name,score_mode=False,hours=routine.get_nth_global(1),minutes=routine.get_nth_global(2))
 
     def quit(self):
         raise QuitException()
