@@ -657,8 +657,8 @@ class InputStreams(object):
             return None
 
         for char in line.lower():
-            # Note one ascii can go to multiple zchars due to a shift
-            zchars.extend(ztext.to_zchars(char))
+            # Convert unicode to zscii
+            zchars.append(ztext.to_zscii(char))
 
         return zchars
         
@@ -861,7 +861,7 @@ class Interpreter(object):
         ztext = self.get_ztext()
 
         ### Switch to ZSCII
-        # Line will be array of zchars. Or none if not a complete line yet
+        # Line will be array of ZASCII chars. Or none if not a complete line yet
         line = self.input_streams.readline(ztext)
         if not line:
             return False
@@ -873,7 +873,7 @@ class Interpreter(object):
         if len(line) > max_letters:
             line = line[0:max_letters]
 
-        # Write our zchars to the address, zero terminated
+        # Write our ZSCII to the address, zero terminated
         idx = text_buffer_addr+1
         for zchar in line:
             self.story.game_memory._raw_data[idx] = zchar
@@ -886,6 +886,8 @@ class Interpreter(object):
         # Handle parse data
         max_words = self.story.game_memory[parse_buffer_addr]
         idx = parse_buffer_addr+1
+
+        raise Exception(line)
 
         # Tokenize words using separators
         #words = tokenize()

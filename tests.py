@@ -2033,9 +2033,10 @@ class SampleFileTests(unittest.TestCase):
         ztext = self.zmachine.get_ztext()
         dictionary = self.zmachine.story.dictionary
         self.assertEqual([], dictionary.split([]))
-        self.assertEqual([[25, 10, 24, 25]], dictionary.split([ztext.to_zchars(c) for c in 'test']))
-        self.assertEqual(['fred',',','go','fishing'], dictionary.split([ztext.to_zchars(c) for c in ' fred, go fishing ']))
-        self.assertEqual(['a','.',',','"','foo','"'], dictionary.split([ztext.to_zchars(c) for c in 'a.,"foo"']))
+        self.assertEqual([[116, 101, 115, 116]], dictionary.split([ztext.to_zscii(c) for c in 'test']))
+        self.assertEqual([[102, 114, 101, 100], [44], [103, 111], [102, 105, 115, 104, 105, 110, 103]], 
+                    dictionary.split([ztext.to_zscii(c) for c in ' fred, go fishing ']))
+        self.assertEqual([[97], [46], [44], [34], [102, 111, 111], [34]], dictionary.split([ztext.to_zscii(c) for c in 'a.,"foo"']))
 
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,

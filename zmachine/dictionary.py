@@ -27,24 +27,22 @@ class Dictionary(object):
         self.number_of_entries = self._memory.word(self._addr)
         self._increment_addr(2)
 
-    def split(self,zchars):
-        """ Split the text into a list of words per 13.5.1. Text is array of zchars """
+    def split(self,chars):
+        """ Split the text into a list of words per 13.5.1. Text is array of ZSCII """
         words = []
         word = []
-        print(self.keyboard_codes)
-        for c in zchars:
-            print(c)
+        for c in chars:
             if c == ZText.SPACE:
                 if word:
                     words.append(word)
-                    word = ''
+                    word = []
             elif c in self.keyboard_codes:
                 if word:
                     words.append(word)
-                    word = ''
-                words.append(c)
+                    word = []
+                words.append([c])
             else:
-                word.extend(c)
+                word.append(c)
         if word:
             words.append(word)
         return words

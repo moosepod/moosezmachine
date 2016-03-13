@@ -21,8 +21,8 @@ class ZText(object):
     ZASCII_UNICODE = ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss', '>>', '<<', 'e', 'i', 'y', 'E', 'I', 'a', 'e', 'i', 'o', 'u', 'y', 'A', 'E', 'I', 'O', 
                       'U', 'Y', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'A', 'o', 'O', 
                       'a', 'n', 'o', 'A', 'N', 'O', 'ae', 'AE', 'c', 'C', 'th', 'th', 'Th', 'Th', 'L', 'oe', 'OE', '!', '?']
-    SPACE = 0
-    
+    SPACE = 32
+
     def __init__(self,version,get_abbrev_f,debug=False):
         self.version = version
         self.get_abbrev_f = get_abbrev_f
@@ -222,6 +222,13 @@ class ZText(object):
         if self._shift_alphabet != None:    
             return self._shift_alphabet
         return self._current_alphabet
+
+    def to_zscii(self,chr):
+        """ Convert an ascii/unicode char to zscii. Filter it to standard ascii chars """
+        c = ord(chr)
+        if c < 32 or c > 126:
+            return ord(' ')
+        return c
 
     def to_zchars(self,char):
         """ Convert a unicode char to one or more zchars """

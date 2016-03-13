@@ -549,7 +549,7 @@ class MainLoop(object):
         else:
             # Default running at full speed
             debugger._run_fast()
-        control_mode = True
+        control_mode = False
         while True:
             try:
                 if debugger.is_running:
