@@ -2,6 +2,7 @@ import sys
 
 import logging
 import curses
+import curses.ascii
 from curses import wrapper
 
 import argparse
@@ -21,6 +22,8 @@ STATUS_BAR_HEIGHT = 1
 STORY_WINDOW_WIDTH = 80 
 STORY_RIGHT_MARGIN = 1
 
+BACKSPACE_CHAR = '\x7f'
+
 class DebugQuitException(Exception):
     pass
 
@@ -31,12 +34,43 @@ class CursesInputStream(object):
     def __init__(self,window):
         super(CursesInputStream,self).__init__()
         self.window = window
+        self.text = ''
+        self.waiting_for_line = False
+        self.line_done = False
+
+    def char_pressed(self,char):
+        if char == '\n' or char == '\r':
+            self.line_done = True
+        elif char == BACKSPACE_CHAR:
+            if self.text:
+                self.text = self.text[0:-1]
+                y,x = self.window.getyx()
+                self.window.move(y,x-1)
+                self.window.clrtoeol()
+                self.window.refresh()
+        else:
+            self.text += char
+            self.window.addstr(char)
+            self.window.refresh()
 
     def readline(self):
-        line = 'North'
-        self.window.addstr(line)
-        self.window.refresh()
-        return line
+        # Note that we're currently waiting for text from the keyboard
+        if not self.waiting_for_line:
+            self.waiting_for_line = True
+            self.line_done = False
+            curses.curs_set(2) # Set cursor to very visible
+            self.window.refresh()
+
+        if self.line_done:
+            text = self.text
+            self.waiting_for_line = True
+            self.line_done = False
+            self.text = ''
+            curses.curs_set(0) # Set cursor to hidden
+            self.window.refresh()
+            return text
+
+        return None
 
 class CursesOutputStream(OutputStream):
     def __init__(self,window,status_window):
@@ -337,6 +371,7 @@ class DebuggerWindow(object):
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
         self.is_running = False
+        self.is_active =True
 
     def status(self,msg):
         self.window.move(2,10)
@@ -388,7 +423,10 @@ class DebuggerWindow(object):
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
-        self.window.addstr(0,0,"(Q)uit (R)eset (M)em (H)eader (D)ict (A)bbr (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
+        if self.is_active:
+            self.window.addstr(0,0,"(Q)uit (R)eset (M)em (H)eader (D)ict (A)bbr (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
+        else:
+            self.window.addstr(0,0,"Hit ESC for control",curses.A_REVERSE)
         
         self.window.move(2,0)
         if self.current_handler:
@@ -411,6 +449,7 @@ class MainLoop(object):
         self.is_running = False
         self.breakattext = breakattext
         self.transcript = transcript
+        self.curses_input_stream = None
 
     def loop(self,screen):
         # Disable automatic echo
@@ -445,8 +484,8 @@ class MainLoop(object):
             self.zmachine.output_streams[OutputStreams.TRANSCRIPT] = FileTranscriptStream(self.transcript)
             self.zmachine.output_streams.select_stream(OutputStreams.TRANSCRIPT)
 
-        curses_input_stream = CursesInputStream(story)
-        self.zmachine.input_streams.keyboard_stream = curses_input_stream
+        self.curses_input_stream = CursesInputStream(story)
+        self.zmachine.input_streams.keyboard_stream = self.curses_input_stream
         self.zmachine.input_streams.select_stream(0)
 
         # The debugger window
@@ -470,6 +509,7 @@ class MainLoop(object):
             debugger.window.timeout(1)
             debugger.is_running = True
             debugger.is_running_slow=False
+        control_mode = True
         while True:
             try:
                 if debugger.is_running:
@@ -487,8 +527,21 @@ class MainLoop(object):
                             debugger.redraw()
 
                 ch = debugger.window.getch()
-                if debugger_selected and ch !=  curses.ERR:
-                    debugger.key_pressed(ch)
+                if ch != curses.ERR:
+                    if ch == curses.ascii.ESC:
+                        control_mode = not control_mode
+                        if control_mode:
+                            debugger.is_active=True
+                        else:
+                            debugger.is_active=False
+                        debugger.redraw()
+                    elif self.curses_input_stream.waiting_for_line and not control_mode:
+                        debugger.is_active=False
+                        debugger.redraw()
+                        self.curses_input_stream.char_pressed('%s' % chr(ch))
+                    elif debugger_selected :
+                        debugger.key_pressed(ch)
+                        control_mode = False
             except InstructionException as e:
                 error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False

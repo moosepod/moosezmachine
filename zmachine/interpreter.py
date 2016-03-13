@@ -652,7 +652,11 @@ class InputStreams(object):
     def readline(self,ztext):
         # Note this expects that the returned characters will be unicode
         zchars = []
-        for char in self.active_stream.readline().lower():
+        line = self.active_stream.readline()
+        if not line:
+            return None
+
+        for char in line.lower():
             # Note one ascii can go to multiple zchars due to a shift
             zchars.extend(ztext.to_zchars(char))
 
@@ -722,6 +726,9 @@ class Interpreter(object):
     """ Main interface to the game. Combines Story, GameState, OutputScreens, SaveHandler,
         RestoreHandler. Call reset to start the interpreter. 
     """
+    RUNNING_STATE = 0
+    WAITING_FOR_LINE_STATE = 1
+
     def __init__(self,story, output_streams, input_streams, save_handler, restore_handler):
         self.story = story
         self.output_streams = output_streams
@@ -730,6 +737,7 @@ class Interpreter(object):
         self.restore_handler = restore_handler
         self.initialized = False
         self.pc = 0 # program counter
+        self.state = Interpreter.RUNNING_STATE
 
     def reset(self,force_version=0):
         """ Start/restart the interpreter. Set force_version to make it act like the story file
@@ -738,14 +746,13 @@ class Interpreter(object):
         self.initialized = True
         self.story.reset(force_version=force_version)
         self.pc = self.story.header.main_routine_addr
-        self.game_state = GameState(self.story)
         self.last_instruction = None
         if self.output_streams:
             self.output_streams.reset(self,self.get_ztext())
         if self.input_streams:
             self.input_streams.reset()
         self.routines = []
-        self.game_state = []
+        self.state = Interpreter.RUNNING_STATE
         self.call_routine(self.pc,self.pc,None,None)
 
     def call_routine(self, routine_address, next_address,  store_var,  local_vars):
@@ -810,11 +817,17 @@ class Interpreter(object):
         return self.routines[-1]
 
     def step(self):
-        """ Exaecute the current instruction then increment the program counter """
-        handler_f,description,next_address = self.current_instruction()
-        self.last_instruction=description
-        result = handler_f(self)
-        result.apply(self)
+        """ If in running state, execute the current instruction then increment the program counter.
+        If waiting for text, query the input streams for the next line """
+        if self.state == Interpreter.WAITING_FOR_LINE_STATE:
+            if self._handle_input():
+                self.state = Interpreter.RUNNING_STATE
+
+        if self.state == Interpreter.RUNNING_STATE:
+            handler_f,description,next_address = self.current_instruction()
+            self.last_instruction=description
+            result = handler_f(self)
+            result.apply(self)
 
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """
@@ -840,11 +853,19 @@ class Interpreter(object):
     def read_and_process(self,text_buffer_addr, parse_buffer_addr):
         if self.story.header.version < 4:
             self.show_status()
+        self.state = Interpreter.WAITING_FOR_LINE_STATE
+        self._text_buffer_addr = text_buffer_addr
+        self._parse_buffer_addr = parse_buffer_addr
 
+    def _handle_input(self):
         ztext = self.get_ztext()
 
-        # Line will be array of zchars
+        # Line will be array of zchars. Or none if not a complete line yet
         line = self.input_streams.readline(ztext)
+        if not line:
+            return False
+
+        text_buffer_addr, parse_buffer_addr = self._text_buffer_addr, self._parse_buffer_addr
 
         # Cap at the number of letters provided in first byte of dest text buffer
         max_letters = self.story.game_memory[text_buffer_addr]-1
@@ -862,7 +883,24 @@ class Interpreter(object):
         self.output_streams.new_line() 
 
         # Handle parse data
+        max_words = self.story.game_memory[parse_buffer_addr]
+        idx = parse_buffer_addr+1
 
+        # Tokenize words using separators
+        #words = tokenize()
+
+        # write number of words in byte 1
+        #self.story.game_memory[idx] = len(words)
+
+        # for each word up to max, write
+        # (a) byte w/ addr of word (0 is missing)
+        # (b) byte containing word length then 
+        # (c) byte containing index of first letter of this word in the text buffer
+        # (d) empty byte
+
+        # raise exception if text buffer len < 3 or parse buffer len < 6, this
+        # is an error due to overrun
+        return True
 
     def show_status(self):
         """ Update the statushow_statuss line with our current status """
