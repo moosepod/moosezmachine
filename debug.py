@@ -86,17 +86,38 @@ class CursesOutputStream(OutputStream):
     def refresh(self):
         """ Redraw this screen """
         self.window.refresh()
+
+    def _print_buffer_msg(self,msg):
+        # Break message up so it wraps nicely on word breaks
+        self.buffer = msg
+        lines = []
+        target_width = self.width-1
+        for line in msg.split('\n'):
+            while len(line) >= target_width:
+                new_line, line = line[0:target_width],line[target_width:]
+                for i in range(len(new_line)-1,0,-1):
+                    if new_line[i] in (' ','.',',',':',';'):
+                        new_line = new_line[0:i]
+                        lines.append(new_line)
+                        break
+                    else:
+                        line = '%s%s' % (new_line[i],line)
+            lines.append(line)
+        first_line=True
+        for line in lines:
+            if not first_line:
+                self.window.addstr('\n')
+            else:
+                first_line = False
+            self.window.addstr(line)
             
     def _println(self,msg):
-        self.window.addstr(msg)
+        self._print_buffer_msg(msg)
         self.window.addstr('\n')
         self.refresh()
 
-        self.buffer += '%s\n' % msg
-
     def _print(self,msg):
-        self.window.addstr(msg)
-        self.buffer += msg
+        self._print_buffer_msg(msg)
         self.refresh()
 
     def new_line(self):
@@ -110,7 +131,7 @@ class CursesOutputStream(OutputStream):
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if score_mode:
-            right_string = '%s/%s' % (score or 0,turns or 0)
+            right_string = 'Score: %s Moves: %s' % (score or 0,turns or 0)
         else:
             right_string = '{:02}:{:02}' % (hours,minutes)
 
@@ -370,7 +391,8 @@ class DebuggerWindow(object):
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
-        self.is_running = False
+        self.is_running = True
+        self.is_running_slow = False
         self.is_active =True
 
     def status(self,msg):
@@ -383,6 +405,16 @@ class DebuggerWindow(object):
     
     def reset(self):
         raise ResetException()
+
+    def _run_fast(self):
+        self.is_running = True
+        self.is_running_slow = False
+        self.window.timeout(1)
+
+    def _run_slow(self):
+        self.is_running = True
+        self.is_running_slow = True
+        self.window.timeout(100)
     
     def key_pressed(self,key):  
         """ Key pressed while debugger active """
@@ -402,12 +434,9 @@ class DebuggerWindow(object):
         elif ch == 'g':
             self.current_handler = self.window_handlers['s']
             if self.is_running:
-                self.is_running_slow = False
-                self.window.timeout(1)
+                self._run_fast()
             else:
-                self.is_running = True
-                self.is_running_slow = True
-                self.window.timeout(100)
+                self._run_slow()
         elif ch == '.' or ch == '>':
             if self.current_handler.next_line():
                 self.redraw()
@@ -445,8 +474,8 @@ class MainLoop(object):
     def __init__(self,zmachine,breakpoint,breakattext,transcript):
         self.zmachine = zmachine
         self.breakpoint = breakpoint
-        self.is_running_slow = True
-        self.is_running = False
+        self.is_running_slow = False
+        self.is_running = True
         self.breakattext = breakattext
         self.transcript = transcript
         self.curses_input_stream = None
@@ -509,6 +538,9 @@ class MainLoop(object):
             debugger.window.timeout(1)
             debugger.is_running = True
             debugger.is_running_slow=False
+        else:
+            # Default running at full speed
+            debugger._run_fast()
         control_mode = True
         while True:
             try:
