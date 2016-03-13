@@ -887,10 +887,10 @@ class Interpreter(object):
         max_words = self.story.game_memory[parse_buffer_addr]
         idx = parse_buffer_addr+1
 
-        raise Exception(line)
-
         # Tokenize words using separators
-        #words = tokenize()
+        dictionary = self.story.dictionary
+        words = dictionary.split(line)
+        raise Exception(words)
 
         # write number of words in byte 1
         #self.story.game_memory[idx] = len(words)
