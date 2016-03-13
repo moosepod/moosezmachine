@@ -860,6 +860,7 @@ class Interpreter(object):
     def _handle_input(self):
         ztext = self.get_ztext()
 
+        ### Switch to ZSCII
         # Line will be array of zchars. Or none if not a complete line yet
         line = self.input_streams.readline(ztext)
         if not line:

@@ -548,6 +548,8 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
 
+        self.fail('Validate branch if not true')
+
     def test_get_parent(self):
         routine = self.zmachine.current_routine()
         table = self.zmachine.story.object_table
@@ -2023,8 +2025,17 @@ class SampleFileTests(unittest.TestCase):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
             self.story = Story(f.read())
-            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+            self.zmachine = Interpreter(self.story,TestOutputStreams(),None,TestSaveHandler(),TestRestoreHandler())
             self.zmachine.reset()
+
+    def test_dictionary_split(self):
+        # Test file has delimeters . and , and " (and default space)
+        ztext = self.zmachine.get_ztext()
+        dictionary = self.zmachine.story.dictionary
+        self.assertEqual([], dictionary.split([]))
+        self.assertEqual([[25, 10, 24, 25]], dictionary.split([ztext.to_zchars(c) for c in 'test']))
+        self.assertEqual(['fred',',','go','fishing'], dictionary.split([ztext.to_zchars(c) for c in ' fred, go fishing ']))
+        self.assertEqual(['a','.',',','"','foo','"'], dictionary.split([ztext.to_zchars(c) for c in 'a.,"foo"']))
 
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,

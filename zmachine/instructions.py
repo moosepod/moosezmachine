@@ -717,7 +717,10 @@ def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,bran
     obj = interpreter.story.object_table[obj_id]
     sibling = obj['sibling']
     interpreter.current_routine()[store_to] = sibling
-    if sibling:
+    branch = sibling > 0
+    if not branch_if_true:
+        branch = not branch
+    if branch:
         return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)
 
@@ -726,7 +729,10 @@ def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch
     obj = interpreter.story.object_table[obj_id]
     child = obj['child']
     interpreter.current_routine()[store_to] = child
-    if child:
+    branch = child != 0
+    if not branch_if_true:
+        branch = not branch
+    if branch:
         return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)
 
@@ -762,7 +768,10 @@ def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
     b = dereference_variables(operands[1],interpreter)
 
     obj = interpreter.story.object_table[a]
-    if obj['parent'] == b:
+    branch = obj['parent'] == b
+    if not branch_if_true:
+        branch = not branch
+    if branch:
         return find_jump_option(branch_offset,next_address)
 
     return NextInstructionAction(next_address)

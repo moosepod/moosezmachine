@@ -2,6 +2,8 @@
     See http://inform-fiction.org/zmachine/standards/z1point0/sect13.html
 """
 
+from zmachine.text import ZText
+
 class Dictionary(object):
     def __init__(self,data,start_address):
         self._memory = data
@@ -24,6 +26,28 @@ class Dictionary(object):
         self._increment_addr()
         self.number_of_entries = self._memory.word(self._addr)
         self._increment_addr(2)
+
+    def split(self,zchars):
+        """ Split the text into a list of words per 13.5.1. Text is array of zchars """
+        words = []
+        word = []
+        print(self.keyboard_codes)
+        for c in zchars:
+            print(c)
+            if c == ZText.SPACE:
+                if word:
+                    words.append(word)
+                    word = ''
+            elif c in self.keyboard_codes:
+                if word:
+                    words.append(word)
+                    word = ''
+                words.append(c)
+            else:
+                word.extend(c)
+        if word:
+            words.append(word)
+        return words
 
     # Allow this to be treated as a list, where word 0 is the first word in 
     # the dictionary. Will return 4 bytes as a bytearray

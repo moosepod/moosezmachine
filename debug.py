@@ -224,6 +224,7 @@ class ObjectsWindow(object):
     def __init__(self,max_obj):
         self.obj_index = 1
         self.max_obj = max_obj
+        self.width=20
 
     def next_line(self):
         self.obj_index += 1
@@ -233,25 +234,32 @@ class ObjectsWindow(object):
         return True
 
     def previous_line(self):
-        self.address -= 1
-        if self.address < 0:
-            self.address = 0
+        self.obj_index -= 1
+        if self.obj_index < 0:
+            self.obj_index = 0
         return True
+
+    def _safe_add_str(self,msg,window):
+        msg = msg.replace('\n','')
+        if len(msg) > self.width:
+            msg = msg[0:self.width]
+        window.addstr(msg)
+        window.addstr('\n')
     
     def redraw(self,window,zmachine,height):
         ztext = zmachine.get_ztext()
-        for i in range(self.obj_index,min(self.max_obj, height-self.obj_index)):
-            obj = zmachine.story.object_table[i]
-            zc = obj['short_name_zc']
-            window.addstr('%d: %s\n' % (i,ztext.to_ascii(zc,0,len(zc))))
-            if obj['parent']:
-                window.addstr('   child of: %d\n' % (obj['parent']))
-            if obj['child']:
-                window.addstr('   child is: %d\n' % (obj['child']))
-            if obj['sibling']:
-                window.addstr('   sibling is: %d\n' % (obj['sibling']))
-            for number,data in obj['properties'].items():
-                window.addstr('   %s: %s \n' % (number,''.join(['%02x' % x for x in data['data']])))
+        obj_index = self.obj_index
+        obj = zmachine.story.object_table[obj_index]
+        zc = obj['short_name_zc']
+        self._safe_add_str('%d: %s' % (obj_index,ztext.to_ascii(zc,0,len(zc))),window)
+        if obj['parent']:
+            self._safe_add_str('   child of: %d' % (obj['parent']),window)
+        if obj['child']:
+            self._safe_add_str('   child is: %d' % (obj['child']),window)
+        if obj['sibling']:
+            self._safe_add_str('   sibling is: %d' % (obj['sibling']),window)
+        for number,data in obj['properties'].items():
+            self._safe_add_str('   %s: %s' % (number,''.join(['%02x' % x for x in data['data']])),window)
 
 class DictionaryWindow(object):
     def __init__(self):
@@ -549,7 +557,7 @@ class MainLoop(object):
                         debugger.is_running = False
                         debugger.redraw()
                         self.breakpoint = None
-                    elif self.breakattext and self.breakattext in curses_stream.buffer:
+                    elif self.breakattext and self.breakattext in curses_output_stream.buffer:
                         debugger.is_running = False
                         debugger.redraw()
                         self.breakattext = None

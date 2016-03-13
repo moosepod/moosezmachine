@@ -21,7 +21,8 @@ class ZText(object):
     ZASCII_UNICODE = ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss', '>>', '<<', 'e', 'i', 'y', 'E', 'I', 'a', 'e', 'i', 'o', 'u', 'y', 'A', 'E', 'I', 'O', 
                       'U', 'Y', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'a', 'A', 'o', 'O', 
                       'a', 'n', 'o', 'A', 'N', 'O', 'ae', 'AE', 'c', 'C', 'th', 'th', 'Th', 'Th', 'L', 'oe', 'OE', '!', '?']
-
+    SPACE = 0
+    
     def __init__(self,version,get_abbrev_f,debug=False):
         self.version = version
         self.get_abbrev_f = get_abbrev_f
