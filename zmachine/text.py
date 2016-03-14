@@ -106,7 +106,12 @@ class ZText(object):
                    pass 
             i+=1
             idx+=1
-        return bytearray(results)
+        # Compress the 6 characters into 4 bytes
+        b1 = (results[0] << 2 & 0xff) | (results[1] >> 3)
+        b2 = (results[1] << 5 & 0xff) | results[2]
+        b3 = (results[3] << 2 & 0xff) | (results[4] >> 3) | 0x80 # End flag always set on terminating word
+        b4 = (results[4] << 5 & 0xff) | results[5]
+        return bytearray([b1,b2,b3,b4])
 
     def handle_zchar(self,zchar):
         """ Handle the given zcode based on our state and other information. 
@@ -229,6 +234,11 @@ class ZText(object):
         if c < 32 or c > 126:
             return ord(' ')
         return c
+
+    def zscii_to_ascii(self,zscii):
+        if zscii < 32 or zscii > 126:
+            return ' '
+        return chr(zscii)
 
     def to_zchars(self,char):
         """ Convert a unicode char to one or more zchars """

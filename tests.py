@@ -2033,10 +2033,18 @@ class SampleFileTests(unittest.TestCase):
         ztext = self.zmachine.get_ztext()
         dictionary = self.zmachine.story.dictionary
         self.assertEqual([], dictionary.split([]))
-        self.assertEqual([[116, 101, 115, 116]], dictionary.split([ztext.to_zscii(c) for c in 'test']))
-        self.assertEqual([[102, 114, 101, 100], [44], [103, 111], [102, 105, 115, 104, 105, 110, 103]], 
+        self.assertEqual([(0,[116, 101, 115, 116])], dictionary.split([ztext.to_zscii(c) for c in 'test']))
+        self.assertEqual([(1,[102, 114, 101, 100]), (5,[44]), (7,[103, 111]), (10,[102, 105, 115, 104, 105, 110, 103])], 
                     dictionary.split([ztext.to_zscii(c) for c in ' fred, go fishing ']))
-        self.assertEqual([[97], [46], [44], [34], [102, 111, 111], [34]], dictionary.split([ztext.to_zscii(c) for c in 'a.,"foo"']))
+        self.assertEqual([(0,[97]), (1,[46]), (2,[44]), (3,[34]), (4,[102, 111, 111]), (7,[34])], dictionary.split([ztext.to_zscii(c) for c in 'a.,"foo"']))
+
+    def test_dictionary_lookup(self):
+        ztext = self.zmachine.get_ztext()
+        dictionary = self.zmachine.story.dictionary
+        self.assertEqual(None, dictionary.lookup([],ztext))
+        self.assertEqual(2220, dictionary.lookup([ztext.to_zscii('d')],ztext))
+        self.assertEqual(2290, dictionary.lookup([ztext.to_zscii(c) for c in 'examin'],ztext))
+
 
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,

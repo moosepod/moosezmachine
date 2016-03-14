@@ -890,7 +890,6 @@ class Interpreter(object):
         # Tokenize words using separators
         dictionary = self.story.dictionary
         words = dictionary.split(line)
-        raise Exception(words)
 
         # write number of words in byte 1
         #self.story.game_memory[idx] = len(words)
