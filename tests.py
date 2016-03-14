@@ -224,7 +224,7 @@ class TestStoryMixin(object):
 
     def _load_zmachine(self,version=3):
         self.story = Story(self.data)
-        self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+        self.zmachine = Interpreter(self.story,TestOutputStreams(),None,TestSaveHandler(),TestRestoreHandler())
         self.zmachine.reset(force_version=version)
         self.screen = TestOutputStream()
         self.zmachine.output_streams.set_screen_stream(self.screen)
@@ -238,7 +238,7 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
             self.fail('Could not find test file test.z3')
         with open(path, 'rb') as f:
             self.story = Story(f.read())
-            self.zmachine = Interpreter(self.story,TestOutputStreams(),TestSaveHandler(),TestRestoreHandler())
+            self.zmachine = Interpreter(self.story,TestOutputStreams(),None,TestSaveHandler(),TestRestoreHandler())
 
     def test_default_properties(self):
         self.assertEqual([0x0000] * 31, self.story.object_table.property_defaults)
@@ -1897,18 +1897,17 @@ class ZTextTests(unittest.TestCase):
         # Note this isn't any kind of real encryption, it's simply converting input text
         # to match against dictionary
         ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
-        self.assertEqual(bytearray([14,5,5,5,5,5]), ztext.encrypt('i'))
-        self.assertEqual(bytearray([14,15,16,17,18,19]), ztext.encrypt('ijkLMN'))
-        self.assertEqual(bytearray([14,3,8,3,9,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray(b'8\xa5\x94\xa5'), ztext.encrypt('i'))
+        self.assertEqual(bytearray([0x18,0xF4,0xEB,0x25]),ztext.encrypt('about'))
 
     def test_encrypt_text_v1(self):
         # See 3.7.1 and 3.5.4
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
-        self.assertEqual(bytearray([14,4,7,8,5,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray(bytearray(b'8\x87\xa0\xa5')), ztext.encrypt('i01'))
         
     def test_encrypt_text_v2(self):
         ztext = ZText(version=2,get_abbrev_f=self.get_abbrev_f)
-        self.assertEqual(bytearray([14,4,8,9,5,5]), ztext.encrypt('i01'))
+        self.assertEqual(bytearray(bytearray(b'8\x88\xa4\xa5')), ztext.encrypt('i01'))
 
 class DictionaryTests(unittest.TestCase):
     def setUp(self):
