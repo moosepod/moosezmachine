@@ -280,6 +280,10 @@ class Routine(object):
         """ Return the 0-based global. """
         return self[GLOBAL_VAR_START+global_id]
 
+    def set_nth_global(self,global_id,val):
+        """ Set the 0-based global. """
+        self[GLOBAL_VAR_START+global_id] = val
+
     def push_to_stack(self,val):
         self.stack.append(val)
 
