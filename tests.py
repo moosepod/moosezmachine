@@ -1070,15 +1070,15 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         routine.local_variables = [0xffff,10]
 
-        memory = create_instruction(InstructionType.oneOP,5,[(OperandType.variable,1)])
+        memory = create_instruction(InstructionType.oneOP,5,[(OperandType.small_constant,1)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:inc var1',description)
+        self.assertEqual('oneOP:inc 1',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[1])
 
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:inc var1',description)
+        self.assertEqual('oneOP:inc 1',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(1,routine[1])
@@ -1087,15 +1087,15 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         routine.local_variables = [1,10]
 
-        memory = create_instruction(InstructionType.oneOP,6,[(OperandType.variable,1)])
+        memory = create_instruction(InstructionType.oneOP,6,[(OperandType.small_constant,1)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:dec var1',description)
+        self.assertEqual('oneOP:dec 1',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[1])
 
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:dec var1',description)
+        self.assertEqual('oneOP:dec 1',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xffff,routine[1])
