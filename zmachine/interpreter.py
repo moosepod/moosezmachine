@@ -350,7 +350,7 @@ class ObjectTableManager(object):
             return start_addr+1,0 """
         address = self._obj_start_addr(object_number)
         if attribute_number > 31:
-            raise StoryFileException('Request to test invalid attribute number %s on object %s' % (attr_number,object_number))
+            raise StoryFileException('Request to test invalid attribute number %s on object %s' % (attribute_number,object_number))
 
         while attribute_number > 7:
             address+=1
@@ -892,16 +892,25 @@ class Interpreter(object):
         words = dictionary.split(line)
 
         # write number of words in byte 1
-        #self.story.game_memory[idx] = len(words)
+        self.story.game_memory[idx] = len(words)
 
         # for each word up to max, write
-        # (a) byte w/ addr of word (0 is missing)
+        # (a) two bytes w/ addr of word (0 is missing)
         # (b) byte containing word length then 
         # (c) byte containing index of first letter of this word in the text buffer
         # (d) empty byte
+        idx+=1
+        for offset, word in words:
+            addr = dictionary.lookup(word,ztext)
+            if not addr:
+                addr = 0
+            self.story.game_memory.set_word(idx, addr)
+            idx+=2
+            self.story.game_memory[idx] = len(word)
+            idx+=1
+            self.story.game_memory[idx] = offset
+            idx+=1
 
-        # raise exception if text buffer len < 3 or parse buffer len < 6, this
-        # is an error due to overrun
         return True
 
     def show_status(self):
