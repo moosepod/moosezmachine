@@ -833,6 +833,8 @@ class Interpreter(object):
             result = handler_f(self)
             result.apply(self)
 
+        return self.state
+
     def instructions(self,how_many):
         """ Return how_many instructions starting at the current instruction """
         instructions = []

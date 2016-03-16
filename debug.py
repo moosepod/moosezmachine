@@ -1,4 +1,5 @@
 import sys
+from enum import Enum
 
 import logging
 import curses
@@ -352,10 +353,10 @@ class VariablesWindow(object):
         routine = zmachine.current_routine()
         for i in range(self.vars_index,min(height+self.vars_index,255)):
             if i == 0:
-                val = routine.peek_stack()
+                window.addstr('%d) %s\n' % (i,routine.stack or 0)) 
             else:
                 val = routine[i]
-            window.addstr('%d) %.4x\n' % (i,val or 0)) 
+                window.addstr('%d) %.4x\n' % (i,val or 0)) 
 
 class HeaderWindow(object):
     def next_line(self):
@@ -387,8 +388,9 @@ class HeaderWindow(object):
         if header.flag_variable_pitch_default: window.addstr('  variable pitch is default\n')
 
 class DebuggerWindow(object):
-    def __init__(self, zmachine, window):
+    def __init__(self, zmachine,window):
         self.zmachine = zmachine
+        self.is_active=False
         self.window = window
         self.window_handlers = {'s': StepperWindow(),
                                 'h': HeaderWindow(),
@@ -399,9 +401,6 @@ class DebuggerWindow(object):
                                 'd': DictionaryWindow()}
         self.current_handler = self.window_handlers['s']
         self.window_height,self.window_width = window.getmaxyx()
-        self.is_running = True
-        self.is_running_slow = False
-        self.is_active =True
 
     def status(self,msg):
         self.window.move(2,10)
@@ -414,17 +413,7 @@ class DebuggerWindow(object):
     def reset(self):
         raise ResetException()
 
-    def _run_fast(self):
-        self.is_running = True
-        self.is_running_slow = False
-        self.window.timeout(1)
-
-    def _run_slow(self):
-        self.is_running = True
-        self.is_running_slow = True
-        self.window.timeout(100)
-    
-    def key_pressed(self,key):  
+    def key_pressed(self,key,terp):  
         """ Key pressed while debugger active """
         ch = chr(key).lower()
         if ch == 'q':
@@ -435,16 +424,12 @@ class DebuggerWindow(object):
             self.current_handler = self.window_handlers['s']
             self.redraw()
         elif ch == 's':
-            self.is_running=False            
+            terp.zmachine.step()           
             self.current_handler = self.window_handlers['s']
-            self.zmachine.step()
             self.redraw()
         elif ch == 'g':
             self.current_handler = self.window_handlers['s']
-            if self.is_running:
-                self._run_fast()
-            else:
-                self._run_slow()
+            terp.run()           
         elif ch == '.' or ch == '>':
             if self.current_handler.next_line():
                 self.redraw()
@@ -457,11 +442,19 @@ class DebuggerWindow(object):
                 self.current_handler = h
                 self.redraw()
 
+    def activate(self):
+        self.is_active=True
+        self.redraw()
+
+    def deactivate(self):
+        self.is_active=False
+        self.redraw()
+
     def redraw(self):
         curses.curs_set(0) # Hide cursor
         self.window.clear()
         if self.is_active:
-            self.window.addstr(0,0,"(Q)uit (R)eset (M)em (H)eader (D)ict (A)bbr (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
+            self.window.addstr(0,0,"PAUSED: (Q)uit (R)eset (M)em (H)eader (D)ict (A)bbr (V)ars (O)bjs (I)nstr (S)tep (G)o",curses.A_REVERSE)
         else:
             self.window.addstr(0,0,"Hit ESC for control",curses.A_REVERSE)
         
@@ -478,12 +471,60 @@ class ErrorWindow(object):
         self.window.addstr(0, 0, msg, curses.A_REVERSE)
         self.window.refresh()
 
+class RunState(Enum):
+    RUNNING                  = 0
+    PAUSED                   = 1
+    RUN_UNTIL_BREAKPOINT = 2
+
+class Terp(object):
+    def __init__(self,zmachine,debugger):
+        self.state = RunState.RUNNING
+        self.zmachine = zmachine
+        self.breakpoint = None
+        self.breakattext = None
+        self.debugger = debugger
+
+    def run(self):
+        if self.state != RunState.RUNNING:
+            self.state = RunState.RUNNING
+            self.debugger.deactivate()
+
+    def pause(self):
+        if self.state != RunState.PAUSED:
+            self.state = RunState.PAUSED
+            self.debugger.activate()
+
+    def run_until(self,breakpoint=None,breakattext=None):
+        if self.state != RunState.RUN_UNTIL_BREAKPOINT:
+            self.breakpoint=breakpoint
+            self.breakattext = breakattext
+            self.state = RunState.RUN_UNTIL_BREAKPOINT
+            self.debugger.deactivate()
+
+    def idle(self):
+        """ Called if no key is pressed """
+        if self.state == RunState.RUNNING:
+            self.zmachine.step()
+        elif self.state == RunState.RUN_UNTIL_BREAKPOINT:
+            if ((self.breakpoint and self.zmachine.pc == int(self.breakpoint,16) or
+                (self.breakattext and self.breakattext in curses_output_stream.buffer))):
+                    self.pause()
+            else:
+                self.zmachine.step()
+
+    def key_pressed(self,ch,curses_input_stream):
+        if self.state == RunState.RUNNING:
+            if ch == curses.ascii.ESC:
+                self.pause()
+            elif curses_input_stream.waiting_for_line:
+                curses_input_stream.char_pressed('%s' % chr(ch))
+        elif self.state == RunState.PAUSED:
+            self.debugger.key_pressed(ch,self)
+
 class MainLoop(object):
     def __init__(self,zmachine,breakpoint,breakattext,transcript):
         self.zmachine = zmachine
         self.breakpoint = breakpoint
-        self.is_running_slow = False
-        self.is_running = True
         self.breakattext = breakattext
         self.transcript = transcript
         self.curses_input_stream = None
@@ -532,9 +573,13 @@ class MainLoop(object):
                                  0,
                                  STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
         debugger.redraw()
-        debugger.window.timeout(100)
+        debugger.window.timeout(1)
 
-        debugger_selected = True
+        terp = Terp(self.zmachine,debugger)
+        if self.breakpoint or self.breakattext:
+            terp.run_until(breakpoint=self.breakpoint,breakattext=self.breakattext)
+        else:
+            terp.run()
 
         # Area for error messages
         error_window = ErrorWindow(curses.newwin(2,
@@ -542,46 +587,13 @@ class MainLoop(object):
                                 screen_height-2,
                                 STORY_WINDOW_WIDTH+STORY_RIGHT_MARGIN))
 
-        if self.breakattext or self.breakpoint:
-            debugger.window.timeout(1)
-            debugger.is_running = True
-            debugger.is_running_slow=False
-        else:
-            # Default running at full speed
-            debugger._run_fast()
-        control_mode = False
         while True:
             try:
-                if debugger.is_running:
-                    if self.breakpoint and self.zmachine.pc == int(self.breakpoint,16):
-                        debugger.is_running = False
-                        debugger.redraw()
-                        self.breakpoint = None
-                    elif self.breakattext and self.breakattext in curses_output_stream.buffer:
-                        debugger.is_running = False
-                        debugger.redraw()
-                        self.breakattext = None
-                    else:
-                        self.zmachine.step()
-                        if debugger.is_running_slow:
-                            debugger.redraw()
-
                 ch = debugger.window.getch()
-                if ch != curses.ERR:
-                    if ch == curses.ascii.ESC:
-                        control_mode = not control_mode
-                        if control_mode:
-                            debugger.is_active=True
-                        else:
-                            debugger.is_active=False
-                        debugger.redraw()
-                    elif self.curses_input_stream.waiting_for_line and not control_mode:
-                        debugger.is_active=False
-                        debugger.redraw()
-                        self.curses_input_stream.char_pressed('%s' % chr(ch))
-                    elif debugger_selected :
-                        debugger.key_pressed(ch)
-                        control_mode = False
+                if ch == curses.ERR:
+                    terp.idle()
+                else:
+                    terp.key_pressed(ch,self.curses_input_stream)
             except InstructionException as e:
                 error_window.error('%s at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction))
                 debugger.is_running=False
