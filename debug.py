@@ -518,6 +518,8 @@ class Terp(object):
                 self.pause()
             elif curses_input_stream.waiting_for_line:
                 curses_input_stream.char_pressed('%s' % chr(ch))
+                if curses_input_stream.line_done:
+                    self.pause() # Pause after each command
         elif self.state == RunState.PAUSED:
             self.debugger.key_pressed(ch,self)
 

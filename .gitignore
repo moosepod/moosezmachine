@@ -7,3 +7,4 @@ venv
 local_settings.py
 build/**
 localtestdata/**
+todos.txt

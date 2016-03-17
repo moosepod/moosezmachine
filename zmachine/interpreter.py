@@ -928,7 +928,7 @@ class Interpreter(object):
             idx+=2
             self.story.game_memory[idx] = len(word)
             idx+=1
-            self.story.game_memory[idx] = offset
+            self.story.game_memory[idx] = offset+1
             idx+=1
 
         return True

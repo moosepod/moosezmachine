@@ -100,6 +100,8 @@ class ZText(object):
                         else:
                             results[idx]=3 # Shift
                             idx+=1
+                    if idx >= len(results):
+                        break
                     results[idx] = pos+6
                     previous_alphabet = alphabet
                 except ValueError:
