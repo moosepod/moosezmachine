@@ -52,9 +52,14 @@ class RNG(object):
 
 class Screen(object):
     """ Abstraction of a screen for display """
-    def print_ascii(self,msg):
-        """ Print the given ASCII string to the screen """
-        print(msg)
+    def split_window(self,lines):
+        raise Exception('split_window is not implemented')
+
+    def set_window(self,window_id):
+        raise Exception('set_window is not implemented')
+
+    def supports_screen_splitting(self):
+        return False
 
 class Header(Memory):
     VERSION = 0x00
@@ -151,6 +156,10 @@ class Header(Memory):
     def flag_screen_splitting_available(self):
         return self.flag(Header.FLAGS_1,5)
     
+    @flag_screen_splitting_available.setter
+    def flag_screen_splitting_available(self,val):
+        return self.set_flag(Header.FLAGS_1,5,val)
+
     @property
     def flag_variable_pitch_default(self):
         """ Return True if a variable pitch font is default """
@@ -733,7 +742,7 @@ class Interpreter(object):
     RUNNING_STATE = 0
     WAITING_FOR_LINE_STATE = 1
 
-    def __init__(self,story, output_streams, input_streams, save_handler, restore_handler):
+    def __init__(self,story, output_streams, input_streams, save_handler, restore_handler,screen=None):
         self.story = story
         self.output_streams = output_streams
         self.input_streams = input_streams
@@ -742,6 +751,7 @@ class Interpreter(object):
         self.initialized = False
         self.pc = 0 # program counter
         self.state = Interpreter.RUNNING_STATE
+        self.screen = screen or Screen()
 
     def reset(self,force_version=0):
         """ Start/restart the interpreter. Set force_version to make it act like the story file
@@ -758,6 +768,10 @@ class Interpreter(object):
         self.routines = []
         self.state = Interpreter.RUNNING_STATE
         self.call_routine(self.pc,self.pc,None,None)
+        if self.screen.supports_screen_splitting():
+            self.story.header.flag_screen_splitting_available = 1
+        else:
+            self.story.header.flag_screen_splitting_available = 0
 
     def call_routine(self, routine_address, next_address,  store_var,  local_vars):
         """ Add a routine call to the stack from the current program counter """

@@ -296,7 +296,7 @@ def create_instruction(instruction_type, opcode_number, operands, store_to=None,
         elif op1type  == OperandType.variable:
             v = v | 0x20
         bytes.append(v)
-        if op1val < 255:
+        if op1type in (OperandType.small_constant,OperandType.variable):
             bytes.append(op1val)
         else:
             bytes.append(op1val >> 8)
@@ -526,11 +526,13 @@ def op_print_char(interpreter,operands,next_address,store_to,branch_offset,branc
     return NextInstructionAction(next_address)
 
 def op_split_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    lines = dereference_variables(operands[0],interpreter)
+    interpreter.screen.split_window(lines)
     return NextInstructionAction(next_address)
 
 def op_set_window(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    window_id = dereference_variables(operands[0],interpreter)
+    interpreter.screen.set_window(window_id)
     return NextInstructionAction(next_address)
 
 def op_output_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -1053,7 +1055,6 @@ def op_show_status(interpreter,operands,next_address,store_to,branch_offset,bran
     return NextInstructionAction(next_address)
 
 def op_verify(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    # some early files have no checksum -- skip the check in that case
     if interpreter.story.header.checksum == interpreter.story.calculate_checksum():
         return JumpRelativeAction(branch_offset, next_address)
 

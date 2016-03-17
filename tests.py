@@ -39,6 +39,20 @@ class TestSaveHandler(SaveHandler):
 class TestRestoreHandler(RestoreHandler):
     pass
 
+class TestScreen(object):
+    def __init__(self):
+        self.top_window_size = 0
+        self.window_id = 0
+
+    def split_window(self,lines):
+        self.top_window_size = lines
+
+    def set_window(self,window_id):
+        self.window_id = window_id
+
+    def supports_screen_splitting(self):
+        return True
+
 class TestOutputStreams(OutputStreams):
     def __init__(self):
         super(TestOutputStreams,self).__init__(TestOutputStream(),TestOutputStream())
@@ -225,6 +239,7 @@ class TestStoryMixin(object):
     def _load_zmachine(self,version=3):
         self.story = Story(self.data)
         self.zmachine = Interpreter(self.story,TestOutputStreams(),None,TestSaveHandler(),TestRestoreHandler())
+        self.zmachine.screen = TestScreen()
         self.zmachine.reset(force_version=version)
         self.screen = TestOutputStream()
         self.zmachine.output_streams.set_screen_stream(self.screen)
@@ -577,7 +592,6 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         table = self.zmachine.story.object_table
         addr = table.get_property_address(2,18)
-        print(addr)
         memory = create_instruction(InstructionType.oneOP,4,[(OperandType.large_constant,addr)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
@@ -589,7 +603,8 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         memory = create_instruction(InstructionType.oneOP,4,[(OperandType.large_constant,addr)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
-        self.assertRaise(InstructionException, handler_f, self.zmachine)
+        result = handler_f(self.zmachine)
+        self.assertEqual(0,routine[200])
 
     def test_get_prop_addr(self):
         routine = self.zmachine.current_routine()
@@ -1216,10 +1231,20 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.fail()
 
     def test_set_window(self):
-        self.fail()
+        self.assertEqual(0, self.zmachine.screen.window_id)
+        memory = create_instruction(InstructionType.varOP,11,[(OperandType.small_constant,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('varOP:set_window 1',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(1, self.zmachine.screen.window_id)
 
     def test_split_window(self):
-        self.fail()
+        self.assertEqual(0, self.zmachine.screen.top_window_size)
+        memory = create_instruction(InstructionType.varOP,10,[(OperandType.small_constant,10)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('varOP:split_window 10',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(10, self.zmachine.screen.top_window_size)
 
     def test_output_stream(self):
         self.fail()
@@ -1393,7 +1418,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(2,result.branch_offset)
 
-        self.zmachine.story.game_memory._raw_data[0x1000] = 0xff
+        self.zmachine.story._checksum  = 0xff
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
 
