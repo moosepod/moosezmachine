@@ -367,7 +367,10 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, table.get_property_length(0))
 
     def test_get_default(self):
-        self.fail()
+        table = self.zmachine.story.object_table
+        table.property_defaults[0] = 0xff
+        table = self.story.object_table
+        self.assertEqual(0x00ff, table.get_default_property(1))
 
 class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_next_address(self):
@@ -697,7 +700,12 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual('twoOP:get_prop 2 19 -> 200',description)
         self.assertRaises(InstructionException, handler_f, self.zmachine)
 
-        self.fail('default')
+        self.zmachine.story.object_table.property_defaults[17] = 0xff
+        memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,18)],store_to=200)
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('twoOP:get_prop 10 18 -> 200',description)
+        result = handler_f(self.zmachine)
+        self.assertEqual(0x00ff,routine[200])
 
     def test_get_next_prop(self):
         routine = self.zmachine.current_routine()
