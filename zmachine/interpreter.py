@@ -821,11 +821,15 @@ class Interpreter(object):
 
     def instruction_at(self,address):
         """ Return the current instruction pointed to by the given address """
-        return read_instruction(self.story.raw_data,
+        try:    
+            return read_instruction(self.story.raw_data,
                             address,
                             self.story.header.version,
                             self.get_ztext())
-        
+        except IndexError:
+            # Requested instruction past end of memory.
+            raise Exception('Request to look for instruction past end of memory at 0x%.4x' % address)
+            
     def current_instruction(self):
         """ Return the current instruction """
         return self.instruction_at(self.pc)
@@ -926,7 +930,7 @@ class Interpreter(object):
                 addr = 0
             self.story.game_memory.set_word(idx, addr)
             idx+=2
-            self.story.game_memory[idx] = len(word)
+            self.story.game_memory[idx] = len(word)+1
             idx+=1
             self.story.game_memory[idx] = offset+1
             idx+=1

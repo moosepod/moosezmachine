@@ -11,6 +11,8 @@ from zmachine.memory import Memory
 
 MIN_SIGNED= -32768
 MAX_SIGNED = 32767
+MAX_SIGNED_14bit = 8192
+MIN_SIGNED_14bit = -8192
 MIN_UNSIGNED = 0
 MAX_UNSIGNED = 0xffff
 
@@ -46,6 +48,8 @@ class OperandTypeHint(Enum):
     signed_variable = 6
     packed_address_variable = 7
 
+
+# For most conversions
 def convert_to_signed(val):
     if val > 0x7fff:
         return -1 * ((val ^ 0xffff) + 1)
@@ -54,6 +58,17 @@ def convert_to_signed(val):
 def convert_to_unsigned(val):
     if val < 0:
         return -1 * ((val ^ 0xffff) + 1)
+    return val
+
+# For branch conversions
+def convert_to_signed_14bit(val):
+    if val > 0x1fff:
+        return -1 * ((val ^ 0x3fff) + 1)
+    return val
+
+def convert_to_unsigned_14bit(val):
+    if val < 0:
+        return -1 * ((val ^ 0x3fff) + 1)
     return val
 
 def operand_from_bitfield(bf):
@@ -254,20 +269,30 @@ def extract_branch_offset(memory,address):
         next_byte = memory[address]
         address += 1
         branch_offset = ((b & 0x3f) << 8) | next_byte 
-    return address, branch_offset, branch_if_true
+    return address, convert_to_signed_14bit(branch_offset), branch_if_true
+
+def to_varname(raw_var):
+    if raw_var == 0:
+        return '(SP)'
+    
+    if raw_var < 0x10:
+        return 'L%.2x' % (raw_var-1)
+
+    return 'G%.2x' % (raw_var-0x10)
 
 def format_description(instruction_type, handler, operands, store_to, branch_offset, branch_if_true, literal_string):
     """ Create a text description of this instruction """
     description = "%s:%s" % (instruction_type.name, handler['name'])
     for operand,hint in operands:
         if hint in (OperandTypeHint.variable,OperandTypeHint.signed_variable,OperandTypeHint.packed_address_variable):
-            description += ' var%s' % operand
+            
+            description += ' %s' % to_varname(operand)
         else:
             description += ' %s' % operand
     if literal_string:
         description += ' (%s)' % repr(literal_string).strip("'")
     if store_to != None:
-        description += ' -> %s' % store_to
+        description += ' -> %s' % to_varname(store_to)
     if branch_offset == 0:
         description += ' RFALSE'
     elif branch_offset == 1:
