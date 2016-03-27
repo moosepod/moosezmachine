@@ -477,7 +477,8 @@ class ObjectTableManager(object):
         size = 0
         if prop_addr == 0:
             return 0
-        property_number,property_size = self._extract_property_info(prop_addr)
+        # Note -- the property length will be one byte _behind_ the property address
+        property_number,property_size = self._extract_property_info(prop_addr-1)
         return property_size
 
     def _extract_property_info(self,prop_addr):
@@ -519,7 +520,8 @@ class ObjectTableManager(object):
             start_addr+=1
             property_number,property_size = self._extract_property_info(size_byte_addr)
             data = self.game_memory._raw_data[start_addr:start_addr+property_size]
-            properties[property_number] = {'data': data, 'size': property_size, 'address': size_byte_addr}
+            # NOte that the property address is the start of the property -- the size byte will be one previous
+            properties[property_number] = {'data': data, 'size': property_size, 'address': size_byte_addr+1}
             property_ids_ordered.append(property_number)
             start_addr+=property_size
             size_byte = self.game_memory[start_addr]
@@ -964,6 +966,10 @@ class Interpreter(object):
     def save(self,branch_offset,next_address):
         """ Handle a save. Branch info is used to move pc post save """
         raise InterpreterException('Save not implemented')
+
+    def debug(self,msg):
+        """ Debug logging """
+        self.output_streams.print_str('>>> %s\n' % msg)
 
     def restore(self,branch_offset,next_address):
         """ Handle a restore. Branch info is passed in but ignored in version 3 """

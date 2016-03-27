@@ -769,11 +769,15 @@ def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branc
     interpreter.current_routine()[store_to] = obj['parent']
     return NextInstructionAction(next_address)
 
-def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     property_addr = dereference_variables(operands[0],interpreter)
     
     prop_len = interpreter.story.object_table.get_property_length(property_addr)
     interpreter.current_routine()[store_to] = prop_len
+
+    if debug:
+        interpreter.debug('get prop len for %s [returns %s]' % (property_addr,
+            prop_len))
 
     return NextInstructionAction(next_address)
 
@@ -803,7 +807,7 @@ def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     return NextInstructionAction(next_address)
 
-def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     object_number = dereference_variables(operands[0],interpreter)
     property_number = dereference_variables(operands[1],interpreter)
     obj = interpreter.story.object_table[object_number]
@@ -824,15 +828,20 @@ def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
 
     interpreter.current_routine()[store_to]= value
 
+    if debug:
+        interpreter.debug('get prop %s on %s (%s)' % (property_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+
     return NextInstructionAction(next_address)
 
-def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     object_number = dereference_variables(operands[0],interpreter)
     property_number = dereference_variables(operands[1],interpreter)
     
     prop_addr = interpreter.story.object_table.get_property_address(object_number,property_number)
     interpreter.current_routine()[store_to] = prop_addr 
 
+    if debug:
+        interpreter.debug('get prop addr %s on %s (%s)' % (property_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
     return NextInstructionAction(next_address)
 
 def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -843,9 +852,11 @@ def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,br
 
     return NextInstructionAction(next_address)
 
-def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     object_number = dereference_variables(operands[0],interpreter)
     attribute_number = dereference_variables(operands[1],interpreter)
+    if debug:
+        interpreter.debug('test attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
 
     branch = interpreter.story.object_table.test_attribute(object_number, attribute_number)
     if not branch_if_true:
@@ -856,19 +867,23 @@ def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch
 
     return NextInstructionAction(next_address)
 
-def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     object_number = dereference_variables(operands[0],interpreter)
     attribute_number = dereference_variables(operands[1],interpreter)
 
     interpreter.story.object_table.set_attribute(object_number, attribute_number,True)
+    if debug:
+        interpreter.debug('set attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
 
     return NextInstructionAction(next_address)
 
-def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
+def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
     object_number = dereference_variables(operands[0],interpreter)
     attribute_number = dereference_variables(operands[1],interpreter)
 
     interpreter.story.object_table.set_attribute(object_number, attribute_number,False)
+    if debug:
+        interpreter.debug('clear attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
 
     return NextInstructionAction(next_address)
 
