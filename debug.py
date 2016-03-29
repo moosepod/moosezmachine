@@ -134,7 +134,7 @@ class CursesOutputStream(OutputStream):
         if score_mode:
             right_string = 'Score: %s Moves: %s' % (score or 0,turns or 0)
         else:
-            right_string = '{:02}:{:02}' % (hours,minutes)
+            right_string = '%02d:%02d' % (hours,minutes)
 
         status_format = '{:%d}{:>%d}' % (self.status_width-len(right_string)-1,len(right_string))
         status_msg = status_format.format(room_name,right_string)

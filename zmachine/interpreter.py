@@ -495,7 +495,6 @@ class ObjectTableManager(object):
         if not prop_addr:
             raise InterpreterException("Request to set non-existent property %s of obj %s to %s." % (obj_id, property_id, value))
         prop_len = self.get_property_length(prop_addr)
-        prop_addr+=1 # Skip size byte
         if prop_len > 2:
             raise InterpreterException("Request to set non-existent property %s of obj %s to %s for property greater than 2 bytes." % (obj_id, property_id, value))
         elif prop_len == 2:
@@ -916,7 +915,6 @@ class Interpreter(object):
         # Tokenize words using separators
         dictionary = self.story.dictionary
         words = dictionary.split(line)
-
         # write number of words in byte 1
         self.story.game_memory[idx] = len(words)
 
@@ -932,7 +930,7 @@ class Interpreter(object):
                 addr = 0
             self.story.game_memory.set_word(idx, addr)
             idx+=2
-            self.story.game_memory[idx] = len(word)+1
+            self.story.game_memory[idx] = len(word)
             idx+=1
             self.story.game_memory[idx] = offset+1
             idx+=1

@@ -356,15 +356,15 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
 
     def test_get_property_address(self):
         table = self.zmachine.story.object_table
-        self.assertEqual(507, table.get_property_address(2,18))
-        self.assertEqual(502, table.get_property_address(2,19))
+        self.assertEqual(508, table.get_property_address(2,18))
+        self.assertEqual(503, table.get_property_address(2,19))
         self.assertEqual(0, table.get_property_address(2,3))
 
     def test_get_property_lengths(self):
         table = self.zmachine.story.object_table
-        self.assertEqual(2, table.get_property_length(18))
-        self.assertEqual(2, table.get_property_length(19))
-        self.assertEqual(0, table.get_property_length(0))
+        self.assertEqual(2, table.get_property_length(table.get_property_address(2,18)))
+        self.assertEqual(4, table.get_property_length(table.get_property_address(2,19)))
+        self.assertEqual(0, table.get_property_length(table.get_property_address(2,0)))
 
     def test_get_default(self):
         table = self.zmachine.story.object_table
@@ -457,7 +457,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[200] = 0
         memory = create_instruction(InstructionType.twoOP,10,[(OperandType.small_constant,1),(OperandType.variable,200)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:test_attr 1 var200 ?001d',description)
+        self.assertEqual('twoOP:test_attr 1 Gb8 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5,result.next_address)
@@ -477,7 +477,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[200] = 10
         memory = create_instruction(InstructionType.twoOP,11,[(OperandType.small_constant,2),(OperandType.variable,200)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:set_attr 2 var200',description)
+        self.assertEqual('twoOP:set_attr 2 Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(3,result.next_address)
@@ -498,7 +498,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[200] = 10
         memory = create_instruction(InstructionType.twoOP,12,[(OperandType.small_constant,2),(OperandType.variable,200)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:clear_attr 2 var200',description)
+        self.assertEqual('twoOP:clear_attr 2 Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(3,result.next_address)
@@ -524,7 +524,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine().local_variables = [1,11]
         memory = create_instruction(InstructionType.twoOP,6,[(OperandType.variable,1),(OperandType.variable,2)],branch_to=0x1d)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:jin var1 var2 ?001d',description)
+        self.assertEqual('twoOP:jin L00 L01 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(29,result.branch_offset)
@@ -535,7 +535,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         table.insert_obj(7,11)
         memory = create_instruction(InstructionType.oneOP,1,[(OperandType.small_constant,7)],branch_to=0x1d,store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_sibling 7 -> 200 ?001d',description)
+        self.assertEqual('oneOP:get_sibling 7 -> Gb8 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(0x1d,result.branch_offset)
@@ -543,7 +543,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.oneOP,1,[(OperandType.small_constant,11)],branch_to=0x1d,store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_sibling 11 -> 200 ?001d',description)
+        self.assertEqual('oneOP:get_sibling 11 -> Gb8 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -553,7 +553,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         table = self.zmachine.story.object_table
         memory = create_instruction(InstructionType.oneOP,2,[(OperandType.small_constant,11)],branch_to=0x1d,store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_child 11 -> 200 ?001d',description)
+        self.assertEqual('oneOP:get_child 11 -> Gb8 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(0x1d,result.branch_offset)
@@ -561,14 +561,14 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.oneOP,2,[(OperandType.small_constant,1)],branch_to=0x1d,store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_child 1 -> 200 ?001d',description)
+        self.assertEqual('oneOP:get_child 1 -> Gb8 ?001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
 
         memory = create_instruction(InstructionType.oneOP,2,[(OperandType.small_constant,1)],branch_to=0x1d,branch_if_true=False,store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_child 1 -> 200 ?!001d',description)
+        self.assertEqual('oneOP:get_child 1 -> Gb8 ?!001d',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,JumpRelativeAction))
         self.assertEqual(0x1d,result.branch_offset)
@@ -579,14 +579,14 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         table = self.zmachine.story.object_table
         memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_parent 1 -> 200',description)
+        self.assertEqual('oneOP:get_parent 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(11,routine[200])
 
         memory = create_instruction(InstructionType.oneOP,3,[(OperandType.small_constant,11)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_parent 11 -> 200',description)
+        self.assertEqual('oneOP:get_parent 11 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -597,7 +597,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         addr = table.get_property_address(2,18)
         memory = create_instruction(InstructionType.oneOP,4,[(OperandType.large_constant,addr)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
+        self.assertEqual('oneOP:get_prop_len %s -> Gb8' % addr,description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(2,routine[200])
@@ -605,7 +605,7 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         addr = table.get_property_address(2,100)
         memory = create_instruction(InstructionType.oneOP,4,[(OperandType.large_constant,addr)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:get_prop_len %s -> 200' % addr,description)
+        self.assertEqual('oneOP:get_prop_len %s -> Gb8' % addr,description)
         result = handler_f(self.zmachine)
         self.assertEqual(0,routine[200])
 
@@ -614,14 +614,14 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         table = self.zmachine.story.object_table
         memory = create_instruction(InstructionType.twoOP,0x12,[(OperandType.small_constant,2),(OperandType.small_constant,18)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop_addr 2 18 -> 200',description)
+        self.assertEqual('twoOP:get_prop_addr 2 18 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
-        self.assertEqual(507,routine[200])
+        self.assertEqual(508,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x12,[(OperandType.small_constant,2),(OperandType.small_constant,20)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop_addr 2 20 -> 200',description)
+        self.assertEqual('twoOP:get_prop_addr 2 20 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -683,27 +683,27 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine = self.zmachine.current_routine()
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,16)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 10 16 -> 200',description)
+        self.assertEqual('twoOP:get_prop 10 16 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xff,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,17)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 10 17 -> 200',description)
+        self.assertEqual('twoOP:get_prop 10 17 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x0002,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 2 19 -> 200',description)
+        self.assertEqual('twoOP:get_prop 2 19 -> Gb8',description)
         self.assertRaises(InstructionException, handler_f, self.zmachine)
 
         self.zmachine.story.object_table.property_defaults[17] = 0xff
         memory = create_instruction(InstructionType.twoOP,0x11,[(OperandType.small_constant,10),(OperandType.small_constant,18)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_prop 10 18 -> 200',description)
+        self.assertEqual('twoOP:get_prop 10 18 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertEqual(0x00ff,routine[200])
 
@@ -712,21 +712,21 @@ class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
         table = self.zmachine.story.object_table
         memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,19)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_next_prop 2 19 -> 200',description)
+        self.assertEqual('twoOP:get_next_prop 2 19 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(18,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,18)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_next_prop 2 18 -> 200' ,description)
+        self.assertEqual('twoOP:get_next_prop 2 18 -> Gb8' ,description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
 
         memory = create_instruction(InstructionType.twoOP,0x13,[(OperandType.small_constant,2),(OperandType.small_constant,20)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:get_next_prop 2 20 -> 200',description)
+        self.assertEqual('twoOP:get_next_prop 2 20 -> Gb8',description)
         self.assertRaises(InterpreterException, handler_f, self.zmachine)
 
 class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
@@ -922,7 +922,7 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_call(self):
         memory=Memory(b'\xe0\x3f\x16\x34\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('varOP:call 11368 -> 0',description)
+        self.assertEqual('varOP:call 11368 -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,CallAction))
         self.assertEqual(5,result.return_to)
@@ -933,7 +933,7 @@ class RoutineInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[200] = 3
         memory = create_instruction(InstructionType.varOP,0,[(OperandType.large_constant,987),(OperandType.small_constant,1),(OperandType.small_constant,2),(OperandType.variable,200)],store_to=150)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('varOP:call 1974 1 2 var200 -> 150',description)
+        self.assertEqual('varOP:call 1974 1 2 Gb8 -> G86',description)
         result = handler_f(self.zmachine)
         self.assertEqual(8,result.return_to)
         self.assertEqual(1974,result.routine_address)
@@ -948,7 +948,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory = create_instruction(InstructionType.twoOP,20,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:add 18 0 -> 200',description)
+        self.assertEqual('twoOP:add 18 0 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(18,routine[200])
@@ -956,7 +956,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test signed
         memory = create_instruction(InstructionType.twoOP,20,[(OperandType.large_constant,0xffff),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:add -1 0 -> 200',description)
+        self.assertEqual('twoOP:add -1 0 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xffff,routine[200])
@@ -965,7 +965,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine[202] = 10
         memory = create_instruction(InstructionType.twoOP,20,[(OperandType.small_constant,5),(OperandType.variable,202)],store_to=0)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:add 5 var202 -> 0',description)
+        self.assertEqual('twoOP:add 5 Gba -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(15,routine[0])
@@ -977,7 +977,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:sub 18 0 -> 200',description)
+        self.assertEqual('twoOP:sub 18 0 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(18,routine[200])
@@ -985,7 +985,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test signed
         memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,0),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:sub 0 1 -> 200',description)
+        self.assertEqual('twoOP:sub 0 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xffff,routine[200])
@@ -994,7 +994,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine[202] = 10
         memory = create_instruction(InstructionType.twoOP,21,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:sub 15 var202 -> 0',description)
+        self.assertEqual('twoOP:sub 15 Gba -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5,routine[0])
@@ -1006,7 +1006,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:div 18 1 -> 200',description)
+        self.assertEqual('twoOP:div 18 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(18,routine[200])
@@ -1014,7 +1014,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test signed
         memory = create_instruction(InstructionType.twoOP,23,[(OperandType.large_constant,0xffff),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:div -1 1 -> 200',description)
+        self.assertEqual('twoOP:div -1 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0xffff,routine[200])
@@ -1023,7 +1023,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine[202] = 5
         memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:div 15 var202 -> 0',description)
+        self.assertEqual('twoOP:div 15 Gba -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(3,routine[0])
@@ -1031,7 +1031,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test round
         memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,1),(OperandType.small_constant,2)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:div 1 2 -> 200',description)
+        self.assertEqual('twoOP:div 1 2 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -1039,7 +1039,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test exception
         memory = create_instruction(InstructionType.twoOP,23,[(OperandType.small_constant,1),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:div 1 0 -> 200',description)
+        self.assertEqual('twoOP:div 1 0 -> Gb8',description)
         self.assertRaises(InstructionException, handler_f,self.zmachine)
 
     def test_mod(self):
@@ -1049,7 +1049,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mod 18 1 -> 200',description)
+        self.assertEqual('twoOP:mod 18 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -1057,7 +1057,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test signed
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.large_constant,0xffff),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mod -1 1 -> 200',description)
+        self.assertEqual('twoOP:mod -1 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[200])
@@ -1066,7 +1066,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine[202] = 5
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,15),(OperandType.variable,202)],store_to=0)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mod 15 var202 -> 0',description)
+        self.assertEqual('twoOP:mod 15 Gba -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0,routine[0])
@@ -1074,7 +1074,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test remainder
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,1),(OperandType.small_constant,2)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mod 1 2 -> 200',description)
+        self.assertEqual('twoOP:mod 1 2 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(1,routine[200])
@@ -1082,7 +1082,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test exception
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.small_constant,1),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mod 1 0 -> 200',description)
+        self.assertEqual('twoOP:mod 1 0 -> Gb8',description)
         self.assertRaises(InstructionException, handler_f,self.zmachine)
 
         # Test negative
@@ -1091,7 +1091,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         memory = create_instruction(InstructionType.twoOP,24,[(OperandType.variable,201),(OperandType.variable,202)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
         result = handler_f(self.zmachine)
-        self.assertEqual('twoOP:mod var201 var202 -> 200',description)
+        self.assertEqual('twoOP:mod Gb9 Gba -> Gb8',description)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(convert_to_unsigned(-3),routine[200])
 
@@ -1217,7 +1217,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test unsigned
         memory=Memory(b'\xd6\x2f\x03\xe8\x02\x00')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mul 1000 var2 -> 0',description)
+        self.assertEqual('twoOP:mul 1000 L01 -> (SP)',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(2000,routine[0])
@@ -1225,7 +1225,7 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test signed
         memory=Memory(b'\xd6\x2f\xff\xff\x01\x30')
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:mul -1 var1 -> 48',description)
+        self.assertEqual('twoOP:mul -1 L00 -> G20',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(convert_to_unsigned(-1),routine[48])
@@ -1297,7 +1297,7 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         memory = Memory(b'\xad\x03')
         self.assertEqual('',self.screen.printed_string)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('oneOP:print_paddr var3', description)
+        self.assertEqual('oneOP:print_paddr L02', description)
         handler_f(self.zmachine)
         self.assertEqual('.',self.screen.printed_string)
    
@@ -1309,7 +1309,7 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.story.game_memory[0x0823] = 0xA5
         self.zmachine.current_routine()[255] = 0x0820
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('oneOP:print_addr var255',description)
+        self.assertEqual('oneOP:print_addr Gef',description)
         
         self.assertEqual('',self.screen.printed_string)
         handler_f(self.zmachine)
@@ -1329,7 +1329,7 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[17] = 20
         self.assertEqual('',self.screen.printed_string)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('varOP:print_num var17',description)
+        self.assertEqual('varOP:print_num G01',description)
         result = handler_f(self.zmachine)        
         self.assertEqual('20',self.screen.printed_string)
 
@@ -1348,7 +1348,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         current_routine = self.zmachine.current_routine()
         memory = create_instruction(InstructionType.varOP,7,[(OperandType.small_constant,0x12)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('varOP:random 18 -> 200',description)
+        self.assertEqual('varOP:random 18 -> Gb8',description)
         result = handler_f(self.zmachine)        
         self.assertEqual(5, current_routine[200])
         self.assertEqual(old_seed, rng.seed)
@@ -1356,14 +1356,14 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Range of 0 should randomize seed
         memory = create_instruction(InstructionType.varOP,7,[(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('varOP:random 0 -> 200',description)
+        self.assertEqual('varOP:random 0 -> Gb8',description)
         result = handler_f(self.zmachine)        
         self.assertNotEqual(old_seed, rng.seed)
 
         # Negative range should set random to that seed
         memory = create_instruction(InstructionType.varOP,7,[(OperandType.large_constant,0xffff)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('varOP:random -1 -> 200',description)
+        self.assertEqual('varOP:random -1 -> Gb8',description)
         result = handler_f(self.zmachine)        
         self.assertEqual(0, current_routine[200])
         self.assertEqual(0xffff, rng.seed)
@@ -1380,7 +1380,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.zmachine.current_routine()[200] = 0x18
         memory = create_instruction(InstructionType.varOP,8,[(OperandType.variable,200)])
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('varOP:push var200',description)
+        self.assertEqual('varOP:push Gb8',description)
         result = handler_f(self.zmachine)        
         self.assertEqual(0x18,self.zmachine.pop_game_stack())
         self.assertEqual(0x12,self.zmachine.pop_game_stack())
@@ -1471,14 +1471,14 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         memory = create_instruction(InstructionType.twoOP,16,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
         result = handler_f(self.zmachine)
-        self.assertEqual('twoOP:loadb 18 0 -> 200',description)
+        self.assertEqual('twoOP:loadb 18 0 -> Gb8',description)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x31, routine[200])
 
         memory = create_instruction(InstructionType.twoOP,16,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
         result = handler_f(self.zmachine)
-        self.assertEqual('twoOP:loadb 18 1 -> 200',description)
+        self.assertEqual('twoOP:loadb 18 1 -> Gb8',description)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(53, routine[200])
 
@@ -1488,14 +1488,14 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.twoOP,15,[(OperandType.small_constant,0x12),(OperandType.small_constant,0)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:loadw 18 0 -> 200',description)
+        self.assertEqual('twoOP:loadw 18 0 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x3135, routine[200])
 
         memory = create_instruction(InstructionType.twoOP,15,[(OperandType.small_constant,0x12),(OperandType.small_constant,1)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:loadw 18 1 -> 200',description)
+        self.assertEqual('twoOP:loadw 18 1 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(12340, routine[200])
@@ -1503,7 +1503,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         # Test exception if out of bounds memory
         memory = create_instruction(InstructionType.twoOP,15,[(OperandType.large_constant,self.story.header.himem_address),(OperandType.small_constant,10)],store_to=0)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:loadw %s 10 -> 0' % self.story.header.himem_address,description)
+        self.assertEqual('twoOP:loadw %s 10 -> (SP)' % self.story.header.himem_address,description)
         self.assertRaises(MemoryAccessException, handler_f, self.zmachine)
 
 
@@ -1521,7 +1521,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         routine[199] = 5
         memory = create_instruction(InstructionType.twoOP,13,[(OperandType.small_constant,200),(OperandType.variable,199)])
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:store 200 var199',description)
+        self.assertEqual('twoOP:store 200 Gb7',description)
         result = handler_f(self.zmachine)        
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(5, routine[200])
@@ -1547,7 +1547,7 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         memory = create_instruction(InstructionType.oneOP,0x0E,[(OperandType.small_constant,200)],store_to=150)
         handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
         result = handler_f(self.zmachine)
-        self.assertEqual('oneOP:load 200 -> 150',description)
+        self.assertEqual('oneOP:load 200 -> G86',description)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(0x31, routine[150])
 
@@ -1580,7 +1580,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_not(self):
         memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.small_constant,0)],store_to=150)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:not 0 -> 150',description)
+        self.assertEqual('oneOP:not 0 -> G86',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(3  ,result.next_address)
@@ -1588,7 +1588,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.large_constant,0xffff)],store_to=150)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:not 65535 -> 150',description)
+        self.assertEqual('oneOP:not 65535 -> G86',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
@@ -1596,7 +1596,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.oneOP,0x0F,[(OperandType.large_constant,43690)],store_to=150)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('oneOP:not 43690 -> 150',description)
+        self.assertEqual('oneOP:not 43690 -> G86',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
@@ -1606,7 +1606,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_or(self):
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:or 0 255 -> 200',description)
+        self.assertEqual('twoOP:or 0 255 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
@@ -1614,7 +1614,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.twoOP,8,[(OperandType.small_constant,0xff),(OperandType.small_constant,0x00)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:or 255 0 -> 200',description)
+        self.assertEqual('twoOP:or 255 0 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
@@ -1623,7 +1623,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_and(self):
         memory = create_instruction(InstructionType.twoOP,9,[(OperandType.small_constant,0x00),(OperandType.small_constant,0xFF)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:and 0 255 -> 200',description)
+        self.assertEqual('twoOP:and 0 255 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
@@ -1631,7 +1631,7 @@ class BitwiseInstructionsTests(TestStoryMixin,unittest.TestCase):
 
         memory = create_instruction(InstructionType.twoOP,9,[(OperandType.small_constant,0xff),(OperandType.small_constant,0xff)],store_to=200)
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('twoOP:and 255 255 -> 200',description)
+        self.assertEqual('twoOP:and 255 255 -> Gb8',description)
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(4  ,result.next_address)
