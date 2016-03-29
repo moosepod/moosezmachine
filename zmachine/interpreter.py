@@ -200,8 +200,6 @@ class GameMemory(Memory):
         self.header = None
     
     def __getitem__(self,idx):
-        if idx >= self._himem_address:
-            raise MemoryAccessException('Index %d in himem not readable' % idx)
         return super(GameMemory,self).__getitem__(idx)
 
     def __setitem__(self,idx,value):
@@ -773,6 +771,7 @@ class Interpreter(object):
             self.story.header.flag_screen_splitting_available = 1
         else:
             self.story.header.flag_screen_splitting_available = 0
+        self._instruction_cache = {}
 
     def call_routine(self, routine_address, next_address,  store_var,  local_vars):
         """ Add a routine call to the stack from the current program counter """
@@ -823,10 +822,17 @@ class Interpreter(object):
     def instruction_at(self,address):
         """ Return the current instruction pointed to by the given address """
         try:    
-            return read_instruction(self.story.raw_data,
+            # Cache instructions as we parse them. Only cache routines 
+            # above the (immutable) highmem address
+            instruction = self._instruction_cache.get(address)
+            if not instruction:
+                instruction = read_instruction(self.story.raw_data,
                             address,
                             self.story.header.version,
                             self.get_ztext())
+                if address >= self.story.header.himem_address:
+                    self._instruction_cache[address] = instruction
+            return instruction
         except IndexError:
             # Requested instruction past end of memory.
             raise Exception('Request to look for instruction past end of memory at 0x%.4x' % address)
