@@ -367,19 +367,19 @@ class Terp(object):
             self.zmachine.step()
         elif self.state == RunState.RUN_UNTIL_BREAKPOINT:
             if ((self.breakpoint and self.zmachine.pc == int(self.breakpoint,16) or
-                (self.breakattext and self.breakattext in curses_output_stream.buffer))):
+                (self.breakattext and len(self.breakattext) and self.breakattext in curses_output_stream.buffer))):
                     self.pause()
             else:
                 self.zmachine.step()
 
     def key_pressed(self,ch,curses_input_stream):
-        if self.state == RunState.RUNNING:
+        if self.state == RunState.RUNNING or self.state == RunState.RUN_UNTIL_BREAKPOINT:
             if ch == curses.ascii.ESC:
                 self.pause()
             elif curses_input_stream.waiting_for_line:
                 curses_input_stream.char_pressed('%s' % chr(ch))
-                if curses_input_stream.line_done:
-                    self.pause() # Pause after each command
+                #if curses_input_stream.line_done:
+                #    self.pause() # Pause after each command
         elif self.state == RunState.PAUSED:
             self.debugger.key_pressed(ch,self)
 

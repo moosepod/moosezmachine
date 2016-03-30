@@ -12,6 +12,10 @@ from zmachine.instructions import read_instruction
 # First global variable in the variable numbering system
 GLOBAL_VAR_START = 0x10
 
+# For detection of infinite loops, throws exception if an address is visited more than this # of times
+# between prompts
+MAX_LOOP_COUNT=200
+
 class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
     pass
@@ -427,6 +431,8 @@ class ObjectTableManager(object):
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """
         old_child_id = self.get_child(parent_id)
+        if old_child_id == obj_id:
+            return # We're already the child, do nothing
 
         start_addr = self._obj_start_addr(obj_id)
         self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = parent_id
@@ -792,6 +798,7 @@ class Interpreter(object):
         else:
             self.story.header.flag_screen_splitting_available = 0
         self._instruction_cache = {}
+        self._visited_addresses = {} # Used to look for endless loops
 
     def call_routine(self, routine_address, next_address,  store_var,  local_vars):
         """ Add a routine call to the stack from the current program counter """
@@ -873,6 +880,11 @@ class Interpreter(object):
                 self.state = Interpreter.RUNNING_STATE
 
         if self.state == Interpreter.RUNNING_STATE:
+            count = self._visited_addresses.setdefault(self.pc,0)
+            count+=1
+            if count > MAX_LOOP_COUNT:
+                raise InterpreterException('Looped to address %.4x over %d times' % (self.pc,MAX_LOOP_COUNT))
+            self._visited_addresses[self.pc] = count
             handler_f,description,next_address = self.current_instruction()
             self.last_instruction=description
             result = handler_f(self)
@@ -907,7 +919,7 @@ class Interpreter(object):
         self.state = Interpreter.WAITING_FOR_LINE_STATE
         self._text_buffer_addr = text_buffer_addr
         self._parse_buffer_addr = parse_buffer_addr
-
+        self._visited_addresses={}
     def _handle_input(self):
         ztext = self.get_ztext()
 
