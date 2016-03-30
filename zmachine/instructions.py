@@ -741,8 +741,7 @@ def op_insert_obj(interpreter,operands,next_address,store_to,branch_offset,branc
 
 def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     obj_id = dereference_variables(operands[0],interpreter)
-    obj = interpreter.story.object_table[obj_id]
-    sibling = obj['sibling']
+    sibling = interpreter.story.object_table.get_sibling(obj_id)
     interpreter.current_routine()[store_to] = sibling
     branch = sibling > 0
     if not branch_if_true:
@@ -764,8 +763,7 @@ def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch
 
 def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     obj_id = dereference_variables(operands[0],interpreter)
-    obj = interpreter.story.object_table[obj_id]
-    interpreter.current_routine()[store_to] = obj['parent']
+    interpreter.current_routine()[store_to] = interpreter.story.object_table.get_parent(obj_id)
     return NextInstructionAction(next_address)
 
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):

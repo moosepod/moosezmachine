@@ -499,7 +499,15 @@ class ObjectTableManager(object):
     def get_child(self,obj_id):
         start_addr = self._obj_start_addr(obj_id)
         return self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET]
-        
+
+    def get_parent(self,obj_id):
+        start_addr = self._obj_start_addr(obj_id)
+        return self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET]
+
+    def get_sibling(self,obj_id):
+        start_addr = self._obj_start_addr(obj_id)
+        return self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET]
+
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}
