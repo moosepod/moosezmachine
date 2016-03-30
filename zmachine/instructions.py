@@ -753,8 +753,7 @@ def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,bran
 
 def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     obj_id = dereference_variables(operands[0],interpreter)
-    obj = interpreter.story.object_table[obj_id]
-    child = obj['child']
+    child = interpreter.story.object_table.get_child(obj_id)
     interpreter.current_routine()[store_to] = child
     branch = child != 0
     if not branch_if_true:

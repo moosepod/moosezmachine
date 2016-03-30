@@ -426,11 +426,7 @@ class ObjectTableManager(object):
 
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """
-        obj = self[parent_id]
-        if obj['child']:
-            old_child_id = obj['child']
-        else:
-            old_child_id = 0
+        old_child_id = self.get_child(parent_id)
 
         start_addr = self._obj_start_addr(obj_id)
         self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = parent_id
@@ -500,6 +496,10 @@ class ObjectTableManager(object):
         else:
             self.game_memory[prop_addr] = value & 0xFF
 
+    def get_child(self,obj_id):
+        start_addr = self._obj_start_addr(obj_id)
+        return self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET]
+        
     def _get_properties(self, start_addr):
         """ Return the properties at the given address """
         properties = {}
