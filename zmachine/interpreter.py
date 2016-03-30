@@ -681,14 +681,25 @@ class InputStreams(object):
             zchars.append(ztext.to_zscii(char))
 
         return zchars
-        
+
+class NullLogger(object):
+    def debug(self):
+        pass
+
+class StreamLogger(object):
+    def __init__(self,stream):
+        self.stream = stream
+
+    def debug(self,msg):
+        self.stream.print_str('>> %s\n' % msg)        
+
 class Story(object):
     """ Full copy of the (a) original story file data and (b) current (possibly modifed) memory.
         Provides wrapper interfaces to subsets of the memory, such as the dictionary, header,
         or objects """
     MIN_FILE_SIZE = 64  # Minimum size of a story file, in bytes
     
-    def __init__(self,data):
+    def __init__(self,data,logger=None):
         """ Initalize with story data. Data is not loaded and validated until reset() is called """
         self.header = None
         self.dictionary = None
@@ -706,17 +717,18 @@ class Story(object):
         self.game_memory = None
         self.rng = RNG()
 
-    def reset(self,force_version=0):
+    def reset(self,force_version=0,logger=None):
         """ Reset/initialize the game state from the raw game data. Will raise StoryFileException on validation issues. 
             If force version is set, pretend this file is that version.
          """
+        self.logger = logger or NullLogger()
         self.raw_data = Memory(self.story_data)
         if len(self.story_data) < Story.MIN_FILE_SIZE:
             raise StoryFileException('Story file is too short')
         self._checksum = sum(self.raw_data[0x40:]) % 65536 # Store checksum at this point, since data will change post-load
         self.header = Header(self.raw_data[0:Story.MIN_FILE_SIZE],force_version=force_version)
         self.header.reset()
-        self.dictionary = Dictionary(self.raw_data, self.header.dictionary_address)
+        self.dictionary = Dictionary(self.raw_data, self.header.dictionary_address,self.logger)
         self.game_memory = GameMemory(self.raw_data,
                                       self.header.static_memory_address,
                                       self.header.himem_address)
@@ -765,7 +777,7 @@ class Interpreter(object):
             is that version
          """
         self.initialized = True
-        self.story.reset(force_version=force_version)
+        self.story.reset(force_version=force_version,logger=self)
         self.pc = self.story.header.main_routine_addr
         self.last_instruction = None
         if self.output_streams:

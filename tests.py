@@ -1939,6 +1939,8 @@ class ZTextTests(unittest.TestCase):
         ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
         self.assertEqual(bytearray(b'8\xa5\x94\xa5'), ztext.encrypt('i'))
         self.assertEqual(bytearray([0x18,0xF4,0xEB,0x25]),ztext.encrypt('about'))
+        self.assertEqual(bytearray([0x5d,0x55,0xd2,0xf9]),ztext.encrypt('report'))
+        self.assertEqual(bytearray([0x16,0x65,0x94,0xA5]),ztext.encrypt(','))
 
     def test_encrypt_text_v1(self):
         # See 3.7.1 and 3.5.4

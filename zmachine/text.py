@@ -10,6 +10,10 @@ class ZTextState(object):
     GETTING_10BIT_ZCHAR_CHAR1       = 2 # See 3.4. Zchar 6 uses next two chars to make a 10-bit character
     GETTING_10BIT_ZCHAR_CHAR2       = 3 # Second char for 2-character zchar
 
+# Shift up/down chars
+SHIFT_UP=4
+SHIFT_DOWN=5
+
 class ZText(object):
     """ Abstraction for handling Z-Machine text. """
     ZCHARS    = [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
@@ -98,7 +102,7 @@ class ZText(object):
                         if self.version < 3 and previous_alphabet == alphabet:
                             results[idx-2] = 4
                         else:
-                            results[idx]=3 # Shift
+                            results[idx]=SHIFT_DOWN
                             idx+=1
                     if idx >= len(results):
                         break
@@ -162,9 +166,9 @@ class ZText(object):
             self.shift(False,False)
         elif zchar == 3:
             self.shift(True,False)
-        elif zchar == 4:
+        elif zchar == SHIFT_UP:
             self.shift(False,True)
-        elif zchar == 5:
+        elif zchar == SHIFT_DOWN:
             self.shift(True,True)
         return ''
 
@@ -178,10 +182,10 @@ class ZText(object):
                 return zchar
             if zchar == 1 or self.version > 2:
                 self.state = ZTextState.WAITING_FOR_ABBREVIATION        
-        elif zchar == 4:
+        elif zchar == SHIFT_UP:
             # 3.2.3
             self._shift_alphabet = 1
-        elif zchar == 5:
+        elif zchar == SHIFT_DOWN:
             # 3.2.3
             self._shift_alphabet = 2
         return ''

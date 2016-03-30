@@ -5,11 +5,12 @@
 from zmachine.text import ZText
 
 class Dictionary(object):
-    def __init__(self,data,start_address):
+    def __init__(self,data,start_address,logger):
         self._memory = data
         self._start_address = start_address
         self._addr = start_address
         self._load_header()
+        self.logger = logger
 
     def _increment_addr(self,amount=1):
         self._addr+=amount
