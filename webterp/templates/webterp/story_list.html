@@ -1,0 +1,17 @@
+{% extends "webterp/base.html" %}
+
+{% block title %}Mooseterp{% endblock %}
+
+{% block page %}
+ <h1>Stories</h1>
+{% if not object_list %}<p>No stories installed.</p>
+{% else %}
+<ul>
+{% for story in object_list %}
+<li>{{ story.title }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+<hr/>
+<a href="{% url "story_create" %}" class="btn">Add Story</a>
+{% endblock %}
