@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 from zmachine import interpreter
 
+
 class Story(models.Model):
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	title = models.CharField(max_length=100)
@@ -25,3 +26,13 @@ class Story(models.Model):
 	class Meta:
 		verbose_name_plural = "stories"
 
+class StoryInstance(models.Model):
+	story = models.ForeignKey(Story)
+	user = models.ForeignKey(settings.AUTH_USER_MODEL)
+	game_data = models.BinaryField()
+
+	def __str__(self):
+		return '%s (%s)' % (self.story,self.user)
+
+	class Meta:
+		unique_together = (('story','user'))

@@ -8,7 +8,7 @@
 {% else %}
 <ul>
 {% for story in object_list %}
-<li>{{ story.title }}</li>
+<li>{{ story.title }} (<a href="{% url "story_play" uuid=story.id %}">Play</a>)</li>
 {% endfor %}
 </ul>
 {% endif %}

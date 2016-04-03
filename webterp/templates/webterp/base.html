@@ -23,7 +23,6 @@
   padding: 40px 15px;
 }
 	</style>
-
   </head>
 
   <body>
@@ -63,5 +62,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="{% static "bootstrap-3.3.6-dist/js/bootstrap.min.js" %}"></script>
+     {% block script_extra %}
+    {% endblock %}
+
   </body>
 </html>

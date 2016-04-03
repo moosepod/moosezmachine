@@ -920,6 +920,7 @@ class Interpreter(object):
         self._text_buffer_addr = text_buffer_addr
         self._parse_buffer_addr = parse_buffer_addr
         self._visited_addresses={}
+
     def _handle_input(self):
         ztext = self.get_ztext()
 
