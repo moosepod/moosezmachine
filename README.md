@@ -31,3 +31,5 @@ MooseZMachine is licensed under the MIT license.
 I used ZILF to create sample zcode files for testing (http://sourceforge.net/p/zilf/_list/tickets?source=navbar)
 
 ZTools was very helpful for debugging (http://inform-fiction.org/zmachine/ztools.html)
+
+GltOte (http://www.eblong.com/zarf/glk/glkote.html) is used for the web version.
