@@ -245,13 +245,8 @@ def process_operands(operands, handler,memory, address,version):
 def extract_literal_string(memory,address,ztext):
     """ Extract the literal string from the given memory/address and return the new address + string """
     zchar_start_address = address
-    zchars = []
-    done = False
-    while not done:
-        zchars_tmp,done = ztext.get_zchars_from_memory(memory,address)
-        address+=2
-        zchars.extend(list(zchars_tmp))            
-    return address, ztext.to_ascii(memory,zchar_start_address,0)   
+    text, offset = ztext.to_ascii(memory,zchar_start_address,0)   
+    return address + offset,text
 
 def extract_branch_offset(memory,address):
     """ Handle section 4.7 """
@@ -520,12 +515,14 @@ def op_print(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
 def op_print_paddr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     addr = dereference_variables(operands[0],interpreter)
-    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr))
+    text,offset = interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr)
+    interpreter.output_streams.print_str(text)
     return NextInstructionAction(next_address)
 
 def op_print_addr(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     addr = dereference_variables(operands[0],interpreter)
-    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr))
+    text,offset = interpreter.get_ztext().to_ascii(interpreter.story.game_memory._raw_data, addr)
+    interpreter.output_streams.print_str(text)
     return NextInstructionAction(next_address)
 
 def op_print_num(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
@@ -732,7 +729,8 @@ def op_put_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
     val = dereference_variables(operands[2],interpreter)
     interpreter.story.object_table.put_prop(obj_id,prop_id,val)
     if debug:
-        interpreter.debug('Set prop %d to %s for %d (%s)' % (prop_id, val, obj_id,interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])
+        interpreter.debug('Set prop %d to %s for %d (%s)' % (prop_id, val, obj_id,text))
 
     return NextInstructionAction(next_address)
 
@@ -750,7 +748,8 @@ def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,bran
     interpreter.current_routine()[store_to] = sibling
     branch = sibling > 0
     if debug:
-        interpreter.debug('Get sibling for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc']),branch))
+        text,offset = interpreter.story.object_table[obj_id]['short_name_zc']
+        interpreter.debug('Get sibling for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(text)[0],branch))
     if not branch_if_true:
         branch = not branch
     if branch:
@@ -765,7 +764,8 @@ def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch
     if not branch_if_true:
         branch = not branch
     if debug:
-        interpreter.debug('Get child for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc']),branch))
+        text,offset = interpreter.story.object_table[obj_id]['short_name_zc']
+        interpreter.debug('Get child for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(text)[0],branch))
     if branch:
         return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)
@@ -774,7 +774,8 @@ def op_get_parent(interpreter,operands,next_address,store_to,branch_offset,branc
     obj_id = dereference_variables(operands[0],interpreter)
     interpreter.current_routine()[store_to] = interpreter.story.object_table.get_parent(obj_id)
     if debug:
-        interpreter.debug('Get parent for %d (%s)' % (obj_id,interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])))
+        text,offset = interpreter.story.object_table[obj_id]['short_name_zc']
+        interpreter.debug('Get parent for %d (%s)' % (obj_id,text))
     return NextInstructionAction(next_address)
 
 def op_get_prop_len(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
@@ -793,7 +794,8 @@ def op_remove_obj(interpreter,operands,next_address,store_to,branch_offset,branc
     obj_id = dereference_variables(operands[0],interpreter)
     interpreter.story.object_table.remove_obj(obj_id)
     if debug:
-        interpreter.debug('Removed %d (%s)' % (obj_id,interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'][0])
+        interpreter.debug('Removed %d (%s)' % (obj_id,text))
     return NextInstructionAction(next_address)
 
 def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
@@ -801,7 +803,8 @@ def op_print_obj(interpreter,operands,next_address,store_to,branch_offset,branch
     obj = interpreter.story.object_table[obj_id]
     if not obj:
         raise InstructionException('print_obj called with non-existant obj id %d' % obj_id)
-    interpreter.output_streams.print_str(interpreter.get_ztext().to_ascii(obj['short_name_zc']))
+    text,offset=interpreter.get_ztext().to_ascii(obj['short_name_zc'])
+    interpreter.output_streams.print_str(text)
     return NextInstructionAction(next_address)
 
 def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
@@ -815,8 +818,8 @@ def op_jin(interpreter,operands,next_address,store_to,branch_offset,branch_if_tr
 
     if debug:
         interpreter.debug('jump (%s) if %s (%s) in %s (%s)' % (branch,
-                                                                a,interpreter.get_ztext().to_ascii(interpreter.story.object_table[a]['short_name_zc']),
-                                                                b,interpreter.get_ztext().to_ascii(interpreter.story.object_table[b]['short_name_zc'])))
+                                                                a,interpreter.get_ztext().to_ascii(interpreter.story.object_table[a]['short_name_zc'])[0],
+                                                                b,interpreter.get_ztext().to_ascii(interpreter.story.object_table[b]['short_name_zc'])[0]))
 
     if branch:
         return find_jump_option(branch_offset,next_address)
@@ -845,7 +848,8 @@ def op_get_prop(interpreter,operands,next_address,store_to,branch_offset,branch_
     interpreter.current_routine()[store_to]= value
 
     if debug:
-        interpreter.debug('get prop %s on %s (%s)' % (property_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('get prop %s on %s (%s)' % (property_number,object_number,text))
 
     return NextInstructionAction(next_address)
 
@@ -857,7 +861,8 @@ def op_get_prop_addr(interpreter,operands,next_address,store_to,branch_offset,br
     interpreter.current_routine()[store_to] = prop_addr 
 
     if debug:
-        interpreter.debug('get prop addr %s on %s (%s)' % (property_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('get prop addr %s on %s (%s)' % (property_number,object_number,text))
     return NextInstructionAction(next_address)
 
 def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string,debug=False):
@@ -865,7 +870,8 @@ def op_get_next_prop(interpreter,operands,next_address,store_to,branch_offset,br
     property_number = dereference_variables(operands[1],interpreter)
 
     if debug:
-        interpreter.debug('get next prop after %s for %s (%s)' % (property_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('get next prop after %s for %s (%s)' % (property_number,object_number,text))
 
     interpreter.current_routine()[store_to] = interpreter.story.object_table.get_next_prop(object_number,property_number)
 
@@ -875,7 +881,8 @@ def op_test_attr(interpreter,operands,next_address,store_to,branch_offset,branch
     object_number = dereference_variables(operands[0],interpreter)
     attribute_number = dereference_variables(operands[1],interpreter)
     if debug:
-        interpreter.debug('test attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('test attr %s on %s (%s)' % (attribute_number,object_number,))
 
     branch = interpreter.story.object_table.test_attribute(object_number, attribute_number)
     if not branch_if_true:
@@ -892,7 +899,8 @@ def op_set_attr(interpreter,operands,next_address,store_to,branch_offset,branch_
 
     interpreter.story.object_table.set_attribute(object_number, attribute_number,True)
     if debug:
-        interpreter.debug('set attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset=interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('set attr %s on %s (%s)' % (attribute_number,object_number,text))
 
     return NextInstructionAction(next_address)
 
@@ -902,7 +910,8 @@ def op_clear_attr(interpreter,operands,next_address,store_to,branch_offset,branc
 
     interpreter.story.object_table.set_attribute(object_number, attribute_number,False)
     if debug:
-        interpreter.debug('clear attr %s on %s (%s)' % (attribute_number,object_number,interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[object_number]['short_name_zc'])
+        interpreter.debug('clear attr %s on %s (%s)' % (attribute_number,object_number,text))
 
     return NextInstructionAction(next_address)
 

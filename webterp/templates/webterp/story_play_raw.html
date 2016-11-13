@@ -1,0 +1,94 @@
+{% extends "webterp/base.html" %}
+
+{% block title %}Play {{ story.title }}{% endblock %}
+
+{% block script_extra %}
+<script language="JavaScript">
+function send_text(text) {
+		$.ajax({
+			type: "POST",
+			url: '{% url "story_submit_text" uuid=story.id %}',
+			data: {'text':text},
+			success: function(data) {
+				$('#loading-message').hide();
+				$('#room_name-id').html(data['room_name']);
+				$('#score-id').html(data['score']);
+				$('#add-text-here-id').html(data['output'] + '<div id="add-text-here-id"></div>');
+			},
+			dataType: 'json'
+		});
+}
+
+function submit_text() {
+	var text = $('#input-text').val();
+	$('#input-text').val('');
+	send_text(text);
+}
+
+$(document).ready(function() {
+	send_text('');
+});
+
+// from https://docs.djangoproject.com/en/1.9/ref/csrf/
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie != '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = jQuery.trim(cookies[i]);
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+var csrftoken = getCookie('csrftoken');
+
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+</script>
+{% endblock %}
+
+{% block page %}
+<table width="100%">
+ <tr>
+ 	<td id="room_name-id" width="50%"></td>
+ 	<td id="score-id" width="50%" align="right"></td>
+ </tr>
+
+ <tr>
+ <td colspan="2"><hr/></td>
+ </tr>
+
+ <tr>
+ 	<td colspan="2" id="output-text-id">
+ 	<div id="loading-message">Loading story...</div>
+ 	<pre>
+ 		<div id="add-text-here-id"></div>
+ 	</pre>
+ 	</td>
+ </tr>
+  <tr>
+ <td colspan="2"><hr/></td>
+ </tr>
+
+<tr>
+ 	<td colspan="2" id="text-input">
+ 	<input type="text" width="50" id="input-text"/> <button onClick="submit_text();">Go</button>
+ 	</td>
+</tr>
+</table>
+
+{% endblock %}

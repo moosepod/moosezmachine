@@ -41,14 +41,15 @@ class ZText(object):
 
     def to_ascii(self, memory,start_at=0,length_in_bytes=0):
         """ Convert the ztext starting at start_at in memory to an ascii string.
+            Return the ascii text as well as the final memory offset
             If length_in_bytes > 0, convert that many bytes. Otherwise convert until the end of 
             string word is found """
-        chars = self._extract_zchars(memory,start_at,length_in_bytes)
+        chars,idx = self._extract_zchars(memory,start_at,length_in_bytes)
         output_chars = self._handle_zchars(chars)
         if self.debug:
             print('-- end')
 
-        return ''.join(output_chars)
+        return ''.join(output_chars),idx
 
     def _extract_zchars(self,memory,start_at,length_in_bytes):
         if length_in_bytes < 1:
@@ -65,7 +66,7 @@ class ZText(object):
             idx+=2
             if length_in_bytes < 1 and is_last_char:
                 break
-        return chars
+        return chars,idx
 
     def _handle_zchars(self,zchars):
         chars = []
@@ -226,7 +227,8 @@ class ZText(object):
     def _waiting_for_abbreviation(self,zchar):
         ztext = ZText(version=self.version,get_abbrev_f=None)
         self.state = ZTextState.DEFAULT
-        return ztext.to_ascii(self.get_abbrev_f((32 * (self._previous_zchar-1)) + zchar),0,0)
+        text,offset= ztext.to_ascii(self.get_abbrev_f((32 * (self._previous_zchar-1)) + zchar),0,0)
+        return text
 
     @property
     def alphabet(self):

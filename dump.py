@@ -94,7 +94,7 @@ def dump(path,abbrevs=False,dictionary=False,objects=False,instructions=False,st
                 obj = zmachine.story.object_table[i]
                 zc = obj['short_name_zc']
                 try:
-                    obj['short_name'] = ztext.to_ascii(zc,0,len(zc))
+                    obj['short_name'],offset = ztext.to_ascii(zc,0,len(zc))
                 except ZTextException:
                     obj['short_name'] = '(ZTEXT ERROR)'
                 print('%d) %s' % (i,obj))
@@ -123,7 +123,7 @@ def dump(path,abbrevs=False,dictionary=False,objects=False,instructions=False,st
             for i in range(0,len(dictionary)):
                 try:
                     ztext.reset()
-                    text = ztext.to_ascii(Memory(dictionary[i]), 0,4)
+                    text,offset = ztext.to_ascii(Memory(dictionary[i]), 0,4)
                 except ZTextException as e:  
                     print('Error. %s' % e)
                 print(' %d: %.2X %.2X %.2X %.2X (%s)' % (i, 

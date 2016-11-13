@@ -112,7 +112,7 @@ class ObjectsWindow(object):
         obj_index = self.obj_index
         obj = zmachine.story.object_table[obj_index]
         zc = obj['short_name_zc']
-        self._safe_add_str('%d: %s' % (obj_index,ztext.to_ascii(zc,0,len(zc))),window)
+        self._safe_add_str('%d: %s' % (obj_index,ztext.to_ascii(zc,0,len(zc))[0]),window)
         if obj['parent']:
             self._safe_add_str('   child of: %d' % (obj['parent']),window)
         if obj['child']:
@@ -150,7 +150,7 @@ class DictionaryWindow(object):
             try:
                 idx = i + self.dictionary_index
                 ztext.reset()
-                text = ztext.to_ascii(Memory(dictionary[idx]), 0,4)
+                text,offset = ztext.to_ascii(Memory(dictionary[idx]), 0,4)
             except ZTextException as e:  
                 window.addstr('Error. %s\n' % e)
             window.addstr(' %d: %.2X %.2X %.2X %.2X (%s)\n' % (idx, 
@@ -187,7 +187,7 @@ class AbbreviationWindow(object):
             idx = self.abbrev_index + i
             try:
                 ztext.reset()
-                text = ztext.to_ascii(zmachine.get_abbrev(idx),0,0)
+                text,offset = ztext.to_ascii(zmachine.get_abbrev(idx),0,0)
                 if text:
                     window.addstr('%d: %s\n' % (idx,text))
                 else:

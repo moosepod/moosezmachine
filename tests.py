@@ -200,9 +200,13 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(36,branch_offset)
 
     def test_extract_literal_string(self):
-        mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
-        address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
+        from pycallgraph import PyCallGraph
+        from pycallgraph.output import GraphvizOutput
+        with PyCallGraph(output=GraphvizOutput()):
+            for i in range(1,1000):
+                mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+                address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+                address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
         self.assertEqual("Hello.\n", literal_string)
 
     def test_format_description(self):
@@ -321,14 +325,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['child'])
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(11, obj['parent'])
-        self.assertEqual('The first room',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('The first room',self.zmachine.get_ztext().to_ascii(obj['short_name_zc'])[0])
         self.assertEqual('00000000000000000000000000100000',str(obj['attributes']))
 
         obj = self.story.object_table[10]
         self.assertEqual(0, obj['child'])
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(0, obj['parent'])
-        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc'])[0])
         self.assertEqual('00000000000000000000000000000000',str(obj['attributes']))
         self.assertEqual({16: {'data': bytearray(b'\xff'), 'address': 557, 'size': 1}, 
             17: {'data': bytearray(b'\x00\x02'), 'address': 554, 'size': 2}, 
@@ -345,7 +349,7 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(1, obj['child'])
         self.assertEqual(0, obj['sibling'])
         self.assertEqual(0, obj['parent'])
-        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc']))
+        self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc'])[0])
         self.assertEqual('00000000000011111111111111111111',str(obj['attributes']))
 
     def test_get_next_prop(self):
@@ -1232,11 +1236,11 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
 
 class InputStreamTests(unittest.TestCase):
     def test_fail(self):
-        self.fail()
+        self.fail('Implement')
 
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_sread(self):
-        self.fail()
+        self.fail('Implement')
 
     def test_set_window(self):
         self.assertEqual(0, self.zmachine.screen.window_id)
@@ -1255,10 +1259,10 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(10, self.zmachine.screen.top_window_size)
 
     def test_output_stream(self):
-        self.fail()
+        self.fail('Implement')
 
     def test_input_stream(self):
-        self.fail()
+        self.fail('Implement')
 
     def test_print(self):
         memory=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
@@ -1876,16 +1880,16 @@ class ZTextTests(unittest.TestCase):
         ztext = ZText(version=1,get_abbrev_f=self.get_abbrev_f)
         # Check that we terminate the output when we hit an end character
         data = Memory([0,0,0x80,0x00,0,0])
-        s = ztext.to_ascii(data,0,0)
+        s,offset = ztext.to_ascii(data,0,0)
         self.assertEqual('      ',s)
         
         # Check explicit length
-        s = ztext.to_ascii(data,0,2)
+        s,offset = ztext.to_ascii(data,0,2)
         self.assertEqual('   ',s)
     
     def test_to_ascii_shift(self):
         ztext = ZText(version=3,get_abbrev_f=self.get_abbrev_f)
-        self.assertEqual('.',ztext.to_ascii(Memory([0x16,0x45,0x94,0xA5]),0,4))
+        self.assertEqual('.',ztext.to_ascii(Memory([0x16,0x45,0x94,0xA5]),0,4)[0])
    
     def test_handle_zchar_v1(self):
         # V1 does not handle abbreviations
@@ -1953,7 +1957,7 @@ class ZTextTests(unittest.TestCase):
 
 class DictionaryTests(unittest.TestCase):
     def setUp(self):
-        self.dictionary = Dictionary(Memory([0x01,0x01,0x02,0x00,0x03,0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]),0)
+        self.dictionary = Dictionary(Memory([0x01,0x01,0x02,0x00,0x03,0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]),0,None)
     
     def test_header(self):
         self.assertEqual([1], self.dictionary.keyboard_codes)
@@ -2045,7 +2049,7 @@ class ValidationTests(unittest.TestCase):
             raw_data[0] = version
             try:
                 Story(raw_data).reset()
-                self.fail()
+                self.fail('Should throw error for unsupported version')
             except MemoryAccessException as e:
                 # Should throw exception as our object table points at bad data
                 pass
