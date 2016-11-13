@@ -196,25 +196,37 @@ class Header(Memory):
         self.set_flag(Header.FLAGS_1,6,1) # Font is not variable width
 
 class GameMemory(Memory):
-    """ Wrapper around the memory that restricts access to valid locations """
+    """ Wrapper around the memory that optionally restricts access to valid locations """
     def __init__(self,memory, static_address,himem_address):
         self._raw_data = memory._raw_data
         self._himem_address = himem_address
         self._static_address = static_address
         self.header = None
     
-    def __getitem__(self,idx):
-        return super(GameMemory,self).__getitem__(idx)
-
-    def __setitem__(self,idx,value):
-        if idx >= self._static_address or (idx < Header.HEADER_SIZE and idx != Header.FLAGS_2):
-            raise MemoryAccessException('Index %d in header not writeable to game' % idx)
-        super(GameMemory,self).__setitem__(idx,value)        
-
-    def set_flag(self,idx,bit,value):
-        if idx == Header.FLAGS_2 and bit > 2:
+    def set_flag(self,idx,bit,value,check_bounds=False):
+        if check_bounds and idx == Header.FLAGS_2 and bit > 2:
             raise MemoryAccessException('Bit %d of index %d not writeable to game' % (bit,idx))
         super(GameMemory,self).set_flag(idx,bit,value)
+
+    def word(self,idx,check_bounds=False):
+        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
+            raise MemoryAccessException('Word at index %d not readable to game' % idx)
+        return super(GameMemory,self).word(idx)
+
+    def set_word(self,idx,val,check_bounds=False):
+        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
+            raise MemoryAccessException('Word at index %d not readable to game' % idx)
+        return super(GameMemory,self).set_word(idx,val)
+
+    def get_byte(self,idx,check_bounds=False):
+        if check_bounds and (idx >= self._himem_address and idx >= self._static_address):
+            raise MemoryAccessException('Byte at index %d not readable to game' % idx)
+        return super(GameMemory,self).__getitem__(idx)
+
+    def set_byte(self,idx,val,check_bounds=False):
+        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
+            raise MemoryAccessException('Byte at index %d not readable to game' % idx)
+        return super(GameMemory,self).__setitem__(idx,val)
 
 class Routine(object):
     """ Context for a routine in memory """

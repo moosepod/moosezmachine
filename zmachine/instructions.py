@@ -1058,7 +1058,7 @@ def op_storeb(interpreter,operands,next_address,store_to,branch_offset,branch_if
     val = dereference_variables(operands[2],interpreter)
 
     memory = interpreter.story.game_memory
-    memory[base_addr+index] = val
+    memory.set_byte(base_addr+index,val,check_bounds=True)
 
     return NextInstructionAction(next_address)
 
@@ -1068,7 +1068,7 @@ def op_storew(interpreter,operands,next_address,store_to,branch_offset,branch_if
     val = dereference_variables(operands[2],interpreter)
 
     memory = interpreter.story.game_memory
-    memory.set_word(base_addr+(2*index),val)
+    memory.set_word(base_addr+(2*index),val,check_bounds=True)
 
     return NextInstructionAction(next_address)
 
@@ -1089,7 +1089,7 @@ def op_loadw(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     index = dereference_variables(operands[1],interpreter)
 
     routine = interpreter.current_routine()
-    routine[store_to] = interpreter.story.game_memory.word(base_addr+(2*index))
+    routine[store_to] = interpreter.story.game_memory.word(base_addr+(2*index),check_bounds=True)
 
     return NextInstructionAction(next_address)
 
@@ -1098,7 +1098,7 @@ def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_
     index = dereference_variables(operands[1],interpreter)
 
     routine = interpreter.current_routine()
-    routine[store_to] = interpreter.story.game_memory[base_addr+index]
+    routine[store_to] = interpreter.story.game_memory.get_byte(base_addr+index,check_bounds=True)
 
     return NextInstructionAction(next_address)
 
