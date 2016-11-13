@@ -102,6 +102,7 @@ class MainLoop(object):
         self.curses_input_stream = CursesInputStream(story)
         self.zmachine.input_streams.keyboard_stream = self.curses_input_stream
         self.zmachine.input_streams.select_stream(0)
+        raise Exception('Test')
 
         terp = Terp(self.zmachine,story)
         terp.run()

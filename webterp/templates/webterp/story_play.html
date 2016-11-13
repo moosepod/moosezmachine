@@ -1,94 +1,74 @@
-{% extends "webterp/base.html" %}
+{% load staticfiles %}<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Play {{ story.title }}</title>
 
-{% block title %}Play {{ story.title }}{% endblock %}
+<link rel="stylesheet" href="{% static "glkote/glkote.css" %}" type="text/css">
 
-{% block script_extra %}
-<script language="JavaScript">
-function send_text(text) {
-		$.ajax({
-			type: "POST",
-			url: '{% url "story_submit_text" uuid=story.id %}',
-			data: {'text':text},
-			success: function(data) {
-				$('#loading-message').hide();
-				$('#room_name-id').html(data['room_name']);
-				$('#score-id').html(data['score']);
-				$('#add-text-here-id').html(data['output'] + '<div id="add-text-here-id"></div>');
-			},
-			dataType: 'json'
-		});
+<style type="text/css">
+
+body {
+  margin: 0px;
+  height: 100%;
 }
 
-function submit_text() {
-	var text = $('#input-text').val();
-	$('#input-text').val('');
-	send_text(text);
+#gameport {
+  position: absolute;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #CCAA88;
+  margin: 0px;
 }
 
-$(document).ready(function() {
-	send_text('');
-});
+</style>
 
-// from https://docs.djangoproject.com/en/1.9/ref/csrf/
-function getCookie(name) {
-    var cookieValue = null;
-    if (document.cookie && document.cookie != '') {
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var cookie = jQuery.trim(cookies[i]);
-            // Does this cookie string begin with the name we want?
-            if (cookie.substring(0, name.length + 1) == (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-var csrftoken = getCookie('csrftoken');
+<script src="{% static "glkote/jquery-1.11.2.min.js" %}" type="text/javascript"></script>
+<script src="{% static "glkote/glkote.js" %}" type="text/javascript"></script>
 
-function csrfSafeMethod(method) {
-    // these HTTP methods do not require CSRF protection
-    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+<script type="text/javascript">
+
+var generation = 0;
+var metrics;
+
+function accept(data) {
+  generation = generation+1;
+  var arg = { type: 'update', gen: generation };
+  if (data['type'] == 'init') {
+    metrics = data['metrics'];
+    arg['windows'] = [{ id: 1,
+
+                        left: metrics.outspacingx,
+                        top: metrics.outspacingy,
+                        width: metrics.width-(2*metrics.outspacingx),
+                        height: metrics.height-(2*metrics.outspacingy)}];
+    arg['content'] = [{id: 1, 
+      clear: false,
+      text:[{append: true, flowbreak: true, content: [{'style': 'normal','text': 'Hello, world!'}]}]}];
+  }
+  GlkOte.update(arg);
 }
-$.ajaxSetup({
-    beforeSend: function(xhr, settings) {
-        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-            xhr.setRequestHeader("X-CSRFToken", csrftoken);
-        }
-    }
-});
+
+Game = {
+  accept: accept,
+};
+
 </script>
-{% endblock %}
 
-{% block page %}
-<table width="100%">
- <tr>
- 	<td id="room_name-id" width="50%"></td>
- 	<td id="score-id" width="50%" align="right"></td>
- </tr>
+</head>
+<body onLoad="GlkOte.init();">
+<div id="gameport">
+<div id="windowport">
+<noscript><hr>
+<p>You'll need to turn on Javascript in your web browser to play this game.</p>
+<hr></noscript>
+</div>
+<div id="loadingpane">
+<img src="{% static "glkote/waiting.gif" %}" alt="LOADING"><br>
+<em>&nbsp;&nbsp;&nbsp;Loading...</em>
+</div>
+<div id="errorpane" style="display:none;"><div id="errorcontent">...</div></div>
+</div>
 
- <tr>
- <td colspan="2"><hr/></td>
- </tr>
-
- <tr>
- 	<td colspan="2" id="output-text-id">
- 	<div id="loading-message">Loading story...</div>
- 	<pre>
- 		<div id="add-text-here-id"></div>
- 	</pre>
- 	</td>
- </tr>
-  <tr>
- <td colspan="2"><hr/></td>
- </tr>
-
-<tr>
- 	<td colspan="2" id="text-input">
- 	<input type="text" width="50" id="input-text"/> <button onClick="submit_text();">Go</button>
- 	</td>
-</tr>
-</table>
-
-{% endblock %}
+</body>
+</html>

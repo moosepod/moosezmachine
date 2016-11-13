@@ -10,3 +10,5 @@ localtestdata/**
 todos.txt
 local_settings.py
 **/.DS_Store
+octave-workspace
+pycallgraph.png

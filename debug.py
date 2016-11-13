@@ -453,7 +453,7 @@ class MainLoop(object):
             try:
                 ch = debugger.window.getch()
                 if ch == curses.ERR:
-                    terp.idle()
+                   terp.idle()
                 else:
                     terp.key_pressed(ch,self.curses_input_stream)
             except InstructionException as e:
@@ -497,12 +497,14 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--file')
+    parser.add_argument('--profile')
     parser.add_argument('--breakpoint')
     parser.add_argument('--transcript')
     parser.add_argument('--breakattext')
     data = parser.parse_args()
     filename = data.file
     breakpoint = data.breakpoint
+    profile = data.profile
     breakattext = data.breakattext
     transcript = data.transcript
     if breakpoint and not breakpoint.startswith('0x'):
@@ -510,7 +512,13 @@ def main():
     try:
         while True:
             try:
-                start(filename,breakpoint,breakattext,transcript)    
+                if profile:
+                        from pycallgraph import PyCallGraph
+                        from pycallgraph.output import GraphvizOutput
+                        with PyCallGraph(output=GraphvizOutput()):
+                            start(filename,breakpoint,breakattext,transcript)    
+                else:
+                    start(filename,breakpoint,breakattext,transcript)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
@@ -523,4 +531,4 @@ def start(filename,breakpoint,breakattext,transcript):
     wrapper(loop.loop)
 
 if __name__ == "__main__":
-    main()
+        main()
