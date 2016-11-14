@@ -997,7 +997,7 @@ class Interpreter(object):
             room_name = 'INVALID OBJECT'
         else:
             current_obj = self.story.object_table[current_obj_id]
-            room_name = self.get_ztext().to_ascii(current_obj['short_name_zc'])
+            room_name,next_address = self.get_ztext().to_ascii(current_obj['short_name_zc'])
 
         if self.story.header.flag_status_line_type == 0:
             # 8.2.3.1

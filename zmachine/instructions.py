@@ -245,8 +245,8 @@ def process_operands(operands, handler,memory, address,version):
 def extract_literal_string(memory,address,ztext):
     """ Extract the literal string from the given memory/address and return the new address + string """
     zchar_start_address = address
-    text, offset = ztext.to_ascii(memory,zchar_start_address,0)   
-    return address + offset,text
+    text, next_address = ztext.to_ascii(memory,zchar_start_address,0)   
+    return next_address,text
 
 def extract_branch_offset(memory,address):
     """ Handle section 4.7 """
