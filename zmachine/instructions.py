@@ -1102,7 +1102,6 @@ def op_loadb(interpreter,operands,next_address,store_to,branch_offset,branch_if_
 
     return NextInstructionAction(next_address)
 
-
 def op_save(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
     return SaveAction(branch_offset, next_address)
 

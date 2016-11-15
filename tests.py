@@ -201,13 +201,9 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(36,branch_offset)
 
     def test_extract_literal_string(self):
-        from pycallgraph import PyCallGraph
-        from pycallgraph.output import GraphvizOutput
-        with PyCallGraph(output=GraphvizOutput()):
-            for i in range(1,1000):
-                mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
-                address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
-                address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
+        mem = Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')
+        address,instruction_form, instruction_type,  opcode_number,operands = extract_opcode(mem,0)
+        address, literal_string = extract_literal_string(mem, address, ZText(version=3,get_abbrev_f=lambda x: Memory([0x80,0])))
         self.assertEqual("Hello.\n", literal_string)
 
     def test_format_description(self):
@@ -335,14 +331,14 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(0, obj['parent'])
         self.assertEqual('',self.zmachine.get_ztext().to_ascii(obj['short_name_zc'])[0])
         self.assertEqual('00000000000000000000000000000000',str(obj['attributes']))
-        self.assertEqual({16: {'data': bytearray(b'\xff'), 'address': 557, 'size': 1}, 
-            17: {'data': bytearray(b'\x00\x02'), 'address': 554, 'size': 2}, 
-            10: {'data': bytearray(b'\x00\n'), 'address': 573, 'size': 2}, 
-            11: {'data': bytearray(b'\x00\x00'), 'address': 570, 'size': 2}, 
-            12: {'data': bytearray(b'\x00\x00'), 'address': 567, 'size': 2}, 
-            13: {'data': bytearray(b'\n'), 'address': 565, 'size': 1}, 
-            14: {'data': bytearray(b'\x00\x00'), 'address': 562, 'size': 2}, 
-            15: {'data': bytearray(b'\x00\x00'), 'address': 559, 'size': 2}},
+        self.assertEqual({16: {'data': bytearray(b'\xff'), 'address': 558, 'size': 1}, 
+            17: {'data': bytearray(b'\x00\x02'), 'address': 555, 'size': 2}, 
+            10: {'data': bytearray(b'\x00\n'), 'address': 574, 'size': 2}, 
+            11: {'data': bytearray(b'\x00\x00'), 'address': 571, 'size': 2}, 
+            12: {'data': bytearray(b'\x00\x00'), 'address': 568, 'size': 2}, 
+            13: {'data': bytearray(b'\n'), 'address': 566, 'size': 1}, 
+            14: {'data': bytearray(b'\x00\x00'), 'address': 563, 'size': 2}, 
+            15: {'data': bytearray(b'\x00\x00'), 'address': 560, 'size': 2}},
             obj['properties'])
 
         obj = self.story.object_table[11]
