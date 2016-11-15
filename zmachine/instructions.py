@@ -748,8 +748,8 @@ def op_get_sibling(interpreter,operands,next_address,store_to,branch_offset,bran
     interpreter.current_routine()[store_to] = sibling
     branch = sibling > 0
     if debug:
-        text,offset = interpreter.story.object_table[obj_id]['short_name_zc']
-        interpreter.debug('Get sibling for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(text)[0],branch))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])
+        interpreter.debug('Get sibling for %d (%s) and branch (%s)' % (obj_id,text,branch))
     if not branch_if_true:
         branch = not branch
     if branch:
@@ -764,8 +764,8 @@ def op_get_child(interpreter,operands,next_address,store_to,branch_offset,branch
     if not branch_if_true:
         branch = not branch
     if debug:
-        text,offset = interpreter.story.object_table[obj_id]['short_name_zc']
-        interpreter.debug('Get child for %d (%s) and branch (%s)' % (obj_id,interpreter.get_ztext().to_ascii(text)[0],branch))
+        text,offset = interpreter.get_ztext().to_ascii(interpreter.story.object_table[obj_id]['short_name_zc'])
+        interpreter.debug('Get child for %d (%s) and branch (%s)' % (obj_id,text,branch))
     if branch:
         return find_jump_option(branch_offset,next_address)
     return NextInstructionAction(next_address)

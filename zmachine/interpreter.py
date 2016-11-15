@@ -14,7 +14,7 @@ GLOBAL_VAR_START = 0x10
 
 # For detection of infinite loops, throws exception if an address is visited more than this # of times
 # between prompts
-MAX_LOOP_COUNT=200
+MAX_LOOP_COUNT=500
 
 class StoryFileException(Exception):
     """ Thrown in cases where a story file is invalid """
