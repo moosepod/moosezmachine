@@ -18,7 +18,7 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream
+from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream,STDOUTOutputStream
 
 STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
@@ -64,9 +64,10 @@ class Terp(object):
 	            self.run()
 
 class MainLoop(object):
-    def __init__(self,zmachine):
+    def __init__(self,zmachine,transcript):
         self.zmachine = zmachine
         self.curses_input_stream = None
+        self.transcript = transcript
 
     def loop(self,screen):
         # Disable automatic echo
@@ -96,13 +97,16 @@ class MainLoop(object):
                               0)
         story.timeout(1)
         story.refresh()
-        curses_output_stream = CursesOutputStream(story,status)
-        self.zmachine.output_streams.set_screen_stream(curses_output_stream)
+        if self.transcript:
+            output_stream = STDOUTOutputStream(story,status)
+        else:
+            output_stream = TranscriptOutputStream(story,status)
+
+        self.zmachine.output_streams.set_screen_stream(output_stream)
 
         self.curses_input_stream = CursesInputStream(story)
         self.zmachine.input_streams.keyboard_stream = self.curses_input_stream
         self.zmachine.input_streams.select_stream(0)
-        raise Exception('Test')
 
         terp = Terp(self.zmachine,story)
         terp.run()
@@ -115,6 +119,8 @@ class MainLoop(object):
                 else:
                     terp.key_pressed(ch,self.curses_input_stream)
                 story.refresh()
+            except QuitException as e:
+                raise e
             except Exception as e:
                 raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
 
@@ -134,24 +140,24 @@ def main(*args):
     if sys.version_info[0] < 3:
         raise Exception("Moosezmachine requires Python 3.")
 
-    if len(sys.argv) < 1:
-    	print('Usage: python terp.py filename.')
-    	return
+    parser = argparse.ArgumentParser()
+    parser.add_argument('story',help='Story file to play')
+    parser.add_argument('--transcript',help='Output as transcript (no curses)',required=False,action='store_true')
+    data = parser.parse_args()
 
-    filename = sys.argv[1]
     try:
         while True:
             try:
-                start(filename,)    
+                start(data.story,transcript=data.transcript)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
     except QuitException:
         print("Thanks for playing!")
 
-def start(filename):
+def start(filename,transcript):
     zmachine = load_zmachine(filename)
-    loop = MainLoop(zmachine)
+    loop = MainLoop(zmachine,transcript=transcript)
     wrapper(loop.loop)
 
 if __name__ == "__main__":

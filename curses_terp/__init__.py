@@ -118,6 +118,27 @@ class CursesOutputStream(OutputStream):
         self.status_window.addstr(0,0,status_msg,curses.A_REVERSE)
         self.status_window.refresh()
 
+class STDOUTOutputStream(OutputStream):
+    def __init__(self,window,status_window):
+        super(STDOUTOutputStream,self).__init__()
+        self.buffer = ''
+        self.status_height,self.status_width=0,0        
+
+    def refresh(self):
+        pass
+
+    def new_line(self):
+        print('')
+        
+    def print_str(self,txt):
+        print(txt,end='')
+
+    def print_char(self,txt):
+        print(txt,end='')
+
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
+        pass
+
 class FileTranscriptStream(OutputStream):
     def __init__(self,path):
         super(FileTranscriptStream,self).__init__()
