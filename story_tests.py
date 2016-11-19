@@ -11,6 +11,7 @@
 import argparse
 import os
 import sys
+import difflib
 
 from io import StringIO
 
@@ -33,7 +34,14 @@ def test_story(story_path,out_path,commands_path):
         except QuitException:
             break
     
-    print(story_stream.getvalue())
+    print('Done. Comparing results')
+    expected_results = open(out_path,'r').read()
+    results = story_stream.getvalue()
+    if results == expected_results:
+        print('OK.')
+    else:
+        for line in difflib.context_diff(results, expected_results):
+             sys.stdout.write(line)  
 
 def run_tests(story_directory):
     for path in os.listdir(story_directory):
