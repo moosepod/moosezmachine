@@ -139,6 +139,27 @@ class STDOUTOutputStream(OutputStream):
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         pass
 
+class StringIOOutputStream(OutputStream):
+    def __init__(self,io_stream):
+        self.io_stream = io_stream
+        super(StringIOOutputStream,self).__init__()
+
+    def refresh(self):
+        pass
+
+    def new_line(self):
+        self.io_stream.write('\n')
+    
+    def print_str(self,txt):
+        self.io_stream.write(txt)
+
+    def print_char(self,ch):
+        self.io_stream.write(ch)
+
+    def show_status(self,room_name,score_mode=True,hours=0,minutes=0,score=0,turns=0):
+        pass
+
+
 class FileTranscriptStream(OutputStream):
     def __init__(self,path):
         super(FileTranscriptStream,self).__init__()
