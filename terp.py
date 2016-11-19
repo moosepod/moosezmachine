@@ -18,7 +18,8 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream,STDOUTOutputStream
+from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream,STDOUTOutputStream,\
+                        FileInputStream
 
 STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
@@ -64,10 +65,11 @@ class Terp(object):
 	            self.run()
 
 class MainLoop(object):
-    def __init__(self,zmachine,transcript):
+    def __init__(self,zmachine,raw,commands):
         self.zmachine = zmachine
         self.curses_input_stream = None
-        self.transcript = transcript
+        self.raw = raw
+        self.commands = commands
 
     def loop(self,screen):
         # Disable automatic echo
@@ -97,14 +99,19 @@ class MainLoop(object):
                               0)
         story.timeout(1)
         story.refresh()
-        if self.transcript:
+        if self.raw:
             output_stream = STDOUTOutputStream(story,status)
         else:
             output_stream = CursesOutputStream(story,status)
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
 
-        self.curses_input_stream = CursesInputStream(story)
+        if self.commands:
+            self.curses_input_stream = FileInputStream(output_stream)
+            self.curses_input_stream.load_from_path(self.commands)
+        else:
+            self.curses_input_stream = CursesInputStream(story)
+
         self.zmachine.input_streams.keyboard_stream = self.curses_input_stream
         self.zmachine.input_streams.select_stream(0)
 
@@ -142,22 +149,23 @@ def main(*args):
 
     parser = argparse.ArgumentParser()
     parser.add_argument('story',help='Story file to play')
-    parser.add_argument('--transcript',help='Output as transcript (no curses)',required=False,action='store_true')
+    parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
+    parser.add_argument('--commands',help='Path to optional command file',required=False)
     data = parser.parse_args()
 
     try:
         while True:
             try:
-                start(data.story,transcript=data.transcript)    
+                start(data.story,raw=data.raw,commands=data.commands)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
     except QuitException:
         print("Thanks for playing!")
 
-def start(filename,transcript):
+def start(filename,raw,commands):
     zmachine = load_zmachine(filename)
-    loop = MainLoop(zmachine,transcript=transcript)
+    loop = MainLoop(zmachine,raw=raw,commands=commands)
     wrapper(loop.loop)
 
 if __name__ == "__main__":

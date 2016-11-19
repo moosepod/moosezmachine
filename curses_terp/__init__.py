@@ -8,6 +8,7 @@ import curses.ascii
 BACKSPACE_CHAR = '\x7f'
 
 class CursesInputStream(object):
+    """ Input stream for reading commands within a curses window """
     def __init__(self,window):
         super(CursesInputStream,self).__init__()
         self.window = window
@@ -48,6 +49,29 @@ class CursesInputStream(object):
             return text
 
         return None
+
+class FileInputStream(object):
+    """ Input stream for handling commands stored in a file """
+    def __init__(self,output_stream=None):
+        self.commands = []
+        self.index = 0
+        self.output_stream=output_stream
+
+    def load_from_path(self,path):
+        with open(path,'r') as f:
+            for line in f:
+                self.commands.append(line.strip())
+
+    def readline(self):
+        self.index += 1
+        command = self.commands[self.index] 
+        if self.output_stream:
+            self.output_stream.print_str(command)
+            self.output_stream.new_line()
+        return command
+
+    def char_pressed(self,char):
+        pass
 
 class CursesOutputStream(OutputStream):
     def __init__(self,window,status_window):

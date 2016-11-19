@@ -17,13 +17,18 @@ from io import StringIO
 
 from zmachine.interpreter import QuitException
 from terp import Terp,load_zmachine
-from curses_terp import StringIOOutputStream
+from curses_terp import StringIOOutputStream,FileInputStream
 
 def test_story(story_path,out_path,commands_path):
     print("Starting test of %s" % story_path)
     story_stream = StringIO()
     zmachine = load_zmachine(story_path)
-    zmachine.output_streams.set_screen_stream(StringIOOutputStream(story_stream))
+    output_stream = StringIOOutputStream(story_stream)
+    zmachine.output_streams.set_screen_stream(output_stream)
+    input_stream = FileInputStream(output_stream)
+    input_stream.load_from_path(commands_path)
+    zmachine.input_streams.keyboard_stream = input_stream
+    zmachine.input_streams.select_stream(0)
 
     terp = Terp(zmachine,None)
     terp.run()
@@ -45,7 +50,7 @@ def test_story(story_path,out_path,commands_path):
 
 def run_tests(story_directory):
     for path in os.listdir(story_directory):
-        if path.endswith('.z3'):
+        if path.endswith('.z3') or path.endswith('.z5'):
             filename,ext = os.path.splitext(path)
             out_file = os.path.join(story_directory, '%s.out' % (filename,))
             commands_file = os.path.join(story_directory,'%s.commands' % (filename))
