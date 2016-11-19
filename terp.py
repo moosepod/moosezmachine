@@ -100,7 +100,7 @@ class MainLoop(object):
         if self.transcript:
             output_stream = STDOUTOutputStream(story,status)
         else:
-            output_stream = TranscriptOutputStream(story,status)
+            output_stream = CursesOutputStream(story,status)
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
 
