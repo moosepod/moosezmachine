@@ -445,13 +445,23 @@ class ObjectTableManager(object):
         old_child_id = self.get_child(parent_id)
         if old_child_id == obj_id:
             return # We're already the child, do nothing
+   
+        old_parent_id = self.get_parent(obj_id)
+        old_sibling_id = self.get_sibling(obj_id)
 
+        # Set parent of object to new parent, and sibling to the previous child of
+        # the parent 
         start_addr = self._obj_start_addr(obj_id)
         self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = parent_id
         self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET] = old_child_id
 
+        # Set child of new parent to object
         start_addr = self._obj_start_addr(parent_id)
         self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = obj_id
+
+        # Set child of old parent to old sibling of this object
+        start_addr = self._obj_start_addr(old_parent_id)
+        self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = old_sibling_id
 
     def get_next_prop(self,obj_id, property_id):
         """ Find the property after the identified property. If 0, first property. If property

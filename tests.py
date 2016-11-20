@@ -305,6 +305,15 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(table.is_sibling_of(1,7))
         self.assertTrue(7,table[11]['child'])
         self.assertTrue(table.is_child_of(1,11))
+        
+        # Ensure child relationship of old parent correct
+        table.insert_obj(7,2)
+        self.assertTrue(table.is_child_of(7,2))
+        self.assertFalse(table.is_child_of(7,11))
+        self.assertEqual(2,table.get_parent(7))
+        self.assertEqual(7,table.get_child(2))
+        self.assertEqual(1,table.get_child(11))
+        self.assertEqual(11,table.get_parent(1))
 
     def test_remove_obj(self):
         table = self.story.object_table
