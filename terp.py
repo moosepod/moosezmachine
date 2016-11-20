@@ -25,6 +25,9 @@ STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
 STORY_BOTTOM_MARGIN = 1 
 
+# How many zcode steps we take before checking for keypress
+INPUT_BREAK_FREQUENCY=100
+
 class RunState(Enum):
     RUNNING                  = 0
     WAITING_TO_QUIT          = 1
@@ -118,9 +121,17 @@ class MainLoop(object):
         terp = Terp(self.zmachine,story)
         terp.run()
 
+        counter = 0
         while True:
             try:
-                ch = story.getch()
+                # Check for keypress on defined interval or when we're waiting for a line in the terp
+                if counter == INPUT_BREAK_FREQUENCY or self.curses_input_stream.waiting_for_line:
+                    ch = story.getch()
+                    counter = 0
+                else:
+                    counter+=1
+                    ch = curses.ERR
+
                 if ch == curses.ERR:
                     terp.idle()
                 else:
@@ -130,7 +141,6 @@ class MainLoop(object):
                 raise e
             except Exception as e:
                 raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
-
 
 def load_zmachine(filename):
     with open(filename,'rb') as f:
