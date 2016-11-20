@@ -110,7 +110,7 @@ class CursesOutputStream(OutputStream):
                 self.window.addstr('\n')
             else:
                 first_line = False
-            self.window.addstr(line)
+            self.window.addstr(line.encode('ascii','replace'))
             
     def _println(self,msg):
         self._print_buffer_msg(msg)
