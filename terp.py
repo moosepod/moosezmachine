@@ -2,6 +2,7 @@
 
 import sys
 from enum import Enum
+import re
 
 import logging
 import curses
@@ -61,6 +62,7 @@ class Tracer(object):
             self.commands[-1]['instructions'].append(instruction)
 
     def save_to_path(self,output_path):
+        instruction_rx = re.compile('^\w+:(\S+) ')
         with open(output_path,'w') as f:
            for record in self.commands:
                 total_time = time.clock() - record['start_time']
@@ -68,9 +70,19 @@ class Tracer(object):
                                 len(record['instructions']),
                                 total_time*1000,
                                 1000*(total_time/len(record['instructions']))))
+                instruction_freq = {}
                 for instruction in record['instructions']:
                     f.write(instruction)
                     f.write('\n')
+                    m = instruction_rx.search(instruction)
+                    if m:
+                        t = m.group(1)
+                        if not instruction_freq.get(t):
+                            instruction_freq[t] = 0
+                        instruction_freq[t]+=1
+                f.write('Instruction frequency:\n')
+                for k,v in instruction_freq.items():
+                    f.write('{0: <6} {1}\n'.format(v,k))
 
 class Terp(object):
     def __init__(self,zmachine,window,tracer=None):
