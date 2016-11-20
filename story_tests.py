@@ -35,7 +35,7 @@ def test_story(story_path,out_path,commands_path,dump):
 
     while True:
         try:
-            terp.idle()
+            terp.idle(input_stream)
         except QuitException:
             break
     

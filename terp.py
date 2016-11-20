@@ -35,11 +35,49 @@ class RunState(Enum):
 class ResetException(Exception):
     pass
 
+class Tracer(object):
+    """ Handles logging instructions during a playthrough """
+    def __init__(self):
+        self.commands = [] # Used when telemetry is on to time each command
+        self.start_command('START')
+        self.recording=True
+
+    def end_command(self):
+        if self.commands:
+            self.commands[-1]['end_time'] = time.clock()
+        self.recording=False
+
+    def start_command(self,command):
+        self.recording=True
+        self.commands.append({'command': command, 'instructions': [], 'start_time': time.clock()})
+
+    def log_instruction(self,instruction):
+        if self.recording:
+            # Bit of a hack here -- but as soon as we see an sread command, stop recording. Sread indicates
+            # waiting for command
+            if instruction.startswith('varOP:sread'):
+                self.end_command()
+
+            self.commands[-1]['instructions'].append(instruction)
+
+    def save_to_path(self,output_path):
+        with open(output_path,'w') as f:
+           for record in self.commands:
+                total_time = time.clock() - record['start_time']
+                f.write('---- %s (%d instuctions,%d ms, %.2f instructions/ms) -----\n' % (record['command'],
+                                len(record['instructions']),
+                                total_time*1000,
+                                1000*(total_time/len(record['instructions']))))
+                for instruction in record['instructions']:
+                    f.write(instruction)
+                    f.write('\n')
+
 class Terp(object):
-    def __init__(self,zmachine,window):
+    def __init__(self,zmachine,window,tracer=None):
         self.state = RunState.RUNNING
         self.zmachine = zmachine
         self.window = window
+        self.tracer = tracer
 
     def run(self):
         if self.state != RunState.RUNNING:
@@ -49,30 +87,41 @@ class Terp(object):
     	self.state = RunState.WAITING_TO_QUIT
     	self.window.addstr('[HIT ESC AGAIN TO QUIT]')
 
-    def idle(self):
+    def idle(self,input_stream):
         """ Called if no key is pressed """
-        if self.state == RunState.RUNNING:
+        if self.state == RunState.RUNNING:            
             self.zmachine.step()
 
-    def key_pressed(self,ch,curses_input_stream):
+            if self.tracer:
+                self.tracer.log_instruction(self.zmachine.last_instruction)
+
+    def key_pressed(self,ch,input_stream):
         if self.state == RunState.RUNNING:
             if ch == curses.ascii.ESC:
                 self.wait_for_quit()
             else:
-	            if curses_input_stream.waiting_for_line:
-	                curses_input_stream.char_pressed('%s' % chr(ch))
+                if input_stream.waiting_for_line:
+                    input_stream.char_pressed('%s' % chr(ch))
+
+                    # If the end result of the press is the end of the input line,
+                    # start recording, using the entered line as the command
+                    if self.tracer and input_stream.line_done:
+                        self.tracer.start_command(input_stream.text)
+
         elif self.state == RunState.WAITING_TO_QUIT:
             if ch == curses.ascii.ESC:
 	            raise QuitException('User forced quit with escape')
             else:
 	            self.run()
 
+
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands):
+    def __init__(self,zmachine,raw,commands,tracer=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
         self.commands = commands
+        self.tracer = tracer
 
     def loop(self,screen):
         # Disable automatic echo
@@ -110,22 +159,23 @@ class MainLoop(object):
         self.zmachine.output_streams.set_screen_stream(output_stream)
 
         if self.commands:
-            self.curses_input_stream = FileInputStream(output_stream)
-            self.curses_input_stream.load_from_path(self.commands)
+            self.input_stream = FileInputStream(output_stream)
+            self.input_stream.load_from_path(self.commands)
         else:
-            self.curses_input_stream = CursesInputStream(story)
+            self.input_stream = CursesInputStream(story)
 
-        self.zmachine.input_streams.keyboard_stream = self.curses_input_stream
+        self.zmachine.input_streams.keyboard_stream = self.input_stream
         self.zmachine.input_streams.select_stream(0)
 
-        terp = Terp(self.zmachine,story)
+        terp = Terp(self.zmachine,story,self.tracer)
         terp.run()
+        self.terp = terp
 
         counter = 0
         while True:
             try:
                 # Check for keypress on defined interval or when we're waiting for a line in the terp
-                if counter == INPUT_BREAK_FREQUENCY or self.curses_input_stream.waiting_for_line:
+                if counter == INPUT_BREAK_FREQUENCY or self.input_stream.waiting_for_line:
                     ch = story.getch()
                     counter = 0
                 else:
@@ -133,9 +183,9 @@ class MainLoop(object):
                     ch = curses.ERR
 
                 if ch == curses.ERR:
-                    terp.idle()
+                    terp.idle(self.input_stream)
                 else:
-                    terp.key_pressed(ch,self.curses_input_stream)
+                    terp.key_pressed(ch,self.input_stream)
                 story.refresh()
             except QuitException as e:
                 raise e
@@ -153,6 +203,22 @@ def load_zmachine(filename):
 
     return zmachine
 
+
+def start(filename,raw,commands,trace_file_path=None):
+    tracer = None
+    if trace_file_path:
+        tracer = Tracer()
+
+    zmachine = load_zmachine(filename)        
+    loop = MainLoop(zmachine,raw=raw,commands=commands,tracer=tracer)
+
+    try:
+        wrapper(loop.loop)
+    finally:
+        if tracer:
+            tracer.save_to_path(trace_file_path)
+            print('Instructions logged to %s' % trace_file_path)
+
 def main(*args):
     if sys.version_info[0] < 3:
         raise Exception("Moosezmachine requires Python 3.")
@@ -160,23 +226,19 @@ def main(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
-    parser.add_argument('--commands',help='Path to optional command file',required=False)
+    parser.add_argument('--commands_file',help='Path to optional command file',required=False)
+    parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
     data = parser.parse_args()
 
     try:
         while True:
             try:
-                start(data.story,raw=data.raw,commands=data.commands)    
+                start(data.story,raw=data.raw,commands=data.commands_file,trace_file_path=data.trace_file)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
     except QuitException:
         print("Thanks for playing!")
-
-def start(filename,raw,commands):
-    zmachine = load_zmachine(filename)
-    loop = MainLoop(zmachine,raw=raw,commands=commands)
-    wrapper(loop.loop)
 
 if __name__ == "__main__":
     main()

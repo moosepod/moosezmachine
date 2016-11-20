@@ -886,7 +886,7 @@ class Interpreter(object):
 
     def step(self):
         """ If in running state, execute the current instruction then increment the program counter.
-        If waiting for text, query the input streams for the next line """
+        If waiting for text, query the input streams for the next line. """
         if self.state == Interpreter.WAITING_FOR_LINE_STATE:
             if self._handle_input():
                 self.state = Interpreter.RUNNING_STATE
@@ -941,6 +941,8 @@ class Interpreter(object):
         line = self.input_streams.readline(ztext)
         if not line:
             return False
+
+        self.last_command=line
 
         text_buffer_addr, parse_buffer_addr = self._text_buffer_addr, self._parse_buffer_addr
 
