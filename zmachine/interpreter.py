@@ -611,6 +611,10 @@ class OutputStream(object):
         """ Set buffering on/off """
         self.is_buffered = b == True
 
+    def flush(self):
+        """ If we support buffering, flush the text buffer """
+        pass
+
 class OutputStreams(object):
     """ See section 8. Wraps the various output streams """
     SCREEN = 0

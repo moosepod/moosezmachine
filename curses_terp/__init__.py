@@ -4,6 +4,7 @@ from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Me
 
 import curses
 import curses.ascii
+import textwrap
 
 BACKSPACE_CHAR = '\x7f'
 
@@ -88,47 +89,29 @@ class CursesOutputStream(OutputStream):
         """ Redraw this screen """
         self.window.refresh()
 
-    def _print_buffer_msg(self,msg):
-        # Break message up so it wraps nicely on word breaks
-        self.buffer = msg
-        lines = []
-        target_width = self.width-1
-        for line in msg.split('\n'):
-            while len(line) >= target_width:
-                new_line, line = line[0:target_width],line[target_width:]
-                for i in range(len(new_line)-1,0,-1):
-                    if new_line[i] in (' ','.',',',':',';'):
-                        new_line = new_line[0:i]
-                        lines.append(new_line)
-                        break
-                    else:
-                        line = '%s%s' % (new_line[i],line)
-            lines.append(line)
-        first_line=True
-        for line in lines:
-            if not first_line:
+    def flush(self):
+        first_block = True
+        for block in self.buffer.split('\n'):
+            if not first_block:
                 self.window.addstr('\n')
-            else:
-                first_line = False
-            self.window.addstr(line)
-            
-    def _println(self,msg):
-        self._print_buffer_msg(msg)
-        self.window.addstr('\n')
-        self.refresh()
-
-    def _print(self,msg):
-        self._print_buffer_msg(msg)
+            first_block=False
+            first_line=True
+            for line in textwrap.wrap(block,self.width):
+                if not first_line:
+                    self.window.addstr('\n')
+                self.window.addstr(line)
+                first_line=False
+        self.buffer=''
         self.refresh()
 
     def new_line(self):
-        self._println('')
+        self.buffer += '\n'
         
     def print_str(self,txt):
-        self._print(txt)
+        self.buffer += txt
 
     def print_char(self,txt):
-        self._print(txt)
+        self.buffer += txt
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if score_mode:
@@ -141,6 +124,7 @@ class CursesOutputStream(OutputStream):
 
         self.status_window.addstr(0,0,status_msg,curses.A_REVERSE)
         self.status_window.refresh()
+        self.flush()
 
 class STDOUTOutputStream(OutputStream):
     def __init__(self,window,status_window):

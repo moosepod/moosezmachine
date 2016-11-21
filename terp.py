@@ -107,7 +107,7 @@ class Terp(object):
             if self.tracer:
                 self.tracer.log_instruction(self.zmachine.last_instruction)
 
-    def key_pressed(self,ch,input_stream):
+    def key_pressed(self,ch,input_stream,output_stream):
         if self.state == RunState.RUNNING:
             if ch == curses.ascii.ESC:
                 self.wait_for_quit()
@@ -117,8 +117,10 @@ class Terp(object):
 
                     # If the end result of the press is the end of the input line,
                     # start recording, using the entered line as the command
-                    if self.tracer and input_stream.line_done:
-                        self.tracer.start_command(input_stream.text)
+                    if input_stream.line_done:
+                        output_stream.flush()
+                        if self.tracer:
+                            self.tracer.start_command(input_stream.text)
 
         elif self.state == RunState.WAITING_TO_QUIT:
             if ch == curses.ascii.ESC:
@@ -194,10 +196,16 @@ class MainLoop(object):
                     counter+=1
                     ch = curses.ERR
 
+                waiting_for_line = self.input_stream.waiting_for_line
                 if ch == curses.ERR:
                     terp.idle(self.input_stream)
+                    # Once we get to waiting for input from an sread, flush our text buffer
                 else:
-                    terp.key_pressed(ch,self.input_stream)
+                    terp.key_pressed(ch,self.input_stream,output_stream)
+
+                if self.input_stream.waiting_for_line and not waiting_for_line:
+                    output_stream.flush()
+
                 story.refresh()
             except QuitException as e:
                 raise e
