@@ -20,6 +20,7 @@ class CursesInputStream(object):
     def char_pressed(self,char):
         if char == '\n' or char == '\r':
             self.line_done = True
+            self.window.addstr('\n')
         elif char == BACKSPACE_CHAR:
             if self.text:
                 self.text = self.text[0:-1]
@@ -90,17 +91,17 @@ class CursesOutputStream(OutputStream):
         self.window.refresh()
 
     def flush(self):
-        first_block = True
+        lines = []
         for block in self.buffer.split('\n'):
-            if not first_block:
-                self.window.addstr('\n')
-            first_block=False
-            first_line=True
             for line in textwrap.wrap(block,self.width):
-                if not first_line:
-                    self.window.addstr('\n')
-                self.window.addstr(line)
-                first_line=False
+                lines.append(line)
+        first_line=True
+        for line in lines:
+            if not first_line:
+                self.window.addstr('\n')
+            self.window.addstr(line)
+            first_line=False
+
         self.buffer=''
 
     def new_line(self):
