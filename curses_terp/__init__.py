@@ -102,7 +102,6 @@ class CursesOutputStream(OutputStream):
                 self.window.addstr(line)
                 first_line=False
         self.buffer=''
-        self.refresh()
 
     def new_line(self):
         self.buffer += '\n'
