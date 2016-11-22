@@ -12,16 +12,28 @@ For simplicity, the unicode mappings map to textual equivalents (per 3.8.5.4.1)
 
 ## Architecture
 
-The zcode itself is handled by zmachine.interpreter.ZMachine. Story data is loaded into the interpreter by setting raw_data -- note this will throw an exception if the data is too short.
+Moosezmachine includes a number of interpreters for various purposes (command line, testing, etc). They all work in the following basic way:
 
-A wrapper object, memory.Memory, is used to intermediate the raw data. This makes it easy to pull out the various ZCode data types (address, single-byte integer, etc).
+The core object is the Interpreter (in zmachine.interpreter). This object acts as the virtual machine for the ZCode in the story file.
 
-When zmachine.raw_data is set, zmachine.header is set as well. This object provides convienence methods for the accessing the header data. 
+To initialize an Interpreter, you ned:
+- A zmachine.interpreter.Story. This is intialized with the bytes from the the target story file 
+- A zmachine.interpreter.OutputStreams object. This is initialized with zmachine.interpreter.OutputStream handlers for streams 1-4 (see section below)
+- A zmachine.interpreter.InputStreams object. This is initialized with zmachine.interpreter.InputStream handlers for streams 1-2. (see section below)
+- A zmachine.interpreter.SaveHandler
+- A zmachine.interpreter.RestoreHandler
 
-Other utility classes handle zchar interpretation, rng, etc/
+To initialize, call reset() on the interpreter object. This will initialize the game from the story file data, and throw an exception if the data is invalid in some way.
 
-## Scripts
+The interpreter does nothing on its own. To run the instruction at the current program counter, call interpreter.step(). This will run the instruction and change any internal state. 
+After each step, interpreter.last_instruction will bet set to a textual description of the previous instruction for debugging purposes.
 
+### Input
+
+Versions of ZCode 4 and after allow for reading individual characters from the input stream. Moosezmachine sticks with verisons 3 and less and treats input as entirely modal.
+
+
+## 
 python dump_header.py story_file_path: this will load the story file and if valid dump notable header data.
 
 ## Licence/Thanks
