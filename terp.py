@@ -130,12 +130,13 @@ class Terp(object):
 
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands_path,tracer=None):
+    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
         self.commands_path = commands_path
         self.tracer = tracer
+        self.seed=seed
 
     def loop(self,screen):
         # Disable automatic echo
@@ -165,6 +166,10 @@ class MainLoop(object):
                               0)
         story.timeout(1)
         story.refresh()
+
+        if self.seed != None:
+            self.zmachine.story.rng.enter_predictable_mode(int(self.seed))
+
         if self.raw:
             output_stream = STDOUTOutputStream(story,status)
         else:
@@ -228,13 +233,13 @@ def load_zmachine(filename):
     return zmachine
 
 
-def start(filename,raw,commands_path,trace_file_path=None):
+def start(filename,raw,commands_path,trace_file_path=None,seed=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
     zmachine = load_zmachine(filename)        
-    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer)
+    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed)
 
     try:
         wrapper(loop.loop)
@@ -251,13 +256,14 @@ def main(*args):
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
     parser.add_argument('--commands_path',help='Path to optional command file',required=False)
+    parser.add_argument('--seed',help='Optional seed for RNG',required=False)
     parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
     data = parser.parse_args()
 
     try:
         while True:
             try:
-                start(data.story,raw=data.raw,commands_path=data.commands_path,trace_file_path=data.trace_file)    
+                start(data.story,raw=data.raw,commands_path=data.commands_path,trace_file_path=data.trace_file,seed=data.seed)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)
