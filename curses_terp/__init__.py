@@ -52,12 +52,17 @@ class CursesInputStream(object):
 
         return None
 
+class FileStreamEmptyException(Exception):
+    """ Thrown when a file input stream runs out of commands """
+    pass
+
 class FileInputStream(object):
     """ Input stream for handling commands stored in a file """
     def __init__(self,output_stream=None):
         self.commands = []
         self.index = 0
         self.output_stream=output_stream
+        self.waiting_for_line = False
 
     def load_from_path(self,path):
         with open(path,'r') as f:
@@ -66,10 +71,14 @@ class FileInputStream(object):
 
     def readline(self):
         self.index += 1
-        command = self.commands[self.index] 
-        if self.output_stream:
-            self.output_stream.print_str(command)
-            self.output_stream.new_line()
+        try:
+            command = self.commands[self.index] 
+            if self.output_stream:
+                self.output_stream.print_str(command)
+                self.output_stream.new_line()
+        except IndexError:
+            raise FileStreamEmptyException()
+
         return command
 
     def char_pressed(self,char):

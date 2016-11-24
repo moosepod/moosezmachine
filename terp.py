@@ -20,7 +20,7 @@ from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
 from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream,STDOUTOutputStream,\
-                        FileInputStream
+                        FileInputStream,FileStreamEmptyException
 
 STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
@@ -130,11 +130,11 @@ class Terp(object):
 
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands,tracer=None):
+    def __init__(self,zmachine,raw,commands_path,tracer=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
-        self.commands = commands
+        self.commands_path = commands_path
         self.tracer = tracer
 
     def loop(self,screen):
@@ -172,14 +172,15 @@ class MainLoop(object):
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
 
-        if self.commands:
-            self.input_stream = FileInputStream(output_stream)
-            self.input_stream.load_from_path(self.commands)
-        else:
-            self.input_stream = CursesInputStream(story)
+        self.zmachine.input_streams.keyboard_stream = CursesInputStream(story)
+        self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
-        self.zmachine.input_streams.keyboard_stream = self.input_stream
-        self.zmachine.input_streams.select_stream(0)
+        # If provided with a command file, load it as the file stream and select it by default
+        if self.commands_path:
+            input_stream = FileInputStream(output_stream)
+            input_stream.load_from_path(self.commands_path)
+            self.zmachine.input_streams.command_file_stream =input_stream
+            self.zmachine.input_streams.select_stream(InputStreams.FILE)
 
         terp = Terp(self.zmachine,story,self.tracer)
         terp.run()
@@ -187,28 +188,31 @@ class MainLoop(object):
 
         counter = 0
         while True:
+            input_stream = self.zmachine.input_streams.active_stream
             try:
                 # Check for keypress on defined interval or when we're waiting for a line in the terp
-                if counter == INPUT_BREAK_FREQUENCY or self.input_stream.waiting_for_line:
+                if counter == INPUT_BREAK_FREQUENCY or input_stream.waiting_for_line:
                     ch = story.getch()
                     counter = 0
                 else:
                     counter+=1
                     ch = curses.ERR
 
-                waiting_for_line = self.input_stream.waiting_for_line
+                waiting_for_line = input_stream.waiting_for_line
                 if ch == curses.ERR:
-                    terp.idle(self.input_stream)
+                    terp.idle(input_stream)
                     # Once we get to waiting for input from an sread, flush our text buffer
                 else:
-                    terp.key_pressed(ch,self.input_stream,output_stream)
+                    terp.key_pressed(ch,input_stream,output_stream)
 
-                if self.input_stream.waiting_for_line and not waiting_for_line:
+                if input_stream.waiting_for_line and not waiting_for_line:
                     output_stream.flush()
 
                 story.refresh()
             except QuitException as e:
                 raise e
+            except FileStreamEmptyException:
+                self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
             except Exception as e:
                 raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
 
@@ -224,13 +228,13 @@ def load_zmachine(filename):
     return zmachine
 
 
-def start(filename,raw,commands,trace_file_path=None):
+def start(filename,raw,commands_path,trace_file_path=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
     zmachine = load_zmachine(filename)        
-    loop = MainLoop(zmachine,raw=raw,commands=commands,tracer=tracer)
+    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer)
 
     try:
         wrapper(loop.loop)
@@ -246,14 +250,14 @@ def main(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
-    parser.add_argument('--commands_file',help='Path to optional command file',required=False)
+    parser.add_argument('--commands_path',help='Path to optional command file',required=False)
     parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
     data = parser.parse_args()
 
     try:
         while True:
             try:
-                start(data.story,raw=data.raw,commands=data.commands_file,trace_file_path=data.trace_file)    
+                start(data.story,raw=data.raw,commands_path=data.commands_path,trace_file_path=data.trace_file)    
             except ResetException:
                 print("Resetting...")
                 time.sleep(1)

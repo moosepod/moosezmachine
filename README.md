@@ -18,11 +18,11 @@ The core object is the Interpreter (in zmachine.interpreter). This object acts a
 
 To initialize an Interpreter, you ned:
 - A zmachine.interpreter.Story. This is intialized with the bytes from the the target story file 
-- A zmachine.interpreter.OutputStreams object. This is initialized with zmachine.interpreter.OutputStream handlers for streams 1-4
+- A zmachine.interpreter.OutputStreams object. This is initialized with zmachine.interpreter.OutputStream handlers for streams 1,2, and 4
   - Stream 1 is the normal output stream (the screen)
   - Stream 2 is the transcript stream
-  - Stream 3 is a special memory-only stream
   - Stream 4 is a special stream that only records the player's commands
+  - Stream 3 is a special memory-only stream that is not explicitly provided as a handler
 - A zmachine.interpreter.InputStreams object. This is initialized with zmachine.interpreter.InputStream handlers for streams 1-2.
   - Stream 1 is the normal input stream (keyboard)
   - Stream 2 is a list of commands
