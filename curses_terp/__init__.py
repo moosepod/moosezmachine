@@ -43,7 +43,7 @@ class CursesInputStream(object):
 
         if self.line_done:
             text = self.text
-            self.waiting_for_line = True
+            self.waiting_for_line = False
             self.line_done = False
             self.text = ''
             curses.curs_set(0) # Set cursor to hidden
@@ -108,7 +108,7 @@ class CursesOutputStream(OutputStream):
         for line in lines:
             if not first_line:
                 self.window.addstr('\n')
-            self.window.addstr(line)
+            self.window.addstr(line.encode('ascii','replace')) # Strip out unicode that won't behave properly in curses
             first_line=False
 
         self.buffer=''

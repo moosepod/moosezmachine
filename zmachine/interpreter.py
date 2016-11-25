@@ -985,7 +985,7 @@ class Interpreter(object):
         line = self.input_streams.readline(ztext)
         if not line:
             return False
-
+ 
         self.last_command=line
 
         text_buffer_addr, parse_buffer_addr = self._text_buffer_addr, self._parse_buffer_addr

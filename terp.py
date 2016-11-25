@@ -27,7 +27,7 @@ STORY_TOP_MARGIN = 1
 STORY_BOTTOM_MARGIN = 1 
 
 # How many zcode steps we take before checking for keypress
-INPUT_BREAK_FREQUENCY=100
+INPUT_BREAK_FREQUENCY=1000
 
 class RunState(Enum):
     RUNNING                  = 0
@@ -192,6 +192,7 @@ class MainLoop(object):
         self.terp = terp
 
         counter = 0
+        timer = 0
         while True:
             input_stream = self.zmachine.input_streams.active_stream
             try:
@@ -203,15 +204,18 @@ class MainLoop(object):
                     counter+=1
                     ch = curses.ERR
 
-                waiting_for_line = input_stream.waiting_for_line
+                was_waiting_for_line = input_stream.waiting_for_line
                 if ch == curses.ERR:
                     terp.idle(input_stream)
-                    # Once we get to waiting for input from an sread, flush our text buffer
                 else:
                     terp.key_pressed(ch,input_stream,output_stream)
 
-                if input_stream.waiting_for_line and not waiting_for_line:
+                if input_stream.waiting_for_line and not was_waiting_for_line:
+                    # If the term has just switched to waiting for line (sread hit)
+                    # output our buffer
                     output_stream.flush()
+                    timer = time.clock()
+
 
                 story.refresh()
             except QuitException as e:
