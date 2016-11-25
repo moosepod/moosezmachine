@@ -33,6 +33,8 @@ INPUT_BREAK_FREQUENCY=1000
 class RunState(Enum):
     RUNNING                  = 0
     WAITING_TO_QUIT          = 1
+    PROMPT_FOR_SAVE          = 2
+    PROMPT_FOR_RESTORE       = 3
 
 class ConfigException(Exception):
     pass
@@ -86,19 +88,32 @@ class Tracer(object):
                     f.write('{0: <6} {1}\n'.format(v,k))
 
 class Terp(object):
-    def __init__(self,zmachine,window,tracer=None):
+    def __init__(self,zmachine,output_stream,tracer=None):
         self.state = RunState.RUNNING
         self.zmachine = zmachine
-        self.window = window
+        self.output_stream = output_stream
         self.tracer = tracer
 
     def run(self):
         if self.state != RunState.RUNNING:
             self.state = RunState.RUNNING
 
+    def start_save(self):
+        self.state = RunState.PROMPT_FOR_SAVE
+        self.zmachine.output_streams.get_screen_stream().print_str('Name for your save file? ')
+        self.zmachine.output_streams.get_screen_stream().flush()
+        self.zmachine.input_streams.active_stream.readline()
+
+    def start_restore(self):
+        self.state = RunState.PROMPT_FOR_SAVE
+        self.zmachine.output_streams.get_screen_stream().print_str('Name of file for restore? ')
+        self.zmachine.output_streams.get_screen_stream().flush()
+        self.zmachine.input_streams.active_stream.readline()
+
     def wait_for_quit(self):
-    	self.state = RunState.WAITING_TO_QUIT
-    	self.window.addstr('[HIT ESC AGAIN TO QUIT]')
+        self.state = RunState.WAITING_TO_QUIT
+        self.zmachine.output_streams.get_screen_stream().print_str('\n[HIT ESC AGAIN TO QUIT]')
+        self.zmachine.output_streams.get_screen_stream().flush()
 
     def idle(self,input_stream):
         """ Called if no key is pressed """
@@ -109,7 +124,7 @@ class Terp(object):
                 self.tracer.log_instruction(self.zmachine.last_instruction)
 
     def key_pressed(self,ch,input_stream,output_streams):
-        if self.state == RunState.RUNNING:
+        if self.state in (RunState.RUNNING,RunState.PROMPT_FOR_SAVE,RunState.PROMPT_FOR_RESTORE):
             if ch == curses.ascii.ESC:
                 self.wait_for_quit()
             else:
@@ -130,9 +145,22 @@ class Terp(object):
             else:
 	            self.run()
 
+class TerpSaveHandler(object):
+    def __init__(self, terp):
+        self.terp=terp
+
+    def handle_save(self):
+        self.terp.start_save()
+
+class TerpRestoreHandler(object):
+    def __init__(self, terp):
+        self.terp=terp
+
+    def handle_restore(self):
+        self.terp.start_restore()
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None,transcript_path=None):
+    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None,transcript_path=None,save_path=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
@@ -140,6 +168,7 @@ class MainLoop(object):
         self.tracer = tracer
         self.seed=seed
         self.transcript_path=transcript_path
+        self.save_path = save_path
 
     def loop(self,screen):
         # Disable automatic echo
@@ -179,6 +208,7 @@ class MainLoop(object):
             output_stream = CursesOutputStream(story,status)
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
+        self.output_stream=output_stream
 
         if self.transcript_path:
             if not self.transcript_path.endswith('.transcript'):
@@ -207,9 +237,14 @@ class MainLoop(object):
             self.zmachine.input_streams.command_file_stream =input_stream
             self.zmachine.input_streams.select_stream(InputStreams.FILE)
 
-        terp = Terp(self.zmachine,story,self.tracer)
+        terp = Terp(self.zmachine,self.tracer)
         terp.run()
         self.terp = terp
+
+        if self.save_path:
+            self.zmachine.save_handler = TerpSaveHandler(terp)
+            self.zmachine.restore_handler = TerpRestoreHandler(terp)
+
 
         counter = 0
         timer = 0
@@ -226,7 +261,8 @@ class MainLoop(object):
 
                 was_waiting_for_line = input_stream.waiting_for_line
                 if ch == curses.ERR:
-                    terp.idle(input_stream)
+                    if terp.state == RunState.RUNNING:
+                        terp.idle(input_stream)
                 else:
                     terp.key_pressed(ch,input_stream,self.zmachine.output_streams)
 
@@ -234,8 +270,6 @@ class MainLoop(object):
                     # If the term has just switched to waiting for line (sread hit)
                     # output our buffer
                     self.zmachine.output_streams.flush()
-                    timer = time.clock()
-
 
                 story.refresh()
             except (QuitException,RestartException) as e:
@@ -258,13 +292,13 @@ def load_zmachine(filename,restart_flags=None):
     return zmachine
 
 
-def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None):
+def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None,save_path=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
     zmachine = load_zmachine(filename,restart_flags)        
-    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed,transcript_path=transcript_path)
+    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed,transcript_path=transcript_path,save_path=save_path)
 
     try:
         wrapper(loop.loop)
@@ -281,6 +315,7 @@ def main(*args):
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
     parser.add_argument('--commands_path',help='Path to optional command file',required=False)
+    parser.add_argument('--save_path',help='Path to directory for saves. Will default to /tmp',required=False,default='/tmp')
     parser.add_argument('--transcript_path',help='Path for transcript. This will also activate transcript by default. A separate commands transcript will also automatically be created.',required=False)
     parser.add_argument('--seed',help='Optional seed for RNG',required=False)
     parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
@@ -296,6 +331,7 @@ def main(*args):
                     trace_file_path=data.trace_file,
                     seed=data.seed,
                     transcript_path=data.transcript_path,
+                    save_path=data.save_path,
                     restart_flags=restart_flags)    
             except RestartException as e:
                 restart_flags = e.restart_flags

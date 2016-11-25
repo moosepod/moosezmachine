@@ -688,6 +688,9 @@ class OutputStreams(object):
         self.streams[OutputStreams.SCREEN] = stream
         stream.is_active=True
 
+    def get_screen_stream(self):
+        return self.streams[OutputStreams.SCREEN]
+
     def set_transcript_stream(self,stream):
         """ Assign the transcript stream, setting it active by default """
         self.streams[OutputStreams.TRANSCRIPT] = stream
@@ -1104,7 +1107,9 @@ class Interpreter(object):
 
     def save(self,branch_offset,next_address):
         """ Handle a save. Branch info is used to move pc post save """
-        raise InterpreterException('Save not implemented')
+        if not self.save_handler:
+            raise InterpreterException('No save handler implemented')
+        self.save_handler.handle_save()
 
     def debug(self,msg):
         """ Debug logging """
@@ -1112,7 +1117,9 @@ class Interpreter(object):
 
     def restore(self,branch_offset,next_address):
         """ Handle a restore. Branch info is passed in but ignored in version 3 """
-        raise InterpreterException('Restore not implemented')
+        if not self.save_handler:
+            raise InterpreterException('No restore handler implemented')
+        self.save_handler.handle_restore()
 
     def push_game_stack(self,val):
         self.current_routine().push_to_stack(val)
