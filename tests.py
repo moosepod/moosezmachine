@@ -5,7 +5,7 @@ import inspect
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
-                                InterpreterException,QuitException
+                                InterpreterException,QuitException,RestartException,Header
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -461,9 +461,22 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_quit(self):
         self.assertRaises(QuitException, QuitAction(self.zmachine.pc).apply,self.zmachine)
 
-    @unittest.skip('To be implemented')
     def test_restart(self):
-        self.fail('Check that only bit 0 of flags 2 and bit 1 of flags 2 are preserved')
+        self.zmachine.story.header.set_flag(Header.FLAGS_2,0,1)
+        self.zmachine.story.header.set_flag(Header.FLAGS_2,1,1)
+        try:
+            RestartAction().apply(self.zmachine)
+            self.fail('Should have thrown restart error')
+        except RestartException as e:
+            self.assertEqual((True,True),e.restart_flags)
+
+        self.zmachine.story.header.set_flag(Header.FLAGS_2,0,0)
+        self.zmachine.story.header.set_flag(Header.FLAGS_2,1,1)
+        try:
+            RestartAction().apply(self.zmachine)
+            self.fail('Should have thrown restart error')
+        except RestartException as e:
+            self.assertEqual((False,True), e.restart_flags)
 
     @unittest.skip('To be implemented')
     def test_save(self):
@@ -2041,6 +2054,17 @@ class GameMemoryTests(unittest.TestCase):
         with open(path, 'rb') as f:
             self.story = Story(f.read())
             self.story.reset()
+
+    def test_restart_data(self):
+        # Verify that a story reset with restart data correctly sets
+        # the flags
+        self.story.game_memory.set_flag(Header.FLAGS_2,0,0)        
+        self.story.game_memory.set_flag(Header.FLAGS_2,1,0)
+
+        self.story.reset(restart_flags=(True,True))        
+
+        self.assertTrue(self.story.game_memory.flag(Header.FLAGS_2,0))
+        self.assertTrue(self.story.game_memory.flag(Header.FLAGS_2,1))
 
     def test_header(self):
         self.story.game_memory.set_flag(0x10,0,1)        

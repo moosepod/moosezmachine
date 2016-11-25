@@ -14,7 +14,7 @@ import time
 
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
                                  StoryFileException,InterpreterException,MemoryAccessException,\
-                                 InputStreams,InputStream
+                                 InputStreams,InputStream,RestartException
 from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
@@ -218,31 +218,31 @@ class MainLoop(object):
 
 
                 story.refresh()
-            except QuitException as e:
+            except (QuitException,RestartException) as e:
                 raise e
             except FileStreamEmptyException:
                 self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
             except Exception as e:
                 raise Exception('Unhandled exception "%s" at PC 0x%04x [%s]' % (e,self.zmachine.pc,self.zmachine.last_instruction),e)
 
-def load_zmachine(filename):
+def load_zmachine(filename,restart_flags=None):
     with open(filename,'rb') as f:
         story = Story(f.read())
         outputs = OutputStreams(OutputStream(),OutputStream())
         inputs = InputStreams(InputStream(),InputStream())
         zmachine = Interpreter(story,outputs,inputs,None,None)
-        zmachine.reset()
+        zmachine.reset(restart_flags=restart_flags)
         zmachine.story.header.set_debug_mode()
 
     return zmachine
 
 
-def start(filename,raw,commands_path,trace_file_path=None,seed=None):
+def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
-    zmachine = load_zmachine(filename)        
+    zmachine = load_zmachine(filename,restart_flags)        
     loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed)
 
     try:
@@ -265,12 +265,17 @@ def main(*args):
     data = parser.parse_args()
 
     try:
+        restart_flags = None # Per spec, when restarting, preserve bit 0 and bit 1 of flag 2 in header 
         while True:
             try:
-                start(data.story,raw=data.raw,commands_path=data.commands_path,trace_file_path=data.trace_file,seed=data.seed)    
-            except ResetException:
-                print("Resetting...")
-                time.sleep(1)
+                start(data.story,
+                    raw=data.raw,
+                    commands_path=data.commands_path,
+                    trace_file_path=data.trace_file,
+                    seed=data.seed,
+                    restart_flags=restart_flags)    
+            except RestartException as e:
+                restart_flags = e.restart_flags
     except QuitException:
         print("Thanks for playing!")
 

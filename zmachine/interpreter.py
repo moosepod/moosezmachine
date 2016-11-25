@@ -32,6 +32,12 @@ class QuitException(Exception):
     """ Thrown when its time to quit the game """
     pass
 
+class RestartException(Exception):
+    """ Thrown when its time to restart the game. Preserve two flags between runs. """
+    def __init__(self,story):
+        header = story.header
+        self.restart_flags = (header.flag(Header.FLAGS_2,0),header.flag(Header.FLAGS_2,1))
+
 class RNG(object):
     """ The random number generator, as specced in section 2.4
         Note that it toggles between a predicatable and random mode """
@@ -779,7 +785,7 @@ class Story(object):
         self.game_memory = None
         self.rng = RNG()
 
-    def reset(self,force_version=0,logger=None):
+    def reset(self,force_version=0,logger=None,restart_flags=None):
         """ Reset/initialize the game state from the raw game data. Will raise StoryFileException on validation issues. 
             If force version is set, pretend this file is that version.
          """
@@ -799,6 +805,12 @@ class Story(object):
 
         # Default mode for RNG is random (see 2.4)
         self.rng.enter_random_mode()
+
+        # If provided, preserve flags between restarts
+        if restart_flags:
+            self.game_memory.set_flag(Header.FLAGS_2,0,restart_flags[0])        
+            self.game_memory.set_flag(Header.FLAGS_2,1,restart_flags[1])
+
 
     def calculate_checksum(self):
         """ Return the calculated checksum, which is the unsigned sum, mod 65536
@@ -834,12 +846,12 @@ class Interpreter(object):
         self.state = Interpreter.RUNNING_STATE
         self.screen = screen or Screen()
 
-    def reset(self,force_version=0):
+    def reset(self,force_version=0,restart_flags=None):
         """ Start/restart the interpreter. Set force_version to make it act like the story file
             is that version
          """
         self.initialized = True
-        self.story.reset(force_version=force_version,logger=self)
+        self.story.reset(force_version=force_version,logger=self,restart_flags=restart_flags)
         self.pc = self.story.header.main_routine_addr
         self.last_instruction = None
         if self.output_streams:
@@ -1056,7 +1068,7 @@ class Interpreter(object):
         raise QuitException()
 
     def restart(self):
-        raise InterpreterException('Restart not implemented')
+        raise RestartException(self.story)
 
     def save(self,branch_offset,next_address):
         """ Handle a save. Branch info is used to move pc post save """
