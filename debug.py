@@ -16,7 +16,7 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream
+from curses_terp import CursesInputStream,CursesOutputStream
 
 # Window constants
 STORY_TOP_MARGIN = 1
@@ -437,9 +437,6 @@ class MainLoop(object):
         story.refresh()
         curses_output_stream = CursesOutputStream(story,status)
         self.zmachine.output_streams.set_screen_stream(curses_output_stream)
-        if self.transcript:
-            self.zmachine.output_streams[OutputStreams.TRANSCRIPT] = FileTranscriptStream(self.transcript)
-            self.zmachine.output_streams.select_stream(OutputStreams.TRANSCRIPT)
 
         self.curses_input_stream = CursesInputStream(story)
         self.zmachine.input_streams.keyboard_stream = self.curses_input_stream

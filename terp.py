@@ -1,16 +1,17 @@
 """ Curses-based interpreter. Usage: python terp.py filename """
 
 import sys
-from enum import Enum
 import re
-
+import os
 import logging
 import curses
 import curses.ascii
-from curses import wrapper
-
 import argparse
 import time
+import datetime
+
+from enum import Enum
+from curses import wrapper
 
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
                                  StoryFileException,InterpreterException,MemoryAccessException,\
@@ -19,8 +20,8 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream,STDOUTOutputStream,\
-                        FileInputStream,FileStreamEmptyException
+from curses_terp import CursesInputStream,CursesOutputStream,STDOUTOutputStream,\
+                        FileInputStream,FileStreamEmptyException,FileOutputStream
 
 STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
@@ -33,7 +34,7 @@ class RunState(Enum):
     RUNNING                  = 0
     WAITING_TO_QUIT          = 1
 
-class ResetException(Exception):
+class ConfigException(Exception):
     pass
 
 class Tracer(object):
@@ -107,7 +108,7 @@ class Terp(object):
             if self.tracer:
                 self.tracer.log_instruction(self.zmachine.last_instruction)
 
-    def key_pressed(self,ch,input_stream,output_stream):
+    def key_pressed(self,ch,input_stream,output_streams):
         if self.state == RunState.RUNNING:
             if ch == curses.ascii.ESC:
                 self.wait_for_quit()
@@ -118,7 +119,8 @@ class Terp(object):
                     # If the end result of the press is the end of the input line,
                     # start recording, using the entered line as the command
                     if input_stream.line_done:
-                        output_stream.flush()
+                        output_streams.command_entered(input_stream.text)
+                        output_streams.flush()
                         if self.tracer:
                             self.tracer.start_command(input_stream.text)
 
@@ -130,13 +132,14 @@ class Terp(object):
 
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None):
+    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None,transcript_path=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
         self.commands_path = commands_path
         self.tracer = tracer
         self.seed=seed
+        self.transcript_path=transcript_path
 
     def loop(self,screen):
         # Disable automatic echo
@@ -177,6 +180,17 @@ class MainLoop(object):
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
 
+        if self.transcript_path:
+            if not self.transcript_path.endswith('.transcript'):
+                raise ConfigException('All transcripts must end with the .transcript extension')
+            if os.path.isdir(self.transcript_path):
+                raise ConfigException('Transcript path must be to a file that ends in .transcript')
+
+            transcript_stream = FileOutputStream(self.transcript_path)
+            self.zmachine.output_streams.set_transcript_stream(transcript_stream)
+            transcript_stream.print_str('--- Game started at %s ----\n\n' % datetime.datetime.now())
+            transcript_stream.flush()
+
         self.zmachine.input_streams.keyboard_stream = CursesInputStream(story)
         self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
@@ -208,17 +222,18 @@ class MainLoop(object):
                 if ch == curses.ERR:
                     terp.idle(input_stream)
                 else:
-                    terp.key_pressed(ch,input_stream,output_stream)
+                    terp.key_pressed(ch,input_stream,self.zmachine.output_streams)
 
                 if input_stream.waiting_for_line and not was_waiting_for_line:
                     # If the term has just switched to waiting for line (sread hit)
                     # output our buffer
-                    output_stream.flush()
+                    self.zmachine.output_streams.flush()
                     timer = time.clock()
 
 
                 story.refresh()
             except (QuitException,RestartException) as e:
+                self.zmachine.output_streams.flush()
                 raise e
             except FileStreamEmptyException:
                 self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
@@ -237,13 +252,13 @@ def load_zmachine(filename,restart_flags=None):
     return zmachine
 
 
-def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None):
+def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
     zmachine = load_zmachine(filename,restart_flags)        
-    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed)
+    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed,transcript_path=transcript_path)
 
     try:
         wrapper(loop.loop)
@@ -260,6 +275,7 @@ def main(*args):
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
     parser.add_argument('--commands_path',help='Path to optional command file',required=False)
+    parser.add_argument('--transcript_path',help='Path for transcript. This will also activate transcript by default.',required=False)
     parser.add_argument('--seed',help='Optional seed for RNG',required=False)
     parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
     data = parser.parse_args()
@@ -273,11 +289,15 @@ def main(*args):
                     commands_path=data.commands_path,
                     trace_file_path=data.trace_file,
                     seed=data.seed,
+                    transcript_path=data.transcript_path,
                     restart_flags=restart_flags)    
             except RestartException as e:
                 restart_flags = e.restart_flags
     except QuitException:
+
         print("Thanks for playing!")
+    except ConfigException as e:
+        print(e)
 
 if __name__ == "__main__":
     main()

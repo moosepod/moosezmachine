@@ -18,7 +18,7 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,FileTranscriptStream
+from curses_terp import CursesInputStream,CursesOutputStream
 
 from django.core.management.base import BaseCommand, CommandError
 

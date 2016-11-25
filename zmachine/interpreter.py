@@ -688,10 +688,20 @@ class OutputStreams(object):
         self.streams[OutputStreams.SCREEN] = stream
         stream.is_active=True
 
+    def set_transcript_stream(self,stream):
+        """ Assign the transcript stream, setting it active by default """
+        self.streams[OutputStreams.TRANSCRIPT] = stream
+        stream.is_active=True
+
     def new_line(self):
         """ Pass a new_line call down to all active streams """
         for stream in (s for s in self.streams if s.is_active):
             stream.new_line()
+
+    def flush(self):
+        """ Flush text buffer for all active streams """
+        for stream in (s for s in self.streams if s.is_active):
+            stream.flush()
 
     def print_str(self,txt):
         """ Print the (ascii) string to all active streams """
@@ -703,6 +713,13 @@ class OutputStreams(object):
         text = self.ztext._map_zchar(ch)
         for stream in (s for s in self.streams if s.is_active):
             stream.print_str(text)
+
+    def command_entered(self,command):
+        # Called when a command is entered. We'll need to echo it to transcript
+        # and command streams, if active
+        transcript = self.streams[OutputStreams.TRANSCRIPT]
+        if transcript and transcript.is_active:
+            transcript.print_str(command)
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if self[OutputStreams.SCREEN].is_active:

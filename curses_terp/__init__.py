@@ -156,6 +156,31 @@ class STDOUTOutputStream(OutputStream):
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         pass
 
+
+class FileOutputStream(OutputStream):
+    def __init__(self,path):
+        super(FileOutputStream,self).__init__()
+        self.buffer = ''
+        self.path = path
+
+
+    def flush(self):
+        with open(self.path,'a') as f:
+            f.write(str(self.buffer.encode('ascii','replace'),'ascii'))
+        self.buffer = ''
+
+    def new_line(self):
+        self.buffer += '\n'
+        
+    def print_str(self,txt):
+        self.buffer += str(txt)
+
+    def print_char(self,txt):
+        self.buffer += str(txt)
+
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
+        pass
+
 class StringIOOutputStream(OutputStream):
     def __init__(self,io_stream):
         self.io_stream = io_stream
@@ -174,36 +199,4 @@ class StringIOOutputStream(OutputStream):
         self.io_stream.write(ch)
 
     def show_status(self,room_name,score_mode=True,hours=0,minutes=0,score=0,turns=0):
-        pass
-
-
-class FileTranscriptStream(OutputStream):
-    def __init__(self,path):
-        super(FileTranscriptStream,self).__init__()
-        self.path = path
-
-        # Clear the transcript on starting the stream
-        with open(self.path, 'w') as f:
-            f.write('')
-
-    def refresh(self):
-        pass
-            
-    def _println(self,msg):
-        self._print(msg + '\n')
-
-    def _print(self,msg):
-        with open(self.path, 'a') as f:
-            f.write(msg)
-
-    def new_line(self):
-        self._println('')
-        
-    def print_str(self,txt):
-        self._print(txt)
-
-    def print_char(self,txt):
-        self._print(txt)
-
-    def show_status(self, msg, time=None, score=None):
         pass
