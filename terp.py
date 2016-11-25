@@ -191,6 +191,12 @@ class MainLoop(object):
             transcript_stream.print_str('--- Game started at %s ----\n\n' % datetime.datetime.now())
             transcript_stream.flush()
 
+            # Create a command transcript as well
+            transcript_stream = FileOutputStream(self.transcript_path + '.commands')
+            self.zmachine.output_streams.set_commands_stream(transcript_stream)
+            transcript_stream.print_str('--- Game started at %s ----\n\n' % datetime.datetime.now())
+            transcript_stream.flush()
+
         self.zmachine.input_streams.keyboard_stream = CursesInputStream(story)
         self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
@@ -275,7 +281,7 @@ def main(*args):
     parser.add_argument('story',help='Story file to play')
     parser.add_argument('--raw',help='Output to with no curses',required=False,action='store_true')
     parser.add_argument('--commands_path',help='Path to optional command file',required=False)
-    parser.add_argument('--transcript_path',help='Path for transcript. This will also activate transcript by default.',required=False)
+    parser.add_argument('--transcript_path',help='Path for transcript. This will also activate transcript by default. A separate commands transcript will also automatically be created.',required=False)
     parser.add_argument('--seed',help='Optional seed for RNG',required=False)
     parser.add_argument('--trace_file',help='Path to file to which the terp will dump all instructions on exit',required=False)
     data = parser.parse_args()

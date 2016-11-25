@@ -666,7 +666,7 @@ class OutputStreams(object):
     SCREEN = 0
     TRANSCRIPT = 1
     ZMACHINE = 2
-    SCRIPT = 3
+    COMMANDS = 3
 
     def __init__(self,screen,transcript,script=None):
         self.screen = screen
@@ -674,7 +674,7 @@ class OutputStreams(object):
          
     def reset(self,zmachine,ztext):
         self.ztext = ztext 
-        self.streams = [self.screen,self.transcript]
+        self.streams = [self.screen,self.transcript,None,None]
         if zmachine.story.header.version > 3:
             self.streams.append(ZMachineStream(zmachine))
             self.streams.append(script)
@@ -693,26 +693,35 @@ class OutputStreams(object):
         self.streams[OutputStreams.TRANSCRIPT] = stream
         stream.is_active=True
 
+    def set_commands_stream(self,stream):
+        """ Assign the commands stream, setting it active by default """
+        self.streams[OutputStreams.COMMANDS] = stream
+        stream.is_active=True
+
     def new_line(self):
-        """ Pass a new_line call down to all active streams """
-        for stream in (s for s in self.streams if s.is_active):
-            stream.new_line()
+        """ Pass a new_line call down to screen or transcript streams """
+        for index in (OutputStreams.SCREEN, OutputStreams.TRANSCRIPT):
+            if self.streams[index] and self.streams[index].is_active:
+                self.streams[index].new_line()
 
     def flush(self):
         """ Flush text buffer for all active streams """
-        for stream in (s for s in self.streams if s.is_active):
-            stream.flush()
+        for index in (OutputStreams.SCREEN, OutputStreams.TRANSCRIPT):
+            if self.streams[index] and self.streams[index].is_active:
+                self.streams[index].flush()
 
     def print_str(self,txt):
         """ Print the (ascii) string to all active streams """
-        for stream in (s for s in self.streams if s.is_active):
-            stream.print_str(txt)
+        for index in (OutputStreams.SCREEN, OutputStreams.TRANSCRIPT):
+            if self.streams[index] and self.streams[index].is_active:
+                self.streams[index].print_str(txt)
  
     def print_zchar(self,ch):
         """ Print the zchar to all active streams """
         text = self.ztext._map_zchar(ch)
-        for stream in (s for s in self.streams if s.is_active):
-            stream.print_str(text)
+        for index in (OutputStreams.SCREEN, OutputStreams.TRANSCRIPT):
+            if self.streams[index] and self.streams[index].is_active:
+                self.streams[index].print_str(txt)
 
     def command_entered(self,command):
         # Called when a command is entered. We'll need to echo it to transcript
@@ -720,6 +729,12 @@ class OutputStreams(object):
         transcript = self.streams[OutputStreams.TRANSCRIPT]
         if transcript and transcript.is_active:
             transcript.print_str(command)
+
+        commands = self.streams[OutputStreams.COMMANDS]
+        if commands and commands.is_active:
+            commands.print_str(command)
+            commands.new_line()
+            commands.flush()
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if self[OutputStreams.SCREEN].is_active:
