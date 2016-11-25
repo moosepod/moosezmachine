@@ -441,18 +441,29 @@ class ObjectTableManager(object):
 
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """
-        old_child_id = self.get_child(parent_id)
-        if old_child_id == obj_id:
+        prev_child_id = self.get_child(parent_id)
+        if prev_child_id == obj_id:
             return # We're already the child, do nothing
    
+        # We need to find the previous object to the object we're moving under
+        # its old parent, since after we move our objects sibling is now the sibling
+        # of this object
         old_parent_id = self.get_parent(obj_id)
+        old_child_id = self.get_child(old_parent_id)
         old_sibling_id = self.get_sibling(obj_id)
+        if old_child_id == obj_id:
+            old_child_id = old_sibling_id
+            old_prev_sibling_id = 0
+        else:
+            old_prev_sibling_id = old_child_id
+            while old_prev_sibling_id and self.get_sibling(old_prev_sibling_id) != obj_id:
+                old_prev_sibling_id = self.get_sibling(old_prev_sibling_id)
 
         # Set parent of object to new parent, and sibling to the previous child of
         # the parent 
         start_addr = self._obj_start_addr(obj_id)
         self.game_memory[start_addr+ObjectTableManager.PARENT_OFFSET] = parent_id
-        self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET] = old_child_id
+        self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET] = prev_child_id
 
         # Set child of new parent to object
         start_addr = self._obj_start_addr(parent_id)
@@ -460,7 +471,12 @@ class ObjectTableManager(object):
 
         # Set child of old parent to old sibling of this object
         start_addr = self._obj_start_addr(old_parent_id)
-        self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = old_sibling_id
+        self.game_memory[start_addr+ObjectTableManager.CHILD_OFFSET] = old_child_id
+
+        # stitch up siblings of previous object, if we had one
+        if old_prev_sibling_id:
+            start_addr = self._obj_start_addr(old_prev_sibling_id)
+            self.game_memory[start_addr+ObjectTableManager.SIBLING_OFFSET] = old_sibling_id
 
     def get_next_prop(self,obj_id, property_id):
         """ Find the property after the identified property. If 0, first property. If property

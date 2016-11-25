@@ -315,10 +315,36 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(1,table.get_child(11))
         self.assertEqual(11,table.get_parent(1))
 
-        for i in range(0,11):
-            print(table.obj_tree_as_str(i,self.zmachine.get_ztext()))
+        # Setup so we can test that inserting an object correctly preserves old sibling
+        # After these inserts, children of 2 are 5,4,3,7
+        table.insert_obj(3,2)
+        table.insert_obj(4,2)
+        table.insert_obj(5,2)
 
-        self.fail('Validate case where we have O1,O2,O3,O4, move O2 to a new parent, and ensure O2->O4')
+        # After the insert below, children should be 5,4,7
+        table.insert_obj(3,6)
+        child_id = table.get_child(2)
+        self.assertEqual(5,child_id)
+        child_id = table.get_sibling(child_id)
+        self.assertEqual(4,child_id)
+        child_id = table.get_sibling(child_id)
+        self.assertEqual(7,child_id)
+        self.assertEqual(0, table.get_sibling(child_id))
+
+        self.assertEqual(3, table.get_child(6))
+        self.assertEqual(0, table.get_sibling(3))
+
+        # Verify removing first child. After this children should be 4,7
+        table.insert_obj(5,6)
+        child_id = table.get_child(2)
+        self.assertEqual(4,child_id)
+        child_id = table.get_sibling(child_id)
+        self.assertEqual(7,child_id)
+        self.assertEqual(0, table.get_sibling(child_id))
+        
+        self.assertEqual(5, table.get_child(6))
+        self.assertEqual(3, table.get_sibling(5))
+        self.assertEqual(0, table.get_sibling(3))
 
     def test_remove_obj(self):
         table = self.story.object_table
