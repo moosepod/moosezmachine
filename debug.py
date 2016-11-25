@@ -91,11 +91,22 @@ class ObjectsWindow(object):
         self.obj_index += 1
         if self.obj_index > self.max_obj:
             self.obj_index = self.max_obj
-
         return True
 
     def previous_line(self):
         self.obj_index -= 1
+        if self.obj_index < 0:
+            self.obj_index = 0
+        return True
+
+    def next_block(self):
+        self.obj_index += 10
+        if self.obj_index > self.max_obj:
+            self.obj_index = self.max_obj
+        return True
+
+    def previous_block(self):
+        self.obj_index -= 10
         if self.obj_index < 0:
             self.obj_index = 0
         return True
@@ -290,11 +301,17 @@ class DebuggerWindow(object):
         elif ch == 'g':
             self.current_handler = self.window_handlers['s']
             terp.run()           
-        elif ch == '.' or ch == '>':
+        elif ch == '.':
             if self.current_handler.next_line():
                 self.redraw()
-        elif ch == ',' or ch == '<':
+        elif ch == '>':
+            if self.current_handler.next_block():
+                self.redraw()
+        elif ch == ',':
             if self.current_handler.previous_line():
+                self.redraw()
+        elif ch == '<':
+            if self.current_handler.previous_block():
                 self.redraw()
         else:
             h = self.window_handlers.get(ch)

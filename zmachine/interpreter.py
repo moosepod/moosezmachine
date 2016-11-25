@@ -414,7 +414,7 @@ class ObjectTableManager(object):
     def remove_obj(self,obj_id):
         """ Remove this objects from its parent (leaving its children) """
         obj_start_addr = self._obj_start_addr(obj_id)
-        
+
         # need to identify this object's previous sibling, if any, and link to next sibling
         obj = self[obj_id]
         parent_obj = obj['parent']
@@ -438,7 +438,6 @@ class ObjectTableManager(object):
         # Now remove this obj from parent
         self.game_memory[obj_start_addr+ObjectTableManager.PARENT_OFFSET] = 0
         self.game_memory[obj_start_addr+ObjectTableManager.SIBLING_OFFSET] = 0
-
 
     def insert_obj(self,obj_id,parent_id):
         """ Insert the obj obj_id at the front of parent_id """
@@ -569,6 +568,21 @@ class ObjectTableManager(object):
         if obj_id < 0 or obj_id > 255:
             return False
         return True
+
+    def obj_tree_as_str(self,obj_id,ztext,indent=0):
+        """ For debugging purposes, return a string contain a dump of an object and all children """
+        s=''
+        obj = self[obj_id]
+        if obj:
+            s += '%s(%d)%s\n' % (' '*indent, obj_id,ztext.to_ascii(obj['short_name_zc']))
+            child_id = self.get_child(obj_id)
+            if child_id:
+                sibling_id = child_id
+                while sibling_id:
+                    s+=self.obj_tree_as_str(sibling_id,ztext,indent+2)
+                    sibling_id = self.get_sibling(sibling_id)
+        return s
+
 
     def __getitem__(self,key):
         """ Get the nth object """

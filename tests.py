@@ -315,6 +315,11 @@ class ObjectTableTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(1,table.get_child(11))
         self.assertEqual(11,table.get_parent(1))
 
+        for i in range(0,11):
+            print(table.obj_tree_as_str(i,self.zmachine.get_ztext()))
+
+        self.fail('Validate case where we have O1,O2,O3,O4, move O2 to a new parent, and ensure O2->O4')
+
     def test_remove_obj(self):
         table = self.story.object_table
         self.assertEqual(11,table[1]['parent'])
