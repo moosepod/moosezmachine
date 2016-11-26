@@ -88,10 +88,11 @@ class Tracer(object):
                     f.write('{0: <6} {1}\n'.format(v,k))
 
 class Terp(object):
-    def __init__(self,zmachine,output_stream,tracer=None):
+    def __init__(self,zmachine,output_stream,story_filename,tracer=None):
         self.state = RunState.RUNNING
         self.zmachine = zmachine
         self.output_stream = output_stream
+        self.story_filename = story_filename
         self.tracer = tracer
 
     def run(self):
@@ -124,7 +125,7 @@ class Terp(object):
 
     def handle_restore(self,save_name):
         stream = self.zmachine.output_streams.get_screen_stream()
-        message = self.zmachine.restore_from_handler.save_to(save_name,self.zmachine)
+        message = self.zmachine.restore_handler.restore_from(save_name,self.zmachine)
         stream.print_str(message)
         stream.new_line()
         stream.flush()
@@ -174,54 +175,64 @@ class Terp(object):
             else:
 	            self.run()
 
-class TerpSaveHandler(object):
+class SaveRestoreMixin(object):
+    def fix_filename(self, filename):
+        """ Take a provided filename, strip any unwanted characters, then prefix with our story file name """
+        return u'%s_%s.sav' % (self.terp.story_filename,
+            ''.join([c for c in filename if c.isalpha() or s.isdigit() or c==' ' or c=='_']))
+
+class TerpSaveHandler(SaveRestoreMixin):
     def __init__(self, terp,save_path):
         self.terp=terp
-        self.done_action = None
+        self.error_action = None
+        self.success_action = None
         self.save_path = save_path
 
     def save_to(self, filename, interpreter):
-        filename = filename + '.sav'
+        filename = self.fix_filename(filename)
 
         try:
             with open(os.path.join(self.save_path,filename),'w') as f:
-                f.write(terp.zmachine.to_save_data())
-            message = 'Saved to %s' % filename
-        except Exception, e:
-            message = 'Error saving. %s' % (e,)
+                f.write(self.terp.zmachine.to_save_data())
+            message = '\nSaved to %s' % filename
+            action = self.success_action
+        except Exception as e:
+            message = '\nError saving. %s' % (e,)
+            action = self.error_action
 
-        self.done_action.apply(interpreter)
+        action.apply(interpreter)
         return message
 
-    def handle_save(self,done_action):
+    def handle_save(self,success_action,error_action):
         self.terp.start_save()
-        self.done_action = done_action
+        self.success_action = success_action
+        self.error_action = error_action
 
-class TerpRestoreHandler(object):
+
+class TerpRestoreHandler(SaveRestoreMixin):
     def __init__(self, terp,save_path):
         self.terp=terp
-        self.done_action = None
+        self.error_action = None
         self.save_path = save_path
 
-    def restore_to(self, filename, interpreter):
-        filename = filename + '.sav'
+    def restore_from(self, filename, interpreter):
+        filename = self.fix_filename(filename)
 
         try:
             with open(os.path.join(self.save_path,filename),'r') as f:
-                out.write(terp.zmachine.restore_from_save_data(f.read()))
+                out.write(self.terp.zmachine.restore_from_save_data(f.read()))
             message = 'Restored from %s' % filename
-        except Exception, e:
+        except Exception as e:
             message = 'Error restoring. %s' % (e,)
-
-        self.done_action.apply(interpreter)
+            self.error_action.apply(interpreter)
         return message
 
-    def handle_restore(self,done_action):
+    def handle_restore(self,error_action):
         self.terp.start_restore()
-        self.done_action = done_action
+        self.error_action = error_action
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None,transcript_path=None,save_path=None):
+    def __init__(self,zmachine,raw,commands_path,story_filename=None,tracer=None,seed=None,transcript_path=None,save_path=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
@@ -230,6 +241,7 @@ class MainLoop(object):
         self.seed=seed
         self.transcript_path=transcript_path
         self.save_path = save_path
+        self.story_filename = story_filename
 
     def loop(self,screen):
         # Disable automatic echo
@@ -298,7 +310,7 @@ class MainLoop(object):
             self.zmachine.input_streams.command_file_stream =input_stream
             self.zmachine.input_streams.select_stream(InputStreams.FILE)
 
-        terp = Terp(self.zmachine,self.tracer)
+        terp = Terp(self.zmachine,self.tracer,self.story_filename)
         terp.run()
         self.terp = terp
 
@@ -353,13 +365,21 @@ def load_zmachine(filename,restart_flags=None):
     return zmachine
 
 
-def start(filename,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None,save_path=None):
+def start(path,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None,save_path=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
 
-    zmachine = load_zmachine(filename,restart_flags)        
-    loop = MainLoop(zmachine,raw=raw,commands_path=commands_path,tracer=tracer,seed=seed,transcript_path=transcript_path,save_path=save_path)
+    zmachine = load_zmachine(path,restart_flags)
+    story_path, story_filename = os.path.split(path)        
+    loop = MainLoop(zmachine,
+        raw=raw,
+        story_filename=story_filename,
+        commands_path=commands_path,
+        tracer=tracer,
+        seed=seed,
+        transcript_path=transcript_path,
+        save_path=save_path)
 
     try:
         wrapper(loop.loop)

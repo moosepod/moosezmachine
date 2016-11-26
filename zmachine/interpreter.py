@@ -7,7 +7,7 @@ import os
 from zmachine.memory import Memory,BitArray
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
-from zmachine.instructions import read_instruction,JumpRelativeAction
+from zmachine.instructions import read_instruction,JumpRelativeAction,NextInstructionAction
 
 # First global variable in the variable numbering system
 GLOBAL_VAR_START = 0x10
@@ -1109,7 +1109,8 @@ class Interpreter(object):
         """ Handle a save. Branch info is used to move pc post save """
         if not self.save_handler:
             raise InterpreterException('No save handler implemented')
-        self.save_handler.handle_save(JumpRelativeAction(branch_offset,next_address))
+        self.save_handler.handle_save(NextInstructionAction(next_address),
+                                      JumpRelativeAction(branch_offset,next_address))
 
     def debug(self,msg):
         """ Debug logging """
