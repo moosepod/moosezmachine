@@ -120,8 +120,8 @@ class CursesOutputStream(OutputStream):
             self.window.addstr(line.encode('ascii','replace')) # Strip out unicode that won't behave properly in curses
             first_line=False
 
-        if self.buffer.endswith('\n'):
-            self.window.addstr('\n') 
+        if self.buffer.endswith('\n') and first_line:
+            self.window.addstr('\n')
 
         self.buffer=''
 

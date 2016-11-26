@@ -101,27 +101,29 @@ class Terp(object):
     def start_save(self):
         self.state = RunState.PROMPT_FOR_SAVE
         stream = self.zmachine.output_streams.get_screen_stream()
-        stream.print_str('Name for your save file? ')
+        self.zmachine.output_streams.get_screen_stream().print_str('Name of file for save (in %s)? ' % 
+                                            self.zmachine.save_handler.save_path)
         stream.flush()
         self.zmachine.input_streams.active_stream.readline()
 
     def handle_save(self,save_name):
         stream = self.zmachine.output_streams.get_screen_stream()
-        stream.print_str('Saved to %s' % save_name)
-        stream.new_line()
+        stream.print_str('\nSaved to %s' % save_name)
+        stream.new_line()   
         stream.flush()
         self.run()
         self.zmachine.save_handler.done(self.zmachine)
 
     def start_restore(self):
         self.state = RunState.PROMPT_FOR_RESTORE
-        self.zmachine.output_streams.get_screen_stream().print_str('Name of file for restore? ')
+        self.zmachine.output_streams.get_screen_stream().print_str('Name of file for restore (in %s)? ' % 
+                                self.zmachine.save_handler.save_path)
         self.zmachine.output_streams.get_screen_stream().flush()
         self.zmachine.input_streams.active_stream.readline()
 
     def handle_restore(self,save_name):
         stream = self.zmachine.output_streams.get_screen_stream()
-        stream.print_str('Restoring to %s' % save_name)
+        stream.print_str('\nRestoring to %s' % save_name)
         stream.new_line()
         stream.flush()
         self.run()
@@ -171,9 +173,10 @@ class Terp(object):
 	            self.run()
 
 class TerpSaveHandler(object):
-    def __init__(self, terp):
+    def __init__(self, terp,save_path):
         self.terp=terp
         self.done_action = None
+        self.save_path = save_path
 
     def done(self, interpreter):
         self.done_action.apply(interpreter)
@@ -183,9 +186,10 @@ class TerpSaveHandler(object):
         self.done_action = done_action
 
 class TerpRestoreHandler(object):
-    def __init__(self, terp):
+    def __init__(self, terp,save_path):
         self.terp=terp
         self.done_action = None
+        self.save_path = save_path
 
     def done(self, interpreter):
         self.done_action.apply(interpreter)
@@ -277,8 +281,8 @@ class MainLoop(object):
         self.terp = terp
 
         if self.save_path:
-            self.zmachine.save_handler = TerpSaveHandler(terp)
-            self.zmachine.restore_handler = TerpRestoreHandler(terp)
+            self.zmachine.save_handler = TerpSaveHandler(terp,self.save_path)
+            self.zmachine.restore_handler = TerpRestoreHandler(terp,self.save_path)
 
 
         counter = 0
