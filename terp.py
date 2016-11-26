@@ -108,11 +108,12 @@ class Terp(object):
 
     def handle_save(self,save_name):
         stream = self.zmachine.output_streams.get_screen_stream()
-        stream.print_str('\nSaved to %s' % save_name)
-        stream.new_line()   
+        message = self.zmachine.save_handler.save_to(save_name,self.zmachine)
+        stream.print_str(message)
+        stream.new_line()
         stream.flush()
+
         self.run()
-        self.zmachine.save_handler.done(self.zmachine)
 
     def start_restore(self):
         self.state = RunState.PROMPT_FOR_RESTORE
@@ -123,11 +124,12 @@ class Terp(object):
 
     def handle_restore(self,save_name):
         stream = self.zmachine.output_streams.get_screen_stream()
-        stream.print_str('\nRestoring to %s' % save_name)
+        message = self.zmachine.restore_from_handler.save_to(save_name,self.zmachine)
+        stream.print_str(message)
         stream.new_line()
         stream.flush()
+
         self.run()
-        self.zmachine.restore_handler.done(self.zmachine)
 
     def wait_for_quit(self):
         self.state = RunState.WAITING_TO_QUIT
@@ -178,8 +180,18 @@ class TerpSaveHandler(object):
         self.done_action = None
         self.save_path = save_path
 
-    def done(self, interpreter):
+    def save_to(self, filename, interpreter):
+        filename = filename + '.sav'
+
+        try:
+            with open(os.path.join(self.save_path,filename),'w') as f:
+                f.write(terp.zmachine.to_save_data())
+            message = 'Saved to %s' % filename
+        except Exception, e:
+            message = 'Error saving. %s' % (e,)
+
         self.done_action.apply(interpreter)
+        return message
 
     def handle_save(self,done_action):
         self.terp.start_save()
@@ -191,8 +203,18 @@ class TerpRestoreHandler(object):
         self.done_action = None
         self.save_path = save_path
 
-    def done(self, interpreter):
+    def restore_to(self, filename, interpreter):
+        filename = filename + '.sav'
+
+        try:
+            with open(os.path.join(self.save_path,filename),'r') as f:
+                out.write(terp.zmachine.restore_from_save_data(f.read()))
+            message = 'Restored from %s' % filename
+        except Exception, e:
+            message = 'Error restoring. %s' % (e,)
+
         self.done_action.apply(interpreter)
+        return message
 
     def handle_restore(self,done_action):
         self.terp.start_restore()

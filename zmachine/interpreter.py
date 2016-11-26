@@ -1129,3 +1129,11 @@ class Interpreter(object):
 
     def peek_game_stack(self):
         return self.current_routine().peek_stack() 
+
+    def to_save_data(self):
+        """ Convert this zmachine into save data for persisting """
+        return 'Test'
+
+    def reset_from_save_data(self, data):
+        """ Reset this zmachine (preserving a few flags) from save data """
+        pass
