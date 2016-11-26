@@ -242,33 +242,53 @@ class GameMemory(Memory):
 
 class Routine(object):
     """ Context for a routine in memory """
-    def __init__(self,memory,globals_address,routine_start,return_to_address,store_to,version,local_vars):
+    def __init__(self,memory,globals_address,routine_start,return_to_address,store_to,version,local_vars,data=None):
         """ Initialize this routine from location idx at the memory passed in """
-        self.routine_start = routine_start
-        self.version=version
         self.globals_address = globals_address
-        self.local_variables = []
-        idx = self.routine_start
-        if local_vars != None: 
-            # First "routine" in earlier story file versions has no locals
-            var_count = memory[idx] or len(local_vars)
-            if var_count < 0 or var_count > 15:
-                raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
-            # 5.2.1
-            idx+=1
-            self.local_variables = [0] * var_count
-            if version < 5:
-                for i in range(0,var_count):
-                    self.local_variables[i] = memory.word(idx)
-                    idx+=2
-            for i,val in enumerate(local_vars):
-                self.local_variables[i] = val
-
-        self.store_to = store_to
-        self.return_to_address = return_to_address
-        self.stack = []
         self.memory = memory
-        self.code_starts_at = idx
+        if data:
+            # If we're passed in a data dict, use that to initialize any routines
+            self.routine_start=data['routine_start']
+            self.local_variables=data['local_variables']
+            self.stack=data['stack']
+            self.return_to_address=data['return_to_address']
+            self.version=data['version']
+            self.code_starts_at=data['code_starts_at']
+            self.store_to=data['store_to']
+        else:
+            self.routine_start = routine_start
+            self.version=version
+            self.local_variables = []
+            idx = self.routine_start
+            if local_vars != None: 
+                # First "routine" in earlier story file versions has no locals
+                var_count = memory[idx] or len(local_vars)
+                if var_count < 0 or var_count > 15:
+                    raise Exception('Invalid number %s of local vars for routine at index %s' % (var_count,idx))
+                # 5.2.1
+                idx+=1
+                self.local_variables = [0] * var_count
+                if version < 5:
+                    for i in range(0,var_count):
+                        self.local_variables[i] = memory.word(idx)
+                        idx+=2
+                for i,val in enumerate(local_vars):
+                    self.local_variables[i] = val
+
+            self.store_to = store_to
+            self.return_to_address = return_to_address
+            self.stack = []
+            self.code_starts_at = idx
+
+    def to_dict(self):
+        """ Convert to a dictionary for storing in a save file """
+        return {'routine_start': self.routine_start,
+                'local_variables': self.local_variables,
+                'stack': self.stack,
+                'return_to_address': self.return_to_address,
+                'store_to': self.store_to,
+                'version': self.version,
+                'code_starts_at': self.code_starts_at}
 
     def __len__(self):
         # Always return 255 possible variables
@@ -1147,7 +1167,9 @@ class Interpreter(object):
         raw_data = self.story.raw_data._raw_data
         data = {'version': 1,
                 'checksum': self._get_save_checksum(),
-                'dynamic_memory':self.story.raw_data._raw_data[0:self.story.header.static_memory_address]
+                'routines': [r.to_dict() for r in self.routines],
+                'state': self.state,
+                'dynamic_memory': [int(x) for x in self.story.raw_data._raw_data[0:self.story.header.static_memory_address]],
         }
         return data
 
@@ -1159,7 +1181,36 @@ class Interpreter(object):
                 raise InvalidSaveDataException('Unsupported save version.')
             if parsed.get('checksum') != self._get_save_checksum():
                 raise InvalidSaveDataException('Unsupported save version.')
+    
+            # Preserve value of flags 2 (6.1.2)
+            flags_2 = self.story.raw_data[Header.FLAGS_2]
 
+            # Reset the story to initial values
+            self.reset()
+
+            # Restore state
+            self.state = parsed['state']
+
+            # Setup routines
+            self.routines = []
+            for routine in parsed['routines']:
+                self.routines.append(Routine(self.story.raw_data, 
+                            self.story.header.global_variables_address,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            data=routine))
+            # Restore memory
+            mem = parsed['dynamic_memory']
+            for idx in range(0,len(mem)):
+                self.story.raw_data._raw_data[idx] = mem[idx] 
+
+            # Set the flags to the saved state
+            self.story.raw_data[Header.FLAGS_2] = flags_2
+        except IndexError as e:
+            raise InvalidSaveDataException('Save data missing parameter: %s' % e)
         except json.decoder.JSONDecodeError:
             raise InvalidSaveDataException('File does not contain valid json')
-        self.reset()
+ 

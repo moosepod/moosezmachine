@@ -2159,19 +2159,31 @@ class SampleFileTests(unittest.TestCase):
         while self.zmachine.state == Interpreter.RUNNING_STATE and count < 100:
             self.zmachine.step()
 
-        print(self.zmachine.pc)
-        print(self.zmachine.state)
-        print(self.zmachine.routines)
+        # Set flags 2 so that we can verify it's preserved on reset
+        self.zmachine.story.raw_data[Header.FLAGS_2] = 0xFF
 
-        old_memory = Memory(self.zmachine.story.raw_data)
-        
+        old_memory = self.zmachine.story.raw_data._raw_data
+        old_routines = [x.to_dict() for x in self.zmachine.routines]
+        old_state = self.zmachine.state
+
         data = self.zmachine.to_save_data()
-        print(data)
+    
+        self.zmachine.story.raw_data[Header.FLAGS_2] = 0x00
+        self.assertEqual(0x00,  self.zmachine.story.raw_data[Header.FLAGS_2])
+
         self.zmachine.restore_from_save_data(json.dumps(data))
 
-        self.assertEqual(self.zmachine.story.raw_data._raw_data, old_memory._raw_data)
-        self.fail('Check stack')
-        self.fail('Check routines')
+        self.assertEqual(0x00,  self.zmachine.story.raw_data[Header.FLAGS_2])
+        self.assertEqual(len(self.zmachine.routines),len(old_routines))
+        self.assertEqual(old_state, self.zmachine.state)
+        for old_routine, routine in zip(old_routines,self.zmachine.routines):
+            self.assertEqual(old_routine, routine.to_dict())         
+
+        new_mem = self.zmachine.story.raw_data._raw_data
+        self.assertEqual(len(new_mem),len(old_memory))
+
+        for idx in range(0,len(new_mem)):
+            self.assertEqual(new_mem[idx],old_memory[idx],'Differs at index %d' % idx)
 
     def test_dictionary_split(self):
         # Test file has delimeters . and , and " (and default space)
