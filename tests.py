@@ -2,6 +2,7 @@
 import unittest
 import os
 import inspect
+import json
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
@@ -2137,6 +2138,40 @@ class SampleFileTests(unittest.TestCase):
             self.story = Story(f.read())
             self.zmachine = Interpreter(self.story,TestOutputStreams(),None,TestSaveHandler(),TestRestoreHandler())
             self.zmachine.reset()
+
+    def test_save_and_restore_basic(self):
+        # Save and restore without changing anything. Ensure data is the same before/after
+        old_memory = Memory(self.zmachine.story.raw_data)
+        
+        data = self.zmachine.to_save_data()
+        self.assertEqual(1,data['version'])
+        self.assertEqual('0031F3',data['checksum'])
+        self.zmachine.restore_from_save_data(json.dumps(data))
+
+        self.assertEqual(self.zmachine.story.raw_data._raw_data, old_memory._raw_data)
+
+    def test_invalid_restore(self):
+        self.fail('Test check of checksum and version')
+
+    def test_save_and_restore(self):
+        # Run until command prompt to set up some memory.
+        count = 0
+        while self.zmachine.state == Interpreter.RUNNING_STATE and count < 100:
+            self.zmachine.step()
+
+        print(self.zmachine.pc)
+        print(self.zmachine.state)
+        print(self.zmachine.routines)
+
+        old_memory = Memory(self.zmachine.story.raw_data)
+        
+        data = self.zmachine.to_save_data()
+        print(data)
+        self.zmachine.restore_from_save_data(json.dumps(data))
+
+        self.assertEqual(self.zmachine.story.raw_data._raw_data, old_memory._raw_data)
+        self.fail('Check stack')
+        self.fail('Check routines')
 
     def test_dictionary_split(self):
         # Test file has delimeters . and , and " (and default space)

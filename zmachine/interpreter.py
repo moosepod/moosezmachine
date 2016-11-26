@@ -3,6 +3,8 @@
 """
 import random
 import os
+import json
+
 
 from zmachine.memory import Memory,BitArray
 from zmachine.text import ZText
@@ -29,7 +31,11 @@ class InterpreterException(Exception):
     pass
 
 class QuitException(Exception):
-    """ Thrown when its time to quit the game """
+    """ Thrown when its time to quit the dgame """
+    pass
+
+class InvalidSaveDataException(Exception):
+    """ Thrown when interpreter asked to restore save file that is inavlid """
     pass
 
 class RestartException(Exception):
@@ -1131,10 +1137,29 @@ class Interpreter(object):
     def peek_game_stack(self):
         return self.current_routine().peek_stack() 
 
+    def _get_save_checksum(self):
+        """ Return a checksum that can be used to ensure this is file is associated with the story """
+        raw_data = self.story.raw_data._raw_data
+        return '%.2X%.2X%.2X' % (raw_data[0x02],raw_data[0x12],raw_data[0x1C]) # See quetzal standard 5.3
+
     def to_save_data(self):
         """ Convert this zmachine into save data for persisting """
-        return 'Test'
+        raw_data = self.story.raw_data._raw_data
+        data = {'version': 1,
+                'checksum': self._get_save_checksum(),
+                'dynamic_memory':self.story.raw_data._raw_data[0:self.story.header.static_memory_address]
+        }
+        return data
 
-    def reset_from_save_data(self, data):
-        """ Reset this zmachine (preserving a few flags) from save data """
-        pass
+    def restore_from_save_data(self, data):
+        """ Reset this zmachine (preserving a few flags) from save data. Raises InvalidSaveDataException exception if issues. """
+        try:
+            parsed = json.loads(data)
+            if parsed.get('version') != 1:
+                raise InvalidSaveDataException('Unsupported save version.')
+            if parsed.get('checksum') != self._get_save_checksum():
+                raise InvalidSaveDataException('Unsupported save version.')
+
+        except json.decoder.JSONDecodeError:
+            raise InvalidSaveDataException('File does not contain valid json')
+        self.reset()
