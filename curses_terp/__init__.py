@@ -20,7 +20,6 @@ class CursesInputStream(object):
     def char_pressed(self,char):
         if char == '\n' or char == '\r':
             self.line_done = True
-            self.window.addstr('\n')
         elif char == BACKSPACE_CHAR:
             if self.text:
                 self.text = self.text[0:-1]
@@ -33,6 +32,13 @@ class CursesInputStream(object):
             self.window.addstr(char)
             self.window.refresh()
 
+    def reset(self):
+        self.waiting_for_line = False
+        self.line_done = False
+        self.text = ''
+        curses.curs_set(0) # Set cursor to hidden
+        self.window.refresh()
+
     def readline(self):
         # Note that we're currently waiting for text from the keyboard
         if not self.waiting_for_line:
@@ -43,11 +49,7 @@ class CursesInputStream(object):
 
         if self.line_done:
             text = self.text
-            self.waiting_for_line = False
-            self.line_done = False
-            self.text = ''
-            curses.curs_set(0) # Set cursor to hidden
-            self.window.refresh()
+            self.reset()
             return text
 
         return None
@@ -101,15 +103,25 @@ class CursesOutputStream(OutputStream):
 
     def flush(self):
         lines = []
+
         for block in self.buffer.split('\n'):
-            for line in textwrap.wrap(block,self.width):
-                lines.append(line)
+            # If the line fits, just add it as is. Otherwise use the textwrap
+            # tool to wrap. We don't use textwrap on every line because it will strip trailing spaces
+            if len(block) < self.width:
+                lines.append(block)
+            else:
+                for line in textwrap.wrap(block,self.width):
+                    lines.append(line)
+
         first_line=True
         for line in lines:
             if not first_line:
                 self.window.addstr('\n')
             self.window.addstr(line.encode('ascii','replace')) # Strip out unicode that won't behave properly in curses
             first_line=False
+
+        if self.buffer.endswith('\n'):
+            self.window.addstr('\n') 
 
         self.buffer=''
 

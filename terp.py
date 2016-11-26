@@ -100,20 +100,38 @@ class Terp(object):
 
     def start_save(self):
         self.state = RunState.PROMPT_FOR_SAVE
-        self.zmachine.output_streams.get_screen_stream().print_str('Name for your save file? ')
-        self.zmachine.output_streams.get_screen_stream().flush()
+        stream = self.zmachine.output_streams.get_screen_stream()
+        stream.print_str('Name for your save file? ')
+        stream.flush()
         self.zmachine.input_streams.active_stream.readline()
 
+    def handle_save(self,save_name):
+        stream = self.zmachine.output_streams.get_screen_stream()
+        stream.print_str('Saved to %s' % save_name)
+        stream.new_line()
+        stream.flush()
+        self.run()
+        self.zmachine.save_handler.done(self.zmachine)
+
     def start_restore(self):
-        self.state = RunState.PROMPT_FOR_SAVE
+        self.state = RunState.PROMPT_FOR_RESTORE
         self.zmachine.output_streams.get_screen_stream().print_str('Name of file for restore? ')
         self.zmachine.output_streams.get_screen_stream().flush()
         self.zmachine.input_streams.active_stream.readline()
+
+    def handle_restore(self,save_name):
+        stream = self.zmachine.output_streams.get_screen_stream()
+        stream.print_str('Restoring to %s' % save_name)
+        stream.new_line()
+        stream.flush()
+        self.run()
+        self.zmachine.restore_handler.done(self.zmachine)
 
     def wait_for_quit(self):
         self.state = RunState.WAITING_TO_QUIT
         self.zmachine.output_streams.get_screen_stream().print_str('\n[HIT ESC AGAIN TO QUIT]')
         self.zmachine.output_streams.get_screen_stream().flush()
+
 
     def idle(self,input_stream):
         """ Called if no key is pressed """
@@ -134,10 +152,17 @@ class Terp(object):
                     # If the end result of the press is the end of the input line,
                     # start recording, using the entered line as the command
                     if input_stream.line_done:
-                        output_streams.command_entered(input_stream.text)
-                        output_streams.flush()
-                        if self.tracer:
-                            self.tracer.start_command(input_stream.text)
+                        if self.state == RunState.PROMPT_FOR_SAVE:
+                            self.handle_save(input_stream.text)
+                            input_stream.reset()
+                        elif self.state == RunState.PROMPT_FOR_RESTORE:
+                            self.handle_restore(input_stream.text)
+                            input_stream.reset()
+                        else:
+                            output_streams.command_entered(input_stream.text)
+                            output_streams.flush()
+                            if self.tracer:
+                                self.tracer.start_command(input_stream.text)
 
         elif self.state == RunState.WAITING_TO_QUIT:
             if ch == curses.ascii.ESC:
@@ -148,16 +173,26 @@ class Terp(object):
 class TerpSaveHandler(object):
     def __init__(self, terp):
         self.terp=terp
+        self.done_action = None
 
-    def handle_save(self):
+    def done(self, interpreter):
+        self.done_action.apply(interpreter)
+
+    def handle_save(self,done_action):
         self.terp.start_save()
+        self.done_action = done_action
 
 class TerpRestoreHandler(object):
     def __init__(self, terp):
         self.terp=terp
+        self.done_action = None
 
-    def handle_restore(self):
+    def done(self, interpreter):
+        self.done_action.apply(interpreter)
+
+    def handle_restore(self,done_action):
         self.terp.start_restore()
+        self.done_action = done_action
 
 class MainLoop(object):
     def __init__(self,zmachine,raw,commands_path,tracer=None,seed=None,transcript_path=None,save_path=None):

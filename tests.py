@@ -486,6 +486,7 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
     def test_restore(self):
         self.fail('Check that only bit 0 of flags 2 and bit 1 of flags 2 are preserved')
 
+
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_insert_obj(self):
         object_table = self.zmachine.story.object_table
@@ -1286,11 +1287,6 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(convert_to_unsigned(-1),routine[48])
-
-class InputStreamTests(unittest.TestCase):
-    @unittest.skip('To be implemented')
-    def test_fail(self):
-        self.fail('Implement')
 
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     @unittest.skip('To be implemented')

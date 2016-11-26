@@ -220,7 +220,7 @@ class ZText(object):
         if zascii >= 155 and zascii < 155+len(ZText.ZASCII_UNICODE):
             return ZText.ZASCII_UNICODE[zascii - 155]
         if zascii < 1023:
-            return 'UNDEFINED'
+            return ' ' # Return spaces for anything undefined
         raise ZTextException('Character %d invalid for ZSCII output' % zascii)
 
 

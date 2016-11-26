@@ -7,7 +7,7 @@ import os
 from zmachine.memory import Memory,BitArray
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
-from zmachine.instructions import read_instruction
+from zmachine.instructions import read_instruction,JumpRelativeAction
 
 # First global variable in the variable numbering system
 GLOBAL_VAR_START = 0x10
@@ -1109,7 +1109,7 @@ class Interpreter(object):
         """ Handle a save. Branch info is used to move pc post save """
         if not self.save_handler:
             raise InterpreterException('No save handler implemented')
-        self.save_handler.handle_save()
+        self.save_handler.handle_save(JumpRelativeAction(branch_offset,next_address))
 
     def debug(self,msg):
         """ Debug logging """
@@ -1117,9 +1117,9 @@ class Interpreter(object):
 
     def restore(self,branch_offset,next_address):
         """ Handle a restore. Branch info is passed in but ignored in version 3 """
-        if not self.save_handler:
+        if not self.restore_handler:
             raise InterpreterException('No restore handler implemented')
-        self.save_handler.handle_restore()
+        self.restore_handler.handle_restore(JumpRelativeAction(branch_offset,next_address))
 
     def push_game_stack(self,val):
         self.current_routine().push_to_stack(val)
