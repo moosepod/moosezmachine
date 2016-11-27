@@ -1996,6 +1996,9 @@ class ZTextTests(unittest.TestCase):
         self.assertEqual(bytearray([0x18,0xF4,0xEB,0x25]),ztext.encrypt('about'))
         self.assertEqual(bytearray([0x5d,0x55,0xd2,0xf9]),ztext.encrypt('report'))
         self.assertEqual(bytearray([0x16,0x65,0x94,0xA5]),ztext.encrypt(','))
+        # This was throwing an exception due to the shifts. NOte that the shifts for v3 
+        # means much of the buffer ends up thrown away
+        self.assertEqual(bytearray([21,37,172,189]),ztext.encrypt('13:43')) 
 
     def test_encrypt_text_v1(self):
         # See 3.7.1 and 3.5.4

@@ -86,6 +86,19 @@ class ZText(object):
             """
         if text == None: text = ''
         text = text.lower()
+
+        if self.version==1:
+            valid_chars = ZText.ZCHARS_V1
+        else:
+            valid_chars = ZText.ZCHARS
+        
+        # Strip out any characters that are not mappable
+        new_text = ''
+        for c in text:
+            if c in valid_chars[0] or c in valid_chars[1] or c in valid_chars[2]:
+                new_text += c
+        text = new_text
+
         results = [5] * 6
         i = 0
         idx = 0
@@ -113,11 +126,15 @@ class ZText(object):
                    pass 
             i+=1
             idx+=1
+            if idx >= len(results):
+                break
+
         # Compress the 6 characters into 4 bytes
         b1 = (results[0] << 2 & 0xff) | (results[1] >> 3)
         b2 = (results[1] << 5 & 0xff) | results[2]
         b3 = (results[3] << 2 & 0xff) | (results[4] >> 3) | 0x80 # End flag always set on terminating word
         b4 = (results[4] << 5 & 0xff) | results[5]
+
         return bytearray([b1,b2,b3,b4])
 
     def handle_zchar(self,zchar):
