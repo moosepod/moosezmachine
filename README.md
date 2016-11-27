@@ -38,8 +38,10 @@ Debugging options
 
 ### Slack Terp
 
-### Debugging tools
+### Debugging tools and testing
 
+* tests.py: run python3 tests.py to run all the unit/integration tests
+* story_tests.py: run as python3 story_tests.py path_to_test_directory. When run, will look at the provided directory for all .z3 files. It will then ensure each of those files also have a .out and a .command file (eg, test.z3 will need test.out and test.commands). It will then run the interpreter using the provided story file, feeding in the commands, and verifying that the output matches the output file.
 * debug.py, a curses-based interpreter with some debugging features. This is not a fully implementeted interpreter, and is not recommended for playing games.
 * dump.py will dump assorted information about a story file. Usage is python3 dump.py --file path_to_story. Call it without parameters to see some of the options
 
