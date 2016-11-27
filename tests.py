@@ -6,7 +6,8 @@ import json
 
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
-                                InterpreterException,QuitException,RestartException,Header
+                                InterpreterException,QuitException,RestartException,Header,\
+                                InvalidSaveDataException
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -2154,10 +2155,15 @@ class SampleFileTests(unittest.TestCase):
         old_memory = Memory(self.zmachine.story.raw_data)
         data = self.zmachine.to_save_data()
         data['version'] = 2
-        self.assertRaises(InvalidStoryDataException, self.zmachine.restore_from_save_data,json.dumps(data))
+        self.assertRaises(InvalidSaveDataException, self.zmachine.restore_from_save_data,json.dumps(data))
+        
         data['version'] = 1
+        old_checksum = data['checksum']
         data['checksum'] = '123456'
-        self.assertRaises(InvalidStoryDataException, self.zmachine.restore_from_save_data,json.dumps(data))
+        self.assertRaises(InvalidSaveDataException, self.zmachine.restore_from_save_data,json.dumps(data))
+
+        data['checksum'] = old_checksum
+        self.zmachine.restore_from_save_data(json.dumps(data))
 
     def test_save_and_restore(self):
         # Run until command prompt to set up some memory.
