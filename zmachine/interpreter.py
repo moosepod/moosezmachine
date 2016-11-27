@@ -798,7 +798,7 @@ class InputStreams(object):
         # Note this expects that the returned characters will be unicode
         zchars = []
         line = self.active_stream.readline()
-        if not line:
+        if line == None:
             return None
 
         for char in line.lower():
@@ -1055,7 +1055,7 @@ class Interpreter(object):
         ### Switch to ZSCII
         # Line will be array of ZASCII chars. Or none if not a complete line yet
         line = self.input_streams.readline(ztext)
-        if not line:
+        if line == None:
             return False
  
         self.last_command=line

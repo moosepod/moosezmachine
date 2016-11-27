@@ -112,7 +112,7 @@ class CursesOutputStream(OutputStream):
             if len(block) < self.width:
                 lines.append(block)
             else:
-                for line in textwrap.wrap(block,self.width):
+                for line in textwrap.wrap(block,self.width-1): # Formatting works better with a 1-character buffer on right
                     lines.append(line)
 
         first_line=True
