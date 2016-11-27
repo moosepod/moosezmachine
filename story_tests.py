@@ -45,7 +45,7 @@ def test_story(story_path,out_path,commands_path,dump):
     results = story_stream.getvalue()
     if dump:
         print(results)
-    if results == expected_results:
+    if results.encode('ascii','replace') == expected_results.encode('ascii','replace'):
         print('OK.')
     else:
         counter = 0
@@ -54,18 +54,18 @@ def test_story(story_path,out_path,commands_path,dump):
         for line,expected in zip(got,expected_lines):
             counter+=1
             if line != expected:
-                print('Line %d\nGot     : %s\nExpected: %s\n' % (counter,line,expected))
+                print('Line %d\nGot     : %s\nExpected: %s\n' % (counter,line.encode('ascii','replace'),expected.encode('ascii','replace')))
                 print('Context for got:\n%d) %s\n%d) %s\n%d) %s\n\n' % (counter-2,
-                    got[counter-2],
+                    got[counter-2].encode('ascii','replace'),
                     counter-1,
-                    got[counter-1],
-                    counter,got[counter]))
+                    got[counter-1].encode('ascii','replace'),
+                    counter,got[counter].encode('ascii','replace')))
                 print('Context for expected:\n%d) %s\n%d) %s\n%d) %s' % (counter-2,
-                        expected_lines[counter-2],
+                        expected_lines[counter-2].encode('ascii','replace'),
                         counter-1,
-                        expected_lines[counter-1],
+                        expected_lines[counter-1].encode('ascii','replace'),
                         counter,
-                        expected_lines[counter]))
+                        expected_lines[counter].encode('ascii','replace')))
                 return
 
 def run_tests(story_directory,dump):
