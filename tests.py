@@ -7,7 +7,7 @@ import json
 from zmachine.interpreter import Interpreter,StoryFileException,MemoryAccessException,\
                                  OutputStream,OutputStreams,SaveHandler,RestoreHandler,Story,\
                                 InterpreterException,QuitException,RestartException,Header,\
-                                InvalidSaveDataException
+                                InvalidSaveDataException,InputStream,InputStreams
 from zmachine.text import ZText,ZTextState,ZTextException
 from zmachine.memory import Memory
 from zmachine.dictionary import Dictionary
@@ -1284,10 +1284,18 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
 
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_sread(self):
+        called = {}
+        def stub_read_and_process(text_buffer_addr, parse_buffer_addr,called=called):
+            self.assertEqual(text_buffer_addr,2222)
+            self.assertEqual(parse_buffer_addr,1111)
+            called['called'] = True
+
         memory = create_instruction(InstructionType.varOP,228,[(OperandType.large_constant,2222),(OperandType.large_constant,1111)])
         handler_f, description, next_address = read_instruction(memory,0,3,None)
-        self.assertEqual('varOP:set_window 1',description)
+        self.assertEqual('varOP:sread 2222 1111',description)
+        self.zmachine.read_and_process = stub_read_and_process
         result = handler_f(self.zmachine)        
+        self.assertTrue(called.get('called'))
 
     def test_set_window(self):
         self.assertEqual(0, self.zmachine.screen.window_id)
@@ -1307,11 +1315,17 @@ class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
 
     @unittest.skip('To be implemented')
     def test_output_stream(self):
-        self.fail('Implement')
+        self.fail('Still need to implment stream 3')
 
-    @unittest.skip('To be implemented')
     def test_input_stream(self):
-        self.fail('Implement')
+        input_streams = self.zmachine.input_streams = InputStreams(InputStream(), InputStream())
+        input_streams.select_stream(InputStreams.KEYBOARD)
+        self.assertEqual(input_streams.active_stream, input_streams.keyboard_stream)
+        memory = create_instruction(InstructionType.varOP,244,[(OperandType.small_constant,1)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('varOP:input_stream 1',description)
+        result = handler_f(self.zmachine)        
+        self.assertEqual(input_streams.active_stream, input_streams.command_file_stream)
 
     def test_print(self):
         memory=Memory(b'\xb2\x11\xaa\x46\x34\x16\x45\x9c\xa5')

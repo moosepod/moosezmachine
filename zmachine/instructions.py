@@ -562,7 +562,10 @@ def op_output_stream(interpreter,operands,next_address,store_to,branch_offset,br
     return NextInstructionAction(next_address)
 
 def op_input_stream(interpreter,operands,next_address,store_to,branch_offset,branch_if_true,literal_string):
-    raise InstructionException('Not implemented')
+    stream = dereference_variables(operands[0],interpreter)  
+    if stream not in (0,1):
+        raise InstructionException('Stream id %d not in range (0,1)' % stream)
+    interpreter.input_streams.select_stream(stream)
     return NextInstructionAction(next_address)
 
 ## Branching
