@@ -1543,12 +1543,6 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(53, routine[200])
 
-        # Test exception if out of bounds memory
-        memory = create_instruction(InstructionType.twoOP,16,[(OperandType.large_constant,self.story.header.himem_address),(OperandType.small_constant,10)],store_to=0)
-        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:loadb %s 10 -> (SP)' % self.story.header.himem_address,description)
-        self.assertRaises(MemoryAccessException, handler_f, self.zmachine)
-
     def test_loadw(self):
         routine = self.zmachine.current_routine()
         self.assertEqual(0, routine[200])
@@ -1566,12 +1560,6 @@ class MiscInstructionsTests(TestStoryMixin,unittest.TestCase):
         result = handler_f(self.zmachine)
         self.assertTrue(isinstance(result,NextInstructionAction))
         self.assertEqual(12340, routine[200])
-
-        # Test exception if out of bounds memory
-        memory = create_instruction(InstructionType.twoOP,15,[(OperandType.large_constant,self.story.header.himem_address),(OperandType.small_constant,10)],store_to=0)
-        handler_f, description, next_address = read_instruction(memory,0,3,self.zmachine.get_ztext())
-        self.assertEqual('twoOP:loadw %s 10 -> (SP)' % self.story.header.himem_address,description)
-        self.assertRaises(MemoryAccessException, handler_f, self.zmachine)
 
 
     def test_store(self):
@@ -2078,12 +2066,6 @@ class GameMemoryTests(unittest.TestCase):
         himem_address = self.story.header.himem_address
         for i in range(0,2):
             memory = self.story.game_memory
-            try:
-                memory.get_byte(himem_address+i,check_bounds=True)
-                self.fail('Should have thrown exception')
-            except MemoryAccessException:
-                pass
-    
             try:
                 memory.set_byte(himem_address+i,1,check_bounds=True)
                 self.fail('Should have thrown exception')

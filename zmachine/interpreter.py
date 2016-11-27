@@ -221,22 +221,18 @@ class GameMemory(Memory):
         super(GameMemory,self).set_flag(idx,bit,value)
 
     def word(self,idx,check_bounds=False):
-        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
-            raise MemoryAccessException('Word at index %d not readable to game' % idx)
         return super(GameMemory,self).word(idx)
 
     def set_word(self,idx,val,check_bounds=False):
-        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
+        if check_bounds and (idx >= self._himem_address or idx >= self._static_address):
             raise MemoryAccessException('Word at index %d not readable to game' % idx)
         return super(GameMemory,self).set_word(idx,val)
 
     def get_byte(self,idx,check_bounds=False):
-        if check_bounds and (idx >= self._himem_address and idx >= self._static_address):
-            raise MemoryAccessException('Byte at index %d not readable to game' % idx)
         return super(GameMemory,self).__getitem__(idx)
 
     def set_byte(self,idx,val,check_bounds=False):
-        if check_bounds and idx >= self._himem_address and idx >= self._static_address:
+        if check_bounds and (idx >= self._himem_address or idx >= self._static_address):
             raise MemoryAccessException('Byte at index %d not readable to game' % idx)
         return super(GameMemory,self).__setitem__(idx,val)
 

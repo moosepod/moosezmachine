@@ -30,7 +30,7 @@ def test_story(story_path,out_path,commands_path,dump):
     zmachine.input_streams.keyboard_stream = input_stream
     zmachine.input_streams.select_stream(0)
 
-    terp = Terp(zmachine,None)
+    terp = Terp(zmachine,None,'testing')
     terp.run()
 
     while True:
