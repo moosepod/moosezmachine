@@ -30,7 +30,7 @@ def load(path):
     with open(path,'rb') as f:
         story = Story(f.read())
         try:
-            zmachine = Interpreter(story,None,None,None)
+            zmachine = Interpreter(story,None,None,None,None,None)
             zmachine.reset()
         except StoryFileException as e:
             print('Unable to load story file. %s' % e)

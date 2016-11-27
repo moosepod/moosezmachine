@@ -1,6 +1,6 @@
 # moosezmachine
 
-moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) based off the Z-Machine Standards Document version 1.0 (http://inform-fiction.org/zmachine/standards/z1point0/sect03.html)
+moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) based off the Z-Machine Standards Document version 1.1 (http://inform-fiction.org/zmachine/standards/z1point1/sect03.html)
 
 moosezmachine needs at least Python 3.4 to work.
 
@@ -14,10 +14,8 @@ For simplicity, the unicode mappings map to textual equivalents (per 3.8.5.4.1)
 
 Moosezmachine provides two methods of playing a story file.
 
-- The slack client, in slack_client 
+- The slack client, in slack_terp
 - terp.py, a curses-based interpreter
-
-There is also a file debug.py, a curses-based interpreter with some debugging features. This is not a fully implementeted interpreter, and is not recommended for playing games.
 
 ### Terp.py
 
@@ -37,6 +35,13 @@ Options:
 Debugging options
 # --seed to set a seed for the random number generator
 # --trace to set a path to a file to dump all zcode instructions to on quit
+
+### Slack Terp
+
+### Debugging tools
+
+* debug.py, a curses-based interpreter with some debugging features. This is not a fully implementeted interpreter, and is not recommended for playing games.
+* dump.py will dump assorted information about a story file. Usage is python3 dump.py --file path_to_story. Call it without parameters to see some of the options
 
 
 ## Architecture
@@ -89,8 +94,9 @@ An output stream needs to implement three functions:
 
 MooseZMachine is licensed under the MIT license.
 
+Thanks to everyone who worked on the ZMachine spec. I really enjoyed working through it and implementing this.
+
 I used ZILF to create sample zcode files for testing (http://sourceforge.net/p/zilf/_list/tickets?source=navbar)
 
 ZTools was very helpful for debugging (http://inform-fiction.org/zmachine/ztools.html)
 
-GltOte (http://www.eblong.com/zarf/glk/glkote.html) is used for the web version.
