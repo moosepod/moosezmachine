@@ -480,14 +480,6 @@ class InterpreterStepTests(TestStoryMixin,unittest.TestCase):
         except RestartException as e:
             self.assertEqual((False,True), e.restart_flags)
 
-    @unittest.skip('To be implemented')
-    def test_save(self):
-        self.fail('Save action.')
-
-    @unittest.skip('To be implemented')
-    def test_restore(self):
-        self.fail('Check that only bit 0 of flags 2 and bit 1 of flags 2 are preserved')
-
 
 class ObjectInstructionsTests(TestStoryMixin,unittest.TestCase):
     def test_insert_obj(self):
