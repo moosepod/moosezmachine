@@ -69,11 +69,12 @@ class Tracer(object):
         instruction_rx = re.compile('^\w+:(\S+) ')
         with open(output_path,'w') as f:
            for record in self.commands:
+                instruction_count = len(record['instructions'])
                 total_time = time.clock() - record['start_time']
                 f.write('---- %s (%d instuctions,%d ms, %.2f instructions/ms) -----\n' % (record['command'],
-                                len(record['instructions']),
+                                instruction_count,
                                 total_time*1000,
-                                1000*(total_time/len(record['instructions']))))
+                                1000*(total_time/max(instruction_count,1))))
                 instruction_freq = {}
                 for instruction in record['instructions']:
                     f.write(instruction)
@@ -89,10 +90,9 @@ class Tracer(object):
                     f.write('{0: <6} {1}\n'.format(v,k))
 
 class Terp(object):
-    def __init__(self,zmachine,output_stream,story_filename,tracer=None):
+    def __init__(self,zmachine,story_filename,tracer=None):
         self.state = RunState.RUNNING
         self.zmachine = zmachine
-        self.output_stream = output_stream
         self.story_filename = story_filename
         self.tracer = tracer
 
@@ -233,7 +233,7 @@ class TerpRestoreHandler(SaveRestoreMixin):
         self.error_action = error_action
 
 class MainLoop(object):
-    def __init__(self,zmachine,raw,commands_path,story_filename=None,tracer=None,seed=None,transcript_path=None,save_path=None):
+    def __init__(self,zmachine,raw=False,commands_path=None,story_filename=None,tracer=None,seed=None,transcript_path=None,save_path=None):
         self.zmachine = zmachine
         self.curses_input_stream = None
         self.raw = raw
@@ -311,7 +311,7 @@ class MainLoop(object):
             self.zmachine.input_streams.command_file_stream =input_stream
             self.zmachine.input_streams.select_stream(InputStreams.FILE)
 
-        terp = Terp(self.zmachine,self.tracer,self.story_filename)
+        terp = Terp(self.zmachine,self.story_filename,tracer=self.tracer)
         terp.run()
         self.terp = terp
 
@@ -366,7 +366,7 @@ def load_zmachine(filename,restart_flags=None):
     return zmachine
 
 
-def start(path,raw,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None,save_path=None):
+def start(path,commands_path,trace_file_path=None,seed=None,restart_flags=None,transcript_path=None,save_path=None):
     tracer = None
     if trace_file_path:
         tracer = Tracer()
@@ -374,7 +374,6 @@ def start(path,raw,commands_path,trace_file_path=None,seed=None,restart_flags=No
     zmachine = load_zmachine(path,restart_flags)
     story_path, story_filename = os.path.split(path)        
     loop = MainLoop(zmachine,
-        raw=raw,
         story_filename=story_filename,
         commands_path=commands_path,
         tracer=tracer,
@@ -408,7 +407,6 @@ def main(*args):
         while True:
             try:
                 start(data.story,
-                    raw=data.raw,
                     commands_path=data.commands_path,
                     trace_file_path=data.trace_file,
                     seed=data.seed,

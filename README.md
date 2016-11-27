@@ -10,6 +10,35 @@ Currently it only handles zcode versions 1 through 3.
 
 For simplicity, the unicode mappings map to textual equivalents (per 3.8.5.4.1)
 
+## Usage
+
+Moosezmachine provides two methods of playing a story file.
+
+- The slack client, in slack_client 
+- terp.py, a curses-based interpreter
+
+There is also a file debug.py, a curses-based interpreter with some debugging features. This is not a fully implementeted interpreter, and is not recommended for playing games.
+
+### Terp.py
+
+NOTE: terp.py was written to help build the core interpreter. There are a wide range of better interpreters available that I would recommend using if the main goal is to play games. If you're curious about how interpreters work, though, it provides a great starting point.
+
+To play a story file using terp.py:
+
+python3 terp.py path_to_file
+
+This default setup will save/load files to the /tmp directory.
+
+Options:
+* --transcript_path to indicate a transcript file AND activate the transcript in game. If this option is on a commands log will also be created, at transcript_path with ".commands" appended
+* --save_path to indicate the directory to save/restore files from
+# --command_path to indicate a commands source file. If provided, the contents of this file will be used as text input until the end of file is reached, then control will be returned to the player
+
+Debugging options
+# --seed to set a seed for the random number generator
+# --trace to set a path to a file to dump all zcode instructions to on quit
+
+
 ## Architecture
 
 Moosezmachine includes a number of interpreters for various purposes (command line, testing, etc). They all work in the following basic way:
