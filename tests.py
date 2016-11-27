@@ -2085,26 +2085,21 @@ class ValidationTests(unittest.TestCase):
         except StoryFileException as e:
             self.assertEqual(u'Story file is too short',str(e))
 
-    @unittest.skip('Unsure if this condition still holds.')
     def test_version(self):
         raw_data = bytearray([0] * 1000)
         
-        for version in (0x01,0x02,0x03):
-            raw_data[0] = version
-            try:
-                Story(raw_data).reset()
-                self.fail('Should throw error for unsupported version')
-            except MemoryAccessException as e:
-                # Should throw exception as our object table points at bad data
-                pass
-
         for version in (0x04,0x05,0x06,0x07,0x08):
             raw_data[0] = version
             try:
                 Story(raw_data).reset()
-                self.fail('Should have thrown exception.')
+                self.fail('Should throw error for unsupported version')
             except StoryFileException as e:
+                # Should throw exception as our object table points at bad data
                 self.assertEqual('Story file version %d is not supported.' % version,str(e))
+
+        for version in (0x01,0x02,0x03):
+            raw_data[0] = version
+            Story(raw_data).reset()
             
 
 class SampleFileTests(unittest.TestCase):
