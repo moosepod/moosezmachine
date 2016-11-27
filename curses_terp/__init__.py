@@ -60,11 +60,12 @@ class FileStreamEmptyException(Exception):
 
 class FileInputStream(object):
     """ Input stream for handling commands stored in a file """
-    def __init__(self,output_stream=None):
+    def __init__(self,output_stream=None,add_newline=True):
         self.commands = []
-        self.index = 0
+        self.index = -1
         self.output_stream=output_stream
         self.waiting_for_line = False
+        self.add_newline = add_newline
 
     def load_from_path(self,path):
         with open(path,'r') as f:
@@ -77,7 +78,8 @@ class FileInputStream(object):
             command = self.commands[self.index] 
             if self.output_stream:
                 self.output_stream.print_str(command)
-                self.output_stream.new_line()
+                if self.add_newline:
+                    self.output_stream.new_line()
         except IndexError:
             raise FileStreamEmptyException()
 

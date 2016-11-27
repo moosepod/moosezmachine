@@ -25,10 +25,11 @@ def test_story(story_path,out_path,commands_path,dump):
     zmachine = load_zmachine(story_path)
     output_stream = StringIOOutputStream(story_stream)
     zmachine.output_streams.set_screen_stream(output_stream)
-    input_stream = FileInputStream(output_stream)
+    input_stream = FileInputStream(output_stream,add_newline=False)
     input_stream.load_from_path(commands_path)
     zmachine.input_streams.keyboard_stream = input_stream
     zmachine.input_streams.select_stream(0)
+    zmachine.story.rng.enter_predictable_mode(0)
 
     terp = Terp(zmachine,None,'testing')
     terp.run()
@@ -47,8 +48,25 @@ def test_story(story_path,out_path,commands_path,dump):
     if results == expected_results:
         print('OK.')
     else:
-        for line in difflib.context_diff(results, expected_results):
-             sys.stdout.write(line)  
+        counter = 0
+        got = results.split('\n')
+        expected_lines = expected_results.split('\n')
+        for line,expected in zip(got,expected_lines):
+            counter+=1
+            if line != expected:
+                print('Line %d\nGot     : %s\nExpected: %s\n' % (counter,line,expected))
+                print('Context for got:\n%d) %s\n%d) %s\n%d) %s\n\n' % (counter-2,
+                    got[counter-2],
+                    counter-1,
+                    got[counter-1],
+                    counter,got[counter]))
+                print('Context for expected:\n%d) %s\n%d) %s\n%d) %s' % (counter-2,
+                        expected_lines[counter-2],
+                        counter-1,
+                        expected_lines[counter-1],
+                        counter,
+                        expected_lines[counter]))
+                return
 
 def run_tests(story_directory,dump):
     for path in os.listdir(story_directory):
