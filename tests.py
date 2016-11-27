@@ -1283,9 +1283,11 @@ class ArithmaticInstructionsTests(TestStoryMixin,unittest.TestCase):
         self.assertEqual(convert_to_unsigned(-1),routine[48])
 
 class ScreenInstructionsTests(TestStoryMixin,unittest.TestCase):
-    @unittest.skip('To be implemented')
     def test_sread(self):
-        self.fail('Implement')
+        memory = create_instruction(InstructionType.varOP,228,[(OperandType.large_constant,2222),(OperandType.large_constant,1111)])
+        handler_f, description, next_address = read_instruction(memory,0,3,None)
+        self.assertEqual('varOP:set_window 1',description)
+        result = handler_f(self.zmachine)        
 
     def test_set_window(self):
         self.assertEqual(0, self.zmachine.screen.window_id)
