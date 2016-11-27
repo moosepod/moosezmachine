@@ -9,6 +9,7 @@ import curses.ascii
 import argparse
 import time
 import datetime
+import json
 
 from enum import Enum
 from curses import wrapper
@@ -179,7 +180,7 @@ class SaveRestoreMixin(object):
     def fix_filename(self, filename):
         """ Take a provided filename, strip any unwanted characters, then prefix with our story file name """
         return u'%s_%s.sav' % (self.terp.story_filename,
-            ''.join([c for c in filename if c.isalpha() or s.isdigit() or c==' ' or c=='_']))
+            ''.join([c for c in filename if c.isalpha() or c.isdigit() or c==' ' or c=='_']))
 
 class TerpSaveHandler(SaveRestoreMixin):
     def __init__(self, terp,save_path):
@@ -192,15 +193,14 @@ class TerpSaveHandler(SaveRestoreMixin):
         filename = self.fix_filename(filename)
 
         try:
+            self.success_action.apply(interpreter)
             with open(os.path.join(self.save_path,filename),'w') as f:
-                f.write(self.terp.zmachine.to_save_data())
+                f.write(json.dumps(interpreter.to_save_data()))
             message = '\nSaved to %s' % filename
-            action = self.success_action
         except Exception as e:
             message = '\nError saving. %s' % (e,)
-            action = self.error_action
+            action.apply(self.error_action)
 
-        action.apply(interpreter)
         return message
 
     def handle_save(self,success_action,error_action):
@@ -213,6 +213,7 @@ class TerpRestoreHandler(SaveRestoreMixin):
     def __init__(self, terp,save_path):
         self.terp=terp
         self.error_action = None
+        self.success_action = None
         self.save_path = save_path
 
     def restore_from(self, filename, interpreter):
@@ -220,10 +221,10 @@ class TerpRestoreHandler(SaveRestoreMixin):
 
         try:
             with open(os.path.join(self.save_path,filename),'r') as f:
-                out.write(self.terp.zmachine.restore_from_save_data(f.read()))
-            message = 'Restored from %s' % filename
+                interpreter.restore_from_save_data(f.read())
+            message = '\nRestored from %s' % filename
         except Exception as e:
-            message = 'Error restoring. %s' % (e,)
+            message = '\nError restoring. %s' % (e,)
             self.error_action.apply(interpreter)
         return message
 

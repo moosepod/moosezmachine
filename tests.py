@@ -2206,7 +2206,6 @@ class SampleFileTests(unittest.TestCase):
         self.assertEqual(2220, dictionary.lookup([ztext.to_zscii('d')],ztext))
         self.assertEqual(2290, dictionary.lookup([ztext.to_zscii(c) for c in 'examin'],ztext))
 
-
     def test_randomizer(self):
         # This really isn't a "unit" test. It's more of a smoke test,
         # just to see if the RNG is totally failing

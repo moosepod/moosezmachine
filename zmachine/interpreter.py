@@ -907,7 +907,7 @@ class Interpreter(object):
         self.state = Interpreter.RUNNING_STATE
         self.screen = screen or Screen()
 
-    def reset(self,force_version=0,restart_flags=None):
+    def reset(self,force_version=0,restart_flags=None,restoring=False):
         """ Start/restart the interpreter. Set force_version to make it act like the story file
             is that version
          """
@@ -915,19 +915,22 @@ class Interpreter(object):
         self.story.reset(force_version=force_version,logger=self,restart_flags=restart_flags)
         self.pc = self.story.header.main_routine_addr
         self.last_instruction = None
-        if self.output_streams:
-            self.output_streams.reset(self,self.get_ztext())
-        if self.input_streams:
-            self.input_streams.reset()
+
         self.routines = []
         self.state = Interpreter.RUNNING_STATE
-        self.call_routine(self.pc,self.pc,None,None)
         if self.screen.supports_screen_splitting():
             self.story.header.flag_screen_splitting_available = 1
         else:
             self.story.header.flag_screen_splitting_available = 0
         self._instruction_cache = {}
         self._visited_addresses = {} # Used to look for endless loops
+
+        if not restoring:
+            if self.output_streams:
+                self.output_streams.reset(self,self.get_ztext())
+            if self.input_streams:
+                self.input_streams.reset()
+            self.call_routine(self.pc,self.pc,None,None)
 
     def call_routine(self, routine_address, next_address,  store_var,  local_vars):
         """ Add a routine call to the stack from the current program counter """
@@ -1169,6 +1172,7 @@ class Interpreter(object):
                 'checksum': self._get_save_checksum(),
                 'routines': [r.to_dict() for r in self.routines],
                 'state': self.state,
+                'pc': self.pc,
                 'dynamic_memory': [int(x) for x in self.story.raw_data._raw_data[0:self.story.header.static_memory_address]],
         }
         return data
@@ -1186,7 +1190,7 @@ class Interpreter(object):
             flags_2 = self.story.raw_data[Header.FLAGS_2]
 
             # Reset the story to initial values
-            self.reset()
+            self.reset(restoring=True)
 
             # Restore state
             self.state = parsed['state']
@@ -1209,6 +1213,8 @@ class Interpreter(object):
 
             # Set the flags to the saved state
             self.story.raw_data[Header.FLAGS_2] = flags_2
+
+            self.pc = parsed['pc']
         except IndexError as e:
             raise InvalidSaveDataException('Save data missing parameter: %s' % e)
         except json.decoder.JSONDecodeError:
