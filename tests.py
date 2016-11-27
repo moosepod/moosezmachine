@@ -2151,7 +2151,13 @@ class SampleFileTests(unittest.TestCase):
         self.assertEqual(self.zmachine.story.raw_data._raw_data, old_memory._raw_data)
 
     def test_invalid_restore(self):
-        self.fail('Test check of checksum and version')
+        old_memory = Memory(self.zmachine.story.raw_data)
+        data = self.zmachine.to_save_data()
+        data['version'] = 2
+        self.assertRaises(InvalidStoryDataException, self.zmachine.restore_from_save_data,json.dumps(data))
+        data['version'] = 1
+        data['checksum'] = '123456'
+        self.assertRaises(InvalidStoryDataException, self.zmachine.restore_from_save_data,json.dumps(data))
 
     def test_save_and_restore(self):
         # Run until command prompt to set up some memory.
