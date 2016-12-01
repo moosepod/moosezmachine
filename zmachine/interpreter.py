@@ -5,7 +5,6 @@ import random
 import os
 import json
 
-
 from zmachine.memory import Memory,BitArray
 from zmachine.text import ZText
 from zmachine.dictionary import Dictionary
@@ -1213,6 +1212,6 @@ class Interpreter(object):
             self.pc = parsed['pc']
         except IndexError as e:
             raise InvalidSaveDataException('Save data missing parameter: %s' % e)
-        except json.decoder.JSONDecodeError:
+        except ValueError:
             raise InvalidSaveDataException('File does not contain valid json')
  
