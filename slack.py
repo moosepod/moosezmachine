@@ -9,6 +9,10 @@
 # Pull next item from queue. Ignore everything but message
 # Spin off async handlers for each message
 
+#
+# NOTE - on bash subsystem for windows current build, need to comment out lines 37 and 38
+# of websocket/_socket.py or it won't work. Socket option is TCP_KEEPCNT 
+#
 import os
 import sys
 import time
@@ -19,7 +23,9 @@ from slackclient import SlackClient
 class SlackTerp(object):
 	def run(self,sc,player_id):
 		print("Starting terp for player %s" % player_id)
-		if sc.rtm_connect():
+		if not sc.rtm_connect():
+			print("Unable to connect")
+		else:
 			while True:
 				messages = sc.rtm_read()
 				for message in messages:
@@ -48,6 +54,7 @@ def main():
 	if not result.get('ok'):
 		print('Connection to slack failed. Qutting.')
 		return
+	print('Test connection succeeded.')
 
 	SlackTerp().run(sc, data.player_id)
 
