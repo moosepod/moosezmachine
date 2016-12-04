@@ -920,6 +920,9 @@ class Interpreter(object):
         self._instruction_cache = {}
         self._visited_addresses = {} # Used to look for endless loops
 
+        self._text_buffer_addr = None
+        self._parse_buffer_addr = None
+
         if not restoring:
             if self.output_streams:
                 self.output_streams.reset(self,self.get_ztext())
@@ -1168,6 +1171,8 @@ class Interpreter(object):
                 'routines': [r.to_dict() for r in self.routines],
                 'state': self.state,
                 'pc': self.pc,
+                'text_buffer_addr': self._text_buffer_addr,
+                'parse_buffer_addr': self._parse_buffer_addr,
                 'dynamic_memory': [int(x) for x in self.story.raw_data._raw_data[0:self.story.header.static_memory_address]],
         }
         return data
@@ -1210,6 +1215,8 @@ class Interpreter(object):
             self.story.raw_data[Header.FLAGS_2] = flags_2
 
             self.pc = parsed['pc']
+            self._parse_buffer_addr = int(parsed.get('_parse_buffer_addr','0'))
+            self._text_buffer_addr = int(parsed.get('_text_buffer_addr','0'))
         except IndexError as e:
             raise InvalidSaveDataException('Save data missing parameter: %s' % e)
         except ValueError:

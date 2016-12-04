@@ -199,7 +199,7 @@ class TerpSaveHandler(SaveRestoreMixin):
             message = '\nSaved to %s' % filename
         except Exception as e:
             message = '\nError saving. %s' % (e,)
-            action.apply(self.error_action)
+            self.error_action.apply(self.interpreter)
 
         return message
 
