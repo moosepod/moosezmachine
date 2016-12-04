@@ -35,6 +35,7 @@ from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
 def load_zmachine(filename,restart_flags=None):
+    """ Initialize a zmachine interpreter from tne story file and return it"""
     with open(filename,'rb') as f:
         story = Story(f.read())
         outputs = OutputStreams(OutputStream(),OutputStream())
@@ -62,110 +63,155 @@ class Terp(object):
             self.state = RunState.RUNNING
 
     def start_save(self):
-    	pass
+        pass
 
     def handle_save(self,save_name):
-    	pass
+        pass
 
     def start_restore(self):
-    	pass
+        pass
 
     def handle_restore(self,save_name):
-    	pass
+        pass
 
     def wait_for_quit(self):
-    	pass
+        pass
 
     def idle(self,input_stream):
         """ Called if no key is pressed """
         if self.state == RunState.RUNNING:            
             self.zmachine.step()
 
+class SlackInputStream(object):
+    """ Input stream for handling commands passed in through slack """
+    def __init__(self,slack_connection,player_id):
+        self.slack_connection=slack_connection
+        self.waiting_for_line = False
+        self.player_id = player_id
+        self.command_queue = []
+
+    def readline(self):
+        command = None
+
+        if not self.command_queue:
+            messages = self.slack_connection.rtm_read()
+            for message in messages:
+                if message.get('type') == 'message' and message.get('user') == self.player_id:
+                    print('Received from {}: {}'.format(self.player_id,message))
+                    self.command_queue.append(message['text'])
+
+
+        if self.command_queue:
+            command = self.command_queue[0]
+            del self.command_queue[0]
+            self.waiting_for_line=False
+
+        return command
+
+    def char_pressed(self,char):
+        pass
+
+    def reset(self):
+        self.waiting_for_line = False 
+        self.command_queue=[]       
+
 class SlackOutputStream(object):
-	def __init__(self,slack_connection):
-		self.slack_connection = slack_connection
-		self.buffer =''
-		self.channel=None
+    def __init__(self,slack_connection,channel_id):
+        self.slack_connection = slack_connection
+        self.buffer =''
+        self.channel_id=channel_id
 
-	def refresh(self):
-		""" Redraw this screen """
-		pass
+    def refresh(self):
+        """ Redraw this screen """
+        pass
 
-	def flush(self):
-		if self.buffer and self.channel:
-			self.slack_connection.api_call('chat.postMessage',channel=self.channel,text=self.buffer)
-			self.buffer=''
+    def _post_message(self,msg):
+        self.slack_connection.api_call('chat.postMessage',channel=self.channel_id,text=msg)
+        print('Posted: %s' % msg)
 
-	def new_line(self):
-		self.buffer += '\n'
+    def flush(self):
+        if self.buffer:
+            self._post_message(self.buffer)
+            self.buffer=''
+
+    def new_line(self):
+        self.buffer += '\n'
         
-	def print_str(self,txt):
-		self.buffer += txt
+    def print_str(self,txt):
+        self.buffer += txt
 
-	def print_char(self,txt):
-		self.buffer += txt
+    def print_char(self,txt):
+        self.buffer += txt
 
-	def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
-		pass
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
+        pass
 
 class MainLoop(object):
-	def run(self,sc,player_id,zmachine,story_filename):
-		print("Starting terp for player %s" % player_id)
+    def run(self,sc,player_id,channel_id,zmachine,story_filename):
+        print("Starting terp for player %s" % player_id)
 
-		output_stream = SlackOutputStream(sc)
-		zmachine.output_streams.set_screen_stream(output_stream)
+        output_stream = SlackOutputStream(sc,channel_id)
+        zmachine.output_streams.set_screen_stream(output_stream)
 
-		terp = Terp(zmachine,story_filename)
-		terp.run()
+        input_stream = SlackInputStream(sc, player_id)
+        zmachine.input_streams.keyboard_stream=input_stream
+        zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
-		if not sc.rtm_connect():
-			print("Unable to connect")
-		else:
-			while True:
-				if zmachine.state == Interpreter.WAITING_FOR_LINE_STATE:
-					output_stream.flush()
-					messages = sc.rtm_read()
-					for message in messages:
-						if message.get('type') == 'message' and message.get('user') == player_id:
-							print(message)
-							sc.api_call('chat.postMessage',channel=message['channel'],text='You said: %s' %  message['text'])
+        terp = Terp(zmachine,story_filename)
+        terp.run()
 
-						time.sleep(1)
-				else:
-					terp.idle(None)
-			else:
-				print("Connection Failed, invalid token?")
+        print('Connecting')
+        if not sc.rtm_connect():
+            print("Unable to connect")
+        else:
+            print("Starting loop")
+            output_stream._post_message('_Initalizing interpreter..._')
+            while True:
+                was_running = zmachine.state == Interpreter.RUNNING_STATE
+
+                terp.idle(None)
+                if not was_running:
+                	# If terp is currently waiting for a line, pause between idle calls. 
+                	#This prevents us from overpolling the real time feed
+                	time.sleep(1)
+
+                if was_running and zmachine.state != Interpreter.RUNNING_STATE:
+                    # If the term has just switched to waiting for line (sread hit)
+                    # output our buffer
+                    zmachine.output_streams.flush()
+
+            else:
+                print("Connection Failed, invalid token?")
 
 def main():
-	if sys.version_info[0] < 3:
-		raise Exception("Moosezmachine requires Python 3.")
+    if sys.version_info[0] < 3:
+        raise Exception("Moosezmachine requires Python 3.")
 
-	parser = argparse.ArgumentParser()
-	parser.add_argument('story',help='Story file to play')
-	parser.add_argument('--player_id',help='Slack ID of player',required=True)
-	data = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('story',help='Story file to play')
+    parser.add_argument('--player_id',help='Slack ID of player',required=True)
+    parser.add_argument('--channel_id',help='Channel ID of im bot with player',required=True)
+    data = parser.parse_args()
 
-	SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
-	if not SLACK_BOT_TOKEN:
-		print('SLACK_BOT_TOKEN must be set as an environment variable.')
-		return
-	
-	# Check slack connection
-	sc = SlackClient(SLACK_BOT_TOKEN)
-	result = sc.api_call('api.test')
-	if not result.get('ok'):
-		print('Connection to slack failed. Qutting.')
-		return
-	print('Test connection succeeded.')
+    SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
+    if not SLACK_BOT_TOKEN:
+        print('SLACK_BOT_TOKEN must be set as an environment variable.')
+        return
+    
+    # Check slack connection
+    sc = SlackClient(SLACK_BOT_TOKEN)
+    result = sc.api_call('api.test')
+    if not result.get('ok'):
+        print('Connection to slack failed. Qutting.')
+        return
+    print('Test connection succeeded.')
 
-	# Load up our zmachine from the story file
-	zmachine = load_zmachine(data.story)
-	story_path, story_filename = os.path.split(data.story)
+    # Load up our zmachine from the story file
+    zmachine = load_zmachine(data.story)
+    story_path, story_filename = os.path.split(data.story)
 
-	raise Exception('Need channel as well. Eventually add in "connect to username" shortcut')
-
-	# Start the slack-based interpreter
-	MainLoop().run(sc, data.player_id, zmachine,story_filename)
+    # Start the slack-based interpreter
+    MainLoop().run(sc, data.player_id, data.channel_id, zmachine,story_filename)
 
 
 if __name__ == "__main__":
