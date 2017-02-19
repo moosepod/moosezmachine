@@ -35,6 +35,10 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
+# Tune this number to control frequently you want to check the real time feed for updates. Too high
+# and the feed will be overwhelemed.
+RTM_FEED_POLL_SLEEP_IN_S=0.5
+
 def load_zmachine(filename,restart_flags=None):
     """ Initialize a zmachine interpreter from tne story file and return it"""
     with open(filename,'rb') as f:
@@ -69,8 +73,12 @@ class Terp(object):
 
     def quickrestore(self, save_path, player_id, zmachine):
         filename = '{}.quicksave'.format(player_id)
+        if not os.path.exists(os.path.join(save_path,filename)):
+            print('No quicksave exists.')
+            return False
         message = self.zmachine.restore_handler.restore_from(filename,self.zmachine)
         print('quickrestore',message)
+        return True
         
 
     def start_save(self):
@@ -114,10 +122,11 @@ class Terp(object):
 
 class SlackInputStream(object):
     """ Input stream for handling commands passed in through slack """
-    def __init__(self,slack_connection,player_id):
+    def __init__(self,slack_connection,player_id,channel_id):
         self.slack_connection=slack_connection
         self.waiting_for_line = False
         self.player_id = player_id
+        self.channel_id = channel_id
         self.command_queue = []
 
     def readline(self):
@@ -130,11 +139,11 @@ class SlackInputStream(object):
                     print('Received from {}: {}'.format(self.player_id,message))
                     self.command_queue.append(message['text'])
 
-
         if self.command_queue:
             command = self.command_queue[0]
             del self.command_queue[0]
             self.waiting_for_line=False
+            self.slack_connection.api_call('chat.postMessage',channel=self.channel_id,text='_Processing..._')
 
         return command
 
@@ -174,7 +183,10 @@ class SlackOutputStream(object):
         self.buffer += txt
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
-        pass
+        status = '`{room_name}`\n`Score: {score} Turns: {turns}`'.format(room_name=room_name,
+            score=score,
+            turns=turns)
+        self.slack_connection.api_call('chat.postMessage',channel=self.channel_id,text=status)
 
 class SaveRestoreMixin(object):
     def fix_filename(self, filename,user_id):
@@ -246,7 +258,7 @@ class MainLoop(object):
         output_stream = SlackOutputStream(sc,channel_id)
         zmachine.output_streams.set_screen_stream(output_stream)
 
-        input_stream = SlackInputStream(sc, player_id)
+        input_stream = SlackInputStream(sc, player_id, channel_id)
         zmachine.input_streams.keyboard_stream=input_stream
         zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
@@ -261,9 +273,10 @@ class MainLoop(object):
             print("Unable to connect")
         else:
             print("Starting loop")
-            output_stream._post_message('_Initalizing interpreter..._')
+            output_stream._post_message('_Initializing interpreter..._')
 
-            terp.quickrestore(save_path, player_id, zmachine)
+            if terp.quickrestore(save_path, player_id, zmachine):
+                terp.show_status()
 
             while True:
                 if terp.state == RunState.RUNNING:
@@ -273,7 +286,7 @@ class MainLoop(object):
                     if not was_running:
                     	# If terp is currently waiting for a line, pause between idle calls. 
                     	#This prevents us from overpolling the real time feed
-                    	time.sleep(1)
+                    	time.sleep(RTM_FEED_POLL_SLEEP_IN_S)
 
                     if was_running and zmachine.state != Interpreter.RUNNING_STATE:
                         # If the term has just switched to waiting for line (sread hit)
