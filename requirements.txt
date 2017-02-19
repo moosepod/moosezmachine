@@ -1,1 +1,1 @@
-slack-client==0.3.0
+slackclient==1.0.5
