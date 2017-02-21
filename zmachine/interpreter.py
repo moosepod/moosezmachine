@@ -1161,7 +1161,12 @@ class Interpreter(object):
     def _get_save_checksum(self):
         """ Return a checksum that can be used to ensure this is file is associated with the story """
         raw_data = self.story.raw_data._raw_data
-        return '%.2X%.2X%.2X' % (raw_data[0x02],raw_data[0x12],raw_data[0x1C]) # See quetzal standard 5.3
+        # See quetzal standard 5.3. Modified because I was seeing bytes change at location 2/3 in header...
+        cs = '%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X' % (
+            raw_data[0x12], raw_data[0x13], raw_data[0x14], raw_data[0x15], raw_data[0x16], raw_data[0x17],
+            raw_data[0x1C],raw_data[0x1D]) 
+        print('Checksum: %s' % cs)
+        return cs
 
     def to_save_data(self):
         """ Convert this zmachine into save data for persisting """
@@ -1183,8 +1188,9 @@ class Interpreter(object):
             parsed = json.loads(data)
             if parsed.get('version') != 1:
                 raise InvalidSaveDataException('Unsupported save version.')
+            print('"%s" vs "%s"' % (parsed.get('checksum'), self._get_save_checksum()))
             if parsed.get('checksum') != self._get_save_checksum():
-                raise InvalidSaveDataException('Unsupported save version.')
+                raise InvalidSaveDataException('Unsupported save checksum.')
     
             # Preserve value of flags 2 (6.1.2)
             flags_2 = self.story.raw_data[Header.FLAGS_2]

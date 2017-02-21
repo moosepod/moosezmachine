@@ -68,19 +68,17 @@ class Terp(object):
 
     def quicksave(self,save_path,player_id,zmachine):
         filename = '{}.quicksave'.format(player_id)
-        message = self.zmachine.save_handler.save_to(filename,self.zmachine)
+        message = self.zmachine.save_handler.save_to(filename,self.zmachine,quicksave=True)
         print('quicksave',message)
 
     def quickrestore(self, save_path, player_id, zmachine):
         filename = '{}.quicksave'.format(player_id)
-        if not os.path.exists(os.path.join(save_path,filename)):
-            print('No quicksave exists.')
-            return False
-        message = self.zmachine.restore_handler.restore_from(filename,self.zmachine)
+        message = self.zmachine.restore_handler.restore_from(filename,self.zmachine,quicksave=True)
         print('quickrestore',message)
-        return True
-        
-
+        if 'Restored from' in message:
+            return True
+        return False
+            
     def start_save(self):
         self.state = RunState.PROMPT_FOR_SAVE
         stream = self.zmachine.output_streams.get_screen_stream()
@@ -201,8 +199,11 @@ class TerpSaveHandler(SaveRestoreMixin):
         self.success_action = None
         self.save_path = save_path
         self.player_id = player_id
+        # Set to true when a save was just completed. We want to skip
+        # autosave in this case. Not set in case of autosave
+        self.just_saved = False 
 
-    def save_to(self, filename, interpreter):
+    def save_to(self, filename, interpreter,quicksave=False):
         original_filename = filename
         filename = self.fix_filename(filename,self.player_id)
 
@@ -216,6 +217,8 @@ class TerpSaveHandler(SaveRestoreMixin):
             message = '\nError saving. %s' % (e,)
             if self.error_action:
                 self.error_action.apply(interpreter)
+        if not quicksave:
+            self.just_saved = True
 
         return message
 
@@ -232,8 +235,11 @@ class TerpRestoreHandler(SaveRestoreMixin):
         self.success_action = None
         self.save_path = save_path
         self.player_id = player_id
+        # Set to true when a restore was just completed. We want to skip
+        # autosave in this case
+        self.just_restored = False 
 
-    def restore_from(self, filename, interpreter):
+    def restore_from(self, filename, interpreter,quicksave=False):
         original_filename = filename
         filename = self.fix_filename(filename,self.player_id)
 
@@ -245,6 +251,7 @@ class TerpRestoreHandler(SaveRestoreMixin):
             message = '\nError restoring. %s' % (e,)
             if self.error_action:
                 self.error_action.apply(interpreter)
+        self.just_restored=True
         return message
 
     def handle_restore(self,error_action):
@@ -252,7 +259,7 @@ class TerpRestoreHandler(SaveRestoreMixin):
         self.error_action = error_action
 
 class MainLoop(object):
-    def run(self,sc,player_id,channel_id,zmachine,story_filename,save_path):
+    def run(self,sc,player_id,channel_id,zmachine,story_filename,save_path,quickrestore=False):
         print("Starting terp for player %s" % player_id)
 
         output_stream = SlackOutputStream(sc,channel_id)
@@ -275,8 +282,10 @@ class MainLoop(object):
             print("Starting loop")
             output_stream._post_message('_Initializing interpreter..._')
 
-            if terp.quickrestore(save_path, player_id, zmachine):
-                terp.show_status()
+            if quickrestore and terp.quickrestore(save_path, player_id, zmachine):
+                zmachine.show_status()
+                terp.state = RunState.RUNNING
+                zmachine.state = Interpreter.WAITING_FOR_LINE_STATE
 
             while True:
                 if terp.state == RunState.RUNNING:
@@ -290,10 +299,15 @@ class MainLoop(object):
 
                     if was_running and zmachine.state != Interpreter.RUNNING_STATE:
                         # If the term has just switched to waiting for line (sread hit)
-                        # output our buffer, and quicksave
+                        # output our buffer
                         zmachine.output_streams.flush()
-                        terp.quicksave(save_path, player_id,zmachine)
-
+                        if zmachine.save_handler.just_saved or zmachine.restore_handler.just_restored:
+                            # skip quicksave and reset
+                            zmachine.save_handler.just_saved=False
+                            zmachine.restore_handler.just_restored=False
+                            print('Skipping save')
+                        else:
+                            terp.quicksave(save_path, player_id,zmachine)
                 elif terp.state == RunState.PROMPT_FOR_SAVE:
                     line = input_stream.readline()
                     if line:
@@ -331,25 +345,19 @@ def main():
         return
     print('Test connection succeeded.')
 
-    # Load up our zmachine from the story file
-    quicksave_path = os.path.join(data.save_path,'{}.quicksave'.format(data.player_id))
-    zmachine = None
-    try:
-        if os.path.exists(quicksave_path):
-            zmachine = load_zmachine(quicksave_path)
-    except Exception as e:
-        zmachine = None
-        print('Error loading:',e)
-
-    if zmachine:
-        print('Loading from quicksave')
-    else:
-        print('Loading from story')
-        zmachine = load_zmachine(data.story)
-    story_path, story_filename = os.path.split(data.story)
-
     # Start the slack-based interpreter
-    MainLoop().run(sc, data.player_id, data.channel_id, zmachine,story_filename,data.save_path)
+    quickrestore=True
+    while True:
+        # Load up our zmachine from the story file
+        print('Loading story')
+        zmachine = load_zmachine(data.story)
+        story_path, story_filename = os.path.split(data.story)
+
+        try:
+            MainLoop().run(sc, data.player_id, data.channel_id, zmachine,story_filename,data.save_path,quickrestore)
+        except (QuitException,RestartException):
+            quickrestore=False
+
 
 
 if __name__ == "__main__":

@@ -4,18 +4,13 @@ moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) b
 
 moosezmachine needs at least Python 3.4 to work.
 
-This project is a reference implementation -- no effort has been put into optimizations. 
+This project is a reference implementation/experimentation -- no effort has been put into optimizations. 
 
 Currently it only handles zcode versions 1 through 3. 
 
 For simplicity, the unicode mappings map to textual equivalents (per 3.8.5.4.1)
 
-## Usage
-
-Moosezmachine provides two methods of playing a story file.
-
-- The slack client, in slack_terp
-- terp.py, a curses-based interpreter
+It is primarily designed to be used as a library for other projects (see mooseterp). You can play games using terp.py, though.
 
 ### Terp.py
 
@@ -36,19 +31,7 @@ Debugging options
 # --seed to set a seed for the random number generator
 # --trace to set a path to a file to dump all zcode instructions to on quit
 
-### Slack Terp
-
-### Debugging tools and testing
-
-* tests.py: run python3 tests.py to run all the unit/integration tests
-* story_tests.py: run as python3 story_tests.py path_to_test_directory. When run, will look at the provided directory for all .z3 files. It will then ensure each of those files also have a .out and a .command file (eg, test.z3 will need test.out and test.commands). It will then run the interpreter using the provided story file, feeding in the commands, and verifying that the output matches the output file.
-* debug.py, a curses-based interpreter with some debugging features. This is not a fully implementeted interpreter, and is not recommended for playing games.
-* dump.py will dump assorted information about a story file. Usage is python3 dump.py --file path_to_story. Call it without parameters to see some of the options
-
-
 ## Architecture
-
-Moosezmachine includes a number of interpreters for various purposes (command line, testing, etc). They all work in the following basic way:
 
 The core object is the Interpreter (in zmachine.interpreter). This object acts as the virtual machine for the ZCode in the story file.
 
@@ -91,6 +74,13 @@ An output stream needs to implement three functions:
 - new_line: send output to the next line
 - print_str(str): handle output of a string of unicode text. This may or may not have newline characterse in it.
 - show_status(room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0): display the status bar with the provided info (see section 8.2)
+
+### History
+
+Moosezmachine was originally designed to support a slack (or general bot) interface to zmachine games. I ended up dropping this as a concept for two main reasons:
+
+1) the latency on slack was noticeable, and made playing the games somewhat frustrating
+2) The screen models of v5 and up games really don't support a slack or bot style interfaces. This restricts the use case to the earlier Infocom games, and there are better ways to play them these days.
 
 ## Licence/Thanks
 
