@@ -3,9 +3,9 @@
 {% else %}
 <ul>
     {% for story in stories %}
-    <p>{{ story.title }} (<a href="#">Play</a>)</p>
+    <p>{{ story.title }} (<a href="{% url "play_story" story.id %}">Play</a>)</p>
     {% endfor %}
 </ul>
 {% endif %}
 <hr/>
-<a href="">Load Story</a>
+<a href="{% url "load_story" %}">Load Story</a>

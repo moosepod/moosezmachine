@@ -8,6 +8,14 @@ COMMAND-LINE TERP:
 - Can set seed file (done)
 - Can be configured to load commands from input file and output to output file to assist with testing  (done)
 
+WEBTERP CONCEPT:
+- No need to save/reload
+- Every move is stored. Can branch at any move. Can "rewind"
+
+- Game stores random number seed
+- After every move, save game state, move, transcript saved
+- Different command allows for branching
+
 BASIC DJANGO TERP:
 - Use admin to load story files
 - Just uses sqllite for now
