@@ -1,0 +1,62 @@
+PHASES
+
+Meta-phase: Terp works correctly up to z3
+
+COMMAND-LINE TERP:
+- Can play story files (done)
+- Can save/restore  (done)
+- Can set seed file (done)
+- Can be configured to load commands from input file and output to output file to assist with testing  (done)
+
+BASIC DJANGO TERP:
+- Use admin to load story files
+- Just uses sqllite for now
+- System is multi-user under the hood but uses default user for testing
+- Basic interface lists all story files and allows for play
+- Stores state of game after every command
+- Sidebar shows list of all states (stores score line, room line, checksum of memory with each)
+- Sidebar also includes:
+  - Memory dump
+  - Object list dump
+  - Instruction dump (?)
+
+REACT/API TERP:
+- Based on basic django terp but uses REACT
+
+SLACK TERP
+- Slack!
+
+WHAT ARE DESIRED OUTCOMES: 
+  1 - command-line based terp that works properly
+  2 - basic web-based debug interface with realtime revert (autosave/restore)
+  3 - slack bot
+
+- What would be helpful?
+  - Ability to rewind game state
+  - Visual debugger
+
+SO
+  - Build web-based version
+  - Build basic client
+  - Build advanced client
+
+- GENERAL
+  - walk through each aspect of spec
+  - ensure save, reload, etc works
+
+  - validate and complete python version of code
+    - make sure can play through some basic games
+    - add walkthrough tests for said games
+
+- WRITE BOT EMULATOR 
+  - test game with local interface sending/receiving messages
+  - everything else like real game
+
+- WRITE SLACK BOT
+  - just use https://github.com/lins05/slackbot
+
+- ADD IN META
+  - more interface
+
+----
+BUGS: i have ended up with dual bells

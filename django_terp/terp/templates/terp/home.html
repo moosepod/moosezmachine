@@ -1,0 +1,11 @@
+{% if not stories %}
+<p>No stories have been loaded.</p>
+{% else %}
+<ul>
+    {% for story in stories %}
+    <p>{{ story.title }} (<a href="#">Play</a>)</p>
+    {% endfor %}
+</ul>
+{% endif %}
+<hr/>
+<a href="">Load Story</a>

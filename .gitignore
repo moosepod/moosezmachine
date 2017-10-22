@@ -8,7 +8,7 @@ local_settings.py
 build/**
 localtestdata/**
 secrets.txt
-local_settings.py
+**/local_settings.py
 **/.DS_Store
 octave-workspace
 pycallgraph.png
