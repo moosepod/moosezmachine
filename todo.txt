@@ -1,5 +1,6 @@
-- Save state after every move
-- Reconstitute with command
+- Figure out what's wrong with initial load
+- Add in history on left hand pane, with reset
+- Figure out what's not working with the save/restore
 
 PHASES
 

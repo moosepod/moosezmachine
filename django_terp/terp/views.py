@@ -5,7 +5,7 @@ from django.views.generic import TemplateView,FormView,RedirectView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
-from terp.models import StoryRecord,StorySession,get_default_user
+from terp.models import StoryRecord,StorySession,get_default_user,StoryState
 from terp.forms import StoryForm
 
 class HomeView(TemplateView):
@@ -49,10 +49,16 @@ class PlaySessionView(TemplateView):
     def get_context_data(self,session_id):
         session = get_object_or_404(StorySession, pk=session_id)
 
-        state = session.get_current_state()
+        history_id = self.request.GET.get('history_id')
         command = self.request.GET.get('command')
-        if command:
-            state = state.generate_next_state(command=command)
+
+        if history_id:
+            state = StoryState.objects.get(pk=history_id,session=session)
+        else:
+            state = session.get_current_state()
+            if command:
+                state = state.generate_next_state(command=command)
 
         return {'session': session,
-                'state': state}
+                'state': state,
+                'history': StoryState.objects.all().order_by('-move')}
