@@ -1,8 +1,18 @@
 import hashlib
 import os
+import random
+import time
 
 from django.db import models
 from django.conf import settings
+
+from zmachine.interpreter import Story as ZCodeStory
+from zmachine.interpreter import Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
+                                 StoryFileException,InterpreterException,MemoryAccessException,\
+                                 InputStreams,InputStream,RestartException
+from zmachine.text import ZTextException
+from zmachine.memory import BitArray,MemoryException
+from zmachine.instructions import InstructionException
 
 def get_default_user():
     from django.contrib.auth.models import User
@@ -44,6 +54,13 @@ class Story(models.Model):
 
     objects = StoryManager()
 
+    def get_or_start_session(self,user):
+        """ Get the existing session for this story/user, or create a new one """
+        session,created = StorySession.objects.get_or_create(story=self,
+                user=user,
+                defaults={'rng_seed':random.randint(1,5000)})
+        return session
+
     def __str__(self):
         return self.title
     
@@ -55,8 +72,69 @@ class StorySession(models.Model):
     # Store our random seed for this session
     rng_seed = models.PositiveIntegerField()
 
+    def get_current_state(self):
+        """ Return the most recent StoryState for this session. Creates StoryState
+            and starts if none exists
+        """
+        #try:
+        #    return StoryState.objects.filter(session=self).order_by('-move')[0]
+        #except IndexError:
+        #    pass
+            
+        state = StoryState(session=self,
+                move=1,
+                branch_parent=None,
+                state=b'',
+                command='',
+                text='',
+                score='',
+                location='')
+
+        state.generate_next_state(command=None)
+
+        return state
+            
     def __str__(self):
         return '%s/%s' % (self.story, self.user)
+
+class StubInputStream(object):
+    """ Input stream just used to track when we're waiting for a line """
+    def __init__(self,output_stream=None,add_newline=True):
+        self.waiting_for_line = False
+
+    def readline(self):
+        return None
+
+    def char_pressed(self,char):
+        pass
+
+class BufferOutputStream(OutputStream):
+    def __init__(self):
+        super(BufferOutputStream,self).__init__()
+        self.buffer = ''
+        self.room_name = ''
+        self.score = ''
+
+    def refresh(self):
+        pass
+
+    def new_line(self):
+        self.buffer += '\n'
+        
+    def print_str(self,txt):
+        self.buffer += txt
+
+    def print_char(self,txt):
+        self.buffer += txt
+
+    def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
+        self.room_name = room_name
+        if score_mode:
+            right_string = 'Score: %s Moves: %s' % (score or 0,turns or 0)
+        else:
+            right_string = '%02d:%02d' % (hours,minutes)
+
+        self.score = right_string
 
 class StoryState(models.Model):
     """ A specific state in the timeline for a given story session """
@@ -72,6 +150,34 @@ class StoryState(models.Model):
 
     score = models.CharField(max_length=100) # Contents of score part of status bar
     location = models.CharField(max_length=100) # Contents of location part of status bar
+
+    def generate_next_state(self,command=None):
+        """ Starting from this state and with the given command, create a new StoryState object
+            after running the zmachine """
+        story = ZCodeStory(self.session.story.data)
+        outputs = OutputStreams(OutputStream(),OutputStream())
+        inputs = InputStreams(InputStream(),InputStream())
+        zmachine = Interpreter(story,outputs,inputs,None,None)
+        zmachine.reset(restart_flags=None)
+        zmachine.story.header.set_debug_mode()
+        zmachine.story.rng.enter_predictable_mode(self.session.rng_seed)
+        
+        output_stream = BufferOutputStream()
+        input_stream =  StubInputStream(story)
+        zmachine.output_streams.set_screen_stream(output_stream)
+        zmachine.input_streams.keyboard_stream = input_stream
+        zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
+    
+        start_time = time.time()
+        while True and start_time + 2 >= time.time(): # If execution goes more than 2 seconds, cancel.
+            zmachine.step()
+            if input_stream.waiting_for_line:
+                break
+        self.score = output_stream.score
+        self.location = output_stream.room_name
+        self.text = output_stream.buffer
+
+        return self
 
     def __str__(self):
         return '%s/%s/%s' % (self.move, self.score, self.location)

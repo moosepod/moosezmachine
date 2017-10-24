@@ -1,1 +1,25 @@
-Play {{ story.title }}
+<table width="100%" border="1">
+    <tr>
+       <td valign="top">
+           <table width="100%">
+               <tr>
+                   <td width="80%">{{ state.location }}</td>
+                   <td width="20%">{{ state.score }}</td>
+               </tr>
+               <tr>
+                   <td colspan="2"><hr/></td>
+               </tr>
+               <tr>
+                   <td colspan="2"><pre>{{ state.text }}</pre>
+                    <br/>
+                    <input type="text" size="100"/>
+
+                   </td>
+               </tr>
+           </table>
+       </td>
+       <td valign="top" width="400">
+       Controls 
+       </td>     
+    </tr>
+</table>

@@ -1,11 +1,11 @@
 from tempfile import NamedTemporaryFile
 
 from django.shortcuts import render
-from django.views.generic import TemplateView,FormView
+from django.views.generic import TemplateView,FormView,RedirectView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
-from terp.models import Story
+from terp.models import Story,StorySession,get_default_user
 from terp.forms import StoryForm
 
 class HomeView(TemplateView):
@@ -35,9 +35,21 @@ class LoadStoryView(FormView):
         return reverse('home')
 
 
-class PlayStoryView(TemplateView):
-    template_name = 'terp/load_story.html'
-
-    def get_context_data(self,story_id):
+class StartStoryView(RedirectView):
+    def get_redirect_url(self,story_id):
         story = get_object_or_404(Story, pk=story_id)
-        return {'story': story}
+
+        session = story.get_or_start_session(get_default_user())
+
+        return reverse('play',kwargs={'session_id': session.id})
+
+class PlaySessionView(TemplateView):
+    template_name = 'terp/play_story.html'
+
+    def get_context_data(self,session_id):
+        session = get_object_or_404(StorySession, pk=session_id)
+
+        state = session.get_current_state()
+        
+        return {'session': session,
+                'state': state}
