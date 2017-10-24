@@ -1,5 +1,5 @@
-- Rename Story->StoryFile (?)
-- Rename location->room name
+- Save state after every move
+- Reconstitute with command
 
 PHASES
 

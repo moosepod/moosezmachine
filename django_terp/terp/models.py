@@ -2,6 +2,7 @@ import hashlib
 import os
 import random
 import time
+import json
 
 from django.db import models
 from django.conf import settings
@@ -100,9 +101,12 @@ class StubInputStream(object):
     """ Input stream just used to track when we're waiting for a line """
     def __init__(self,output_stream=None,add_newline=True):
         self.waiting_for_line = False
+        self.command = None
 
     def readline(self):
-        return None
+        command = self.command
+        self.command = None
+        return command
 
     def char_pressed(self,char):
         pass
@@ -143,7 +147,7 @@ class StoryState(models.Model):
     # When we branch, we store the state we branched from. State data all immutable
     branch_parent = models.ForeignKey('StoryState', null=True,blank=True)
 
-    state = models.BinaryField() # Saved state at start of this move
+    state = models.TextField() # Saved state at start of this move
     command = models.CharField(max_length=1000) # Command that led to this state
     text = models.TextField() # Text output by this command
 
@@ -167,16 +171,22 @@ class StoryState(models.Model):
         zmachine.input_streams.keyboard_stream = input_stream
         zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
     
+        if command:
+            input_stream.command = command
+            zmachine.restore_from_save_data(self.state)
+
         start_time = time.time()
         while True and start_time + 2 >= time.time(): # If execution goes more than 2 seconds, cancel.
             zmachine.step()
             if input_stream.waiting_for_line:
                 break
         
+        state_data = json.dumps(zmachine.to_save_data())
+
         state = StoryState.objects.create(session=self.session,
             move=self.move+1,
             branch_parent=self.branch_parent,
-            state=self.state,
+            state=state_data,
             command=command or '',
             text=output_stream.buffer,
             score=output_stream.score,
@@ -185,4 +195,4 @@ class StoryState(models.Model):
         return state
 
     def __str__(self):
-        return '%s/%s/%s' % (self.move, self.score, self.location)
+        return '%s/%s/%s' % (self.move, self.score, self.room_name)

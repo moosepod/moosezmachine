@@ -50,6 +50,9 @@ class PlaySessionView(TemplateView):
         session = get_object_or_404(StorySession, pk=session_id)
 
         state = session.get_current_state()
-        
+        command = self.request.GET.get('command')
+        if command:
+            state = state.generate_next_state(command=command)
+
         return {'session': session,
                 'state': state}
