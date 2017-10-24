@@ -104,8 +104,13 @@ class StubInputStream(object):
         self.command = None
 
     def readline(self):
+        if not self.command:
+            self.waiting_for_line = True
+            return None
+
         command = self.command
         self.command = None
+        self.waiting_for_line = False
         return command
 
     def char_pressed(self,char):
@@ -114,6 +119,9 @@ class StubInputStream(object):
 class BufferOutputStream(OutputStream):
     def __init__(self):
         super(BufferOutputStream,self).__init__()
+        self.reset()
+
+    def reset(self):
         self.buffer = ''
         self.room_name = ''
         self.score = ''
@@ -170,10 +178,20 @@ class StoryState(models.Model):
         zmachine.output_streams.set_screen_stream(output_stream)
         zmachine.input_streams.keyboard_stream = input_stream
         zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
+
+        # Hack until we get state store/restore. Simply spool commands until we're ready
+        for state in self.session.storystate_set.filter(move__lt=self.move
+                ).order_by('-move'):
+            input_stream.command = state.command
+            input_stream.waiting_for_line = False
+            output_stream.reset()
+            start_time = time.time()
+            while not input_stream.waiting_for_line:
+                zmachine.step()
     
         if command:
             input_stream.command = command
-            zmachine.restore_from_save_data(self.state)
+            #zmachine.restore_from_save_data(self.state)
 
         start_time = time.time()
         while True and start_time + 2 >= time.time(): # If execution goes more than 2 seconds, cancel.
@@ -181,7 +199,7 @@ class StoryState(models.Model):
             if input_stream.waiting_for_line:
                 break
         
-        state_data = json.dumps(zmachine.to_save_data())
+        state_data = b''# json.dumps(zmachine.to_save_data())
 
         state = StoryState.objects.create(session=self.session,
             move=self.move+1,
