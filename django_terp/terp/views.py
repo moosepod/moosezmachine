@@ -5,14 +5,14 @@ from django.views.generic import TemplateView,FormView,RedirectView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
-from terp.models import Story,StorySession,get_default_user
+from terp.models import StoryRecord,StorySession,get_default_user
 from terp.forms import StoryForm
 
 class HomeView(TemplateView):
     template_name = 'terp/home.html'
 
     def get_context_data(self):
-        return {'stories': Story.objects.all().order_by('title')}
+        return {'stories': StoryRecord.objects.all().order_by('title')}
 
 class LoadStoryView(FormView):
     template_name = 'terp/load_story.html'
@@ -27,7 +27,7 @@ class LoadStoryView(FormView):
             f.write(chunk)
         f.seek(0)
         
-        story,created = Story.objects.get_or_create_from_path(f.name,uploaded_file.name)
+        story,created = StoryRecord.objects.get_or_create_from_path(f.name,uploaded_file.name)
     
         return super(LoadStoryView,self).form_valid(form)
 
@@ -37,7 +37,7 @@ class LoadStoryView(FormView):
 
 class StartStoryView(RedirectView):
     def get_redirect_url(self,story_id):
-        story = get_object_or_404(Story, pk=story_id)
+        story = get_object_or_404(StoryRecord, pk=story_id)
 
         session = story.get_or_start_session(get_default_user())
 

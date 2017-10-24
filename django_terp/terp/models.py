@@ -6,8 +6,7 @@ import time
 from django.db import models
 from django.conf import settings
 
-from zmachine.interpreter import Story as ZCodeStory
-from zmachine.interpreter import Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
+from zmachine.interpreter import Story, Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
                                  StoryFileException,InterpreterException,MemoryAccessException,\
                                  InputStreams,InputStream,RestartException
 from zmachine.text import ZTextException
@@ -34,17 +33,17 @@ class StoryManager(models.Manager):
         try:
             story = self.get(story_hash=story_hash)
             return story, False
-        except Story.DoesNotExist:
+        except StoryRecord.DoesNotExist:
             pass
 
-        story = Story.objects.create(title=title,
+        story = StoryRecord.objects.create(title=title,
                     story_hash=story_hash,
                     data=story_data,
                     added_by=get_default_user())
 
         return story,True
 
-class Story(models.Model):
+class StoryRecord(models.Model):
     """ Metadata for a story, including the story file data itself """
     title = models.CharField(max_length=100)
     story_hash = models.CharField(max_length=64,unique=True)
@@ -66,7 +65,7 @@ class Story(models.Model):
     
 class StorySession(models.Model):
     """ A running session of a story for a given user """
-    story = models.ForeignKey(Story)
+    story = models.ForeignKey(StoryRecord)
     user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
     # Store our random seed for this session
@@ -76,10 +75,10 @@ class StorySession(models.Model):
         """ Return the most recent StoryState for this session. Creates StoryState
             and starts if none exists
         """
-        #try:
-        #    return StoryState.objects.filter(session=self).order_by('-move')[0]
-        #except IndexError:
-        #    pass
+        try:
+           return StoryState.objects.filter(session=self).order_by('-move')[0]
+        except IndexError:
+           pass
             
         state = StoryState(session=self,
                 move=1,
@@ -88,7 +87,7 @@ class StorySession(models.Model):
                 command='',
                 text='',
                 score='',
-                location='')
+                room_name='')
 
         state.generate_next_state(command=None)
 
@@ -149,12 +148,12 @@ class StoryState(models.Model):
     text = models.TextField() # Text output by this command
 
     score = models.CharField(max_length=100) # Contents of score part of status bar
-    location = models.CharField(max_length=100) # Contents of location part of status bar
+    room_name = models.CharField(max_length=100) # Contents of location part of status bar
 
     def generate_next_state(self,command=None):
         """ Starting from this state and with the given command, create a new StoryState object
             after running the zmachine """
-        story = ZCodeStory(self.session.story.data)
+        story = Story(self.session.story.data)
         outputs = OutputStreams(OutputStream(),OutputStream())
         inputs = InputStreams(InputStream(),InputStream())
         zmachine = Interpreter(story,outputs,inputs,None,None)
@@ -173,11 +172,17 @@ class StoryState(models.Model):
             zmachine.step()
             if input_stream.waiting_for_line:
                 break
-        self.score = output_stream.score
-        self.location = output_stream.room_name
-        self.text = output_stream.buffer
+        
+        state = StoryState.objects.create(session=self.session,
+            move=self.move+1,
+            branch_parent=self.branch_parent,
+            state=self.state,
+            command=command or '',
+            text=output_stream.buffer,
+            score=output_stream.score,
+            room_name=output_stream.room_name)
 
-        return self
+        return state
 
     def __str__(self):
         return '%s/%s/%s' % (self.move, self.score, self.location)

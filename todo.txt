@@ -1,3 +1,6 @@
+- Rename Story->StoryFile (?)
+- Rename location->room name
+
 PHASES
 
 Meta-phase: Terp works correctly up to z3
