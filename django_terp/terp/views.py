@@ -43,6 +43,17 @@ class StartStoryView(RedirectView):
 
         return reverse('play',kwargs={'session_id': session.id})
 
+class RestartStoryView(RedirectView):
+    def get_redirect_url(self,story_id):
+        story = get_object_or_404(StoryRecord, pk=story_id)
+
+        session = story.get_or_start_session(get_default_user())
+
+        # Clear old states
+        session.storystate_set.all().delete()
+
+        return reverse('play',kwargs={'session_id': session.id})
+
 class PlaySessionView(TemplateView):
     template_name = 'terp/play_story.html'
 
@@ -50,7 +61,7 @@ class PlaySessionView(TemplateView):
         session = get_object_or_404(StorySession, pk=session_id)
 
         history_id = self.request.GET.get('history_id')
-        command = self.request.GET.get('command')
+        command = self.request.GET.get('command',None)
 
         if history_id:
             state = StoryState.objects.get(pk=history_id,session=session)
@@ -61,4 +72,4 @@ class PlaySessionView(TemplateView):
 
         return {'session': session,
                 'state': state,
-                'history': StoryState.objects.all().order_by('-move')}
+                'history': StoryState.objects.all().order_by('move')}

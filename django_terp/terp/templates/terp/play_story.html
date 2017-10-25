@@ -10,7 +10,8 @@
                    <td colspan="2"><hr/></td>
                </tr>
                <tr>
-                   <td colspan="2"><pre>{{ state.text }}</pre>
+                   <td colspan="2">{% for h in history %}{{ h.text|linebreaksbr }}
+                    {% endfor %}
                     <br/>
                     <form action=".">
                     <input type="text" name="command" size="100"/> <input type="submit" />
@@ -20,6 +21,7 @@
            </table>
        </td>
        <td valign="top" width="400">
+           <a href="{% url "restart_story" session.story.id %}">Restart</a>
        <ul>
        {% for h in history %}
        <li>

@@ -59,6 +59,7 @@ class StoryRecord(models.Model):
         session,created = StorySession.objects.get_or_create(story=self,
                 user=user,
                 defaults={'rng_seed':random.randint(1,5000)})
+        state = session.get_current_state()
         return session
 
     def __str__(self):
@@ -81,18 +82,14 @@ class StorySession(models.Model):
         except IndexError:
            pass
             
-        state = StoryState(session=self,
-                move=1,
+        return StoryState(session=self,
+                move=0,
                 branch_parent=None,
                 state=b'',
                 command='',
                 text='',
                 score='',
-                room_name='')
-
-        state.generate_next_state(command=None)
-
-        return state
+                room_name='').generate_next_state()
             
     def __str__(self):
         return '%s/%s' % (self.story, self.user)
@@ -178,27 +175,27 @@ class StoryState(models.Model):
         zmachine.output_streams.set_screen_stream(output_stream)
         zmachine.input_streams.keyboard_stream = input_stream
         zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
-
+        input_stream.waiting_for_line = False
+        input_stream.command = None
+        
         # Hack until we get state store/restore. Simply spool commands until we're ready
-        for state in self.session.storystate_set.filter(move__lt=self.move
-                ).order_by('-move'):
+        for state in self.session.storystate_set.all().order_by('move'):
             input_stream.command = state.command
             input_stream.waiting_for_line = False
-            output_stream.reset()
-            start_time = time.time()
             while not input_stream.waiting_for_line:
                 zmachine.step()
-    
-        if command:
-            input_stream.command = command
-            #zmachine.restore_from_save_data(self.state)
+
+        output_stream.reset()
+        input_stream.waiting_for_line = False
+        input_stream.command = command
+        #zmachine.restore_from_save_data(self.state)
 
         start_time = time.time()
-        while True and start_time + 2 >= time.time(): # If execution goes more than 2 seconds, cancel.
+        while True and start_time + 5 >= time.time(): # If execution goes more than 5 seconds, cancel.
             zmachine.step()
             if input_stream.waiting_for_line:
                 break
-        
+                
         state_data = b''# json.dumps(zmachine.to_save_data())
 
         state = StoryState.objects.create(session=self.session,
