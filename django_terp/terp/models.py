@@ -85,7 +85,7 @@ class StorySession(models.Model):
         return StoryState(session=self,
                 move=0,
                 branch_parent=None,
-                state=b'',
+                state='{}',
                 command='',
                 text='',
                 score='',
@@ -179,24 +179,24 @@ class StoryState(models.Model):
         input_stream.command = None
         
         # Hack until we get state store/restore. Simply spool commands until we're ready
-        for state in self.session.storystate_set.all().order_by('move'):
-            input_stream.command = state.command
-            input_stream.waiting_for_line = False
-            while not input_stream.waiting_for_line:
-                zmachine.step()
+        # for state in self.session.storystate_set.all().order_by('move'):
+        #     input_stream.command = state.command
+        #     input_stream.waiting_for_line = False
+        #     while not input_stream.waiting_for_line:
+        #         zmachine.step()
 
         output_stream.reset()
-        input_stream.waiting_for_line = False
-        input_stream.command = command
-        #zmachine.restore_from_save_data(self.state)
-
+        if self.move > 0:
+           zmachine.restore_from_save_data(self.state)
+           input_stream.command = command
+           zmachine.read_and_process(zmachine._text_buffer_addr,zmachine._parse_buffer_addr)
+        
         start_time = time.time()
         while True and start_time + 5 >= time.time(): # If execution goes more than 5 seconds, cancel.
-            zmachine.step()
-            if input_stream.waiting_for_line:
+            if zmachine.step() != Interpreter.RUNNING_STATE:
                 break
-                
-        state_data = b''# json.dumps(zmachine.to_save_data())
+        
+        state_data = json.dumps(zmachine.to_save_data())
 
         state = StoryState.objects.create(session=self.session,
             move=self.move+1,

@@ -1165,7 +1165,6 @@ class Interpreter(object):
         cs = '%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X' % (
             raw_data[0x12], raw_data[0x13], raw_data[0x14], raw_data[0x15], raw_data[0x16], raw_data[0x17],
             raw_data[0x1C],raw_data[0x1D]) 
-        print('Checksum: %s' % cs)
         return cs
 
     def to_save_data(self):
@@ -1188,7 +1187,7 @@ class Interpreter(object):
             parsed = json.loads(data)
             if parsed.get('version') != 1:
                 raise InvalidSaveDataException('Unsupported save version.')
-            print('"%s" vs "%s"' % (parsed.get('checksum'), self._get_save_checksum()))
+            #print('"%s" vs "%s"' % (parsed.get('checksum'), self._get_save_checksum()))
             if parsed.get('checksum') != self._get_save_checksum():
                 raise InvalidSaveDataException('Unsupported save checksum.')
     
@@ -1221,8 +1220,8 @@ class Interpreter(object):
             self.story.raw_data[Header.FLAGS_2] = flags_2
 
             self.pc = parsed['pc']
-            self._parse_buffer_addr = int(parsed.get('_parse_buffer_addr','0'))
-            self._text_buffer_addr = int(parsed.get('_text_buffer_addr','0'))
+            self._parse_buffer_addr = int(parsed.get('parse_buffer_addr','0'))
+            self._text_buffer_addr = int(parsed.get('text_buffer_addr','0'))
         except IndexError as e:
             raise InvalidSaveDataException('Save data missing parameter: %s' % e)
         except ValueError:

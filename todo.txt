@@ -1,6 +1,4 @@
-- Figure out what's wrong with initial load
-- Add in history on left hand pane, with reset
-- Figure out what's not working with the save/restore
+- OK -- double check that full interpreter state (including waiting) is configured right
 
 PHASES
 
