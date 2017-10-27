@@ -178,13 +178,6 @@ class StoryState(models.Model):
         input_stream.waiting_for_line = False
         input_stream.command = None
         
-        # Hack until we get state store/restore. Simply spool commands until we're ready
-        # for state in self.session.storystate_set.all().order_by('move'):
-        #     input_stream.command = state.command
-        #     input_stream.waiting_for_line = False
-        #     while not input_stream.waiting_for_line:
-        #         zmachine.step()
-
         output_stream.reset()
         if self.move > 0:
            zmachine.restore_from_save_data(self.state)

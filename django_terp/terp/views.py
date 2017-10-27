@@ -8,6 +8,10 @@ from django.urls import reverse
 from terp.models import StoryRecord,StorySession,get_default_user,StoryState
 from terp.forms import StoryForm
 
+# How many moves back to show when loading the page
+# from history/scratch
+HISTORY_BUFFER_SIZE=4
+
 class HomeView(TemplateView):
     template_name = 'terp/home.html'
 
@@ -63,6 +67,28 @@ class PlaySessionView(TemplateView):
         history_id = self.request.GET.get('history_id')
         command = self.request.GET.get('command',None)
 
+        state = session.get_current_state()
+
+        return {'session': session,
+                'state': state}
+
+class PlaySessionHistoryView(TemplateView):
+    template_name = 'terp/play_session.html'
+
+    def get_context_data(self,session_id):
+        session = get_object_or_404(StorySession, pk=session_id)
+
+        return {'session': session,
+                'history': StoryState.objects.all().order_by('move')}
+
+class PlaySessionCommandView(TemplateView):
+    template_name = 'terp/play_command.html'
+
+    def get_context_data(self,session_id):
+        session = get_object_or_404(StorySession, pk=session_id)
+        history_id = self.request.GET.get('history_id')
+        command = self.request.GET.get('command',None)
+
         if history_id:
             state = StoryState.objects.get(pk=history_id,session=session)
         else:
@@ -70,6 +96,9 @@ class PlaySessionView(TemplateView):
             if command:
                 state = state.generate_next_state(command=command)
 
+        start_move = max(state.move - HISTORY_BUFFER_SIZE,0)
+        history = StoryState.objects.filter(session=session,move__gt=start_move,move__lte=state.move)
+
         return {'session': session,
-                'state': state,
-                'history': StoryState.objects.all().order_by('move')}
+                'history': history,
+                'state': state}
