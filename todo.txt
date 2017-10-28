@@ -1,4 +1,7 @@
-- OK -- double check that full interpreter state (including waiting) is configured right
+- TODO:
+  - Fixed size for window
+  - When choosing history, mark it
+  - When entering historical command, BRANCH
 
 PHASES
 

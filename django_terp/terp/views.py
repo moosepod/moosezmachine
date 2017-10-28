@@ -1,8 +1,8 @@
 from tempfile import NamedTemporaryFile
 
 from django.shortcuts import render
-from django.views.generic import TemplateView,FormView,RedirectView
-from django.shortcuts import get_object_or_404
+from django.views.generic import TemplateView,FormView,RedirectView,View
+from django.shortcuts import get_object_or_404,render
 from django.urls import reverse
 
 from terp.models import StoryRecord,StorySession,get_default_user,StoryState
@@ -11,6 +11,7 @@ from terp.forms import StoryForm
 # How many moves back to show when loading the page
 # from history/scratch
 HISTORY_BUFFER_SIZE=4
+
 
 class HomeView(TemplateView):
     template_name = 'terp/home.html'
@@ -81,20 +82,17 @@ class PlaySessionHistoryView(TemplateView):
         return {'session': session,
                 'history': StoryState.objects.all().order_by('move')}
 
-class PlaySessionCommandView(TemplateView):
+class PlaySessionInitialView(TemplateView):
     template_name = 'terp/play_command.html'
 
     def get_context_data(self,session_id):
         session = get_object_or_404(StorySession, pk=session_id)
         history_id = self.request.GET.get('history_id')
-        command = self.request.GET.get('command',None)
 
         if history_id:
             state = StoryState.objects.get(pk=history_id,session=session)
         else:
             state = session.get_current_state()
-            if command:
-                state = state.generate_next_state(command=command)
 
         start_move = max(state.move - HISTORY_BUFFER_SIZE,0)
         history = StoryState.objects.filter(session=session,move__gt=start_move,move__lte=state.move)
@@ -102,3 +100,18 @@ class PlaySessionCommandView(TemplateView):
         return {'session': session,
                 'history': history,
                 'state': state}
+
+class PlaySessionCommandView(View):
+    def post(self,request, session_id):
+        session = get_object_or_404(StorySession, pk=session_id)
+        command = self.request.POST.get('command',None)
+
+        state = session.get_current_state()
+        if command:
+            state = state.generate_next_state(command=command)
+
+        return render(request,
+                'terp/play_command.html', 
+                {'session': session,
+                'history': [state],
+                'state': state})

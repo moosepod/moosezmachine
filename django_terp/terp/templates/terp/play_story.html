@@ -7,11 +7,28 @@
         crossorigin="anonymous"></script>
     <script language="JavaScript">
         $(document).ready(function() {
-            $('#screen').load('{% url "play_command" session.id %}');
+            $('#screen').load('{% url "play_initial" session.id %}');
             $('#history').load('{% url "play_history" session.id %}');
         });
         function load_state(hid) {
-            $('#screen').load('{% url "play_command" session.id %}?history_id='+hid);
+            $('#screen').load('{% url "play_initial" session.id %}?history_id='+hid);
+        }
+        function enter_command() {
+            var cmd = $('#command_entry').val();
+            var f = document.forms.command_form;
+            $('#command_form').hide();
+            $('#command_submitted').show();
+            $('#command_entry').val('');
+            $.post('{% url "play_command" session.id %}', 
+                    {'command': cmd,
+                    'csrfmiddlewaretoken': f.csrfmiddlewaretoken.value},
+                    function(data){
+                        $('#screen').append(data);
+                        $('#command_submitted').hide();
+                        $('#command_form').show();
+                        f.command_entry.focus();
+                    });
+            return false;
         }
     </script>
 </head>
@@ -32,8 +49,10 @@
                     <div id="screen" style=" overflow-y: scroll">   
                         Loading...
                     </div>
-                    <form action=".">
-                    <input type="text" name="command" size="100"/> <input type="submit" />
+                    <div id="command_submitted" style="display: none;">Processing...</div>
+                    <form action="" onSubmit="return enter_command()" id="command_form" name="command_form">
+                    <input type="text" id="command_entry" name="command" size="100" autocomplete="off"/> <input type="submit" />
+                    {% csrf_token %}
                       </form>
                    </td>
                </tr>
@@ -43,7 +62,6 @@
            <a href="{% url "restart_story" session.story.id %}">Restart</a>
            <div id="history">
                 Loading...
-                
            </div>
        </td>     
     </tr>
