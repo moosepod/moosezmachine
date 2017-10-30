@@ -1,7 +1,11 @@
 - TODO:
-  - Fixed size for window
-  - When choosing history, mark it
+  - Update history portion (done)
+  - When choosing history, mark it (done)
+  - play command should return json (done)
+  - Load state should also load score, etc
   - When entering historical command, BRANCH
+  - Disable SAVE
+  - Disable RESTORE
 
 PHASES
 

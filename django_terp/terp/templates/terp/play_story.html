@@ -9,9 +9,23 @@
         $(document).ready(function() {
             $('#screen').load('{% url "play_initial" session.id %}');
             $('#history').load('{% url "play_history" session.id %}');
+            var f = document.forms.command_form;
+            f.command_entry.focus();
         });
         function load_state(hid) {
             $('#screen').load('{% url "play_initial" session.id %}?history_id='+hid);
+            $('.history_link').css("font-weight","normal");
+            $('#history_' + hid).css("font-weight","bold");
+        }
+        function add_history(room_name, score, move, command,state_id) {
+            var str = '<a href="#" class="history_link" id="history_' + state_id + '" onClick="load_state(' + state_id + ');">';
+            str += '<li>' + move + ': ' + room_name + ' (' + score + ') [' + command + ']</li>';
+            str += '</a>';
+            $('#history_ul').prepend(str);
+        }
+        function set_score(room_name, score) {
+            $('#room_name').html(room_name);
+            $('#score').html(score);
         }
         function enter_command() {
             var cmd = $('#command_entry').val();
@@ -23,11 +37,17 @@
                     {'command': cmd,
                     'csrfmiddlewaretoken': f.csrfmiddlewaretoken.value},
                     function(data){
-                        $('#screen').append(data);
+                        $('#screen').append(data['command'].replace(/(\n)+/g, '<br />'));
+                        $('#screen').append('<br />');
+                        $('#screen').append(data['text'].replace(/(\n)+/g, '<br />'));
+                        set_score(data['room_name'],data['score']);
+                        $("#screen").scrollTop($("#screen")[0].scrollHeight);
                         $('#command_submitted').hide();
                         $('#command_form').show();
                         f.command_entry.focus();
-                    });
+                        add_history(data['room_name'],data['score'],data['move'],data['command'],data['state_id']);
+                    },
+                    'json');
             return false;
         }
     </script>
@@ -38,15 +58,15 @@
        <td valign="top">
            <table width="100%">
                <tr>
-                   <td width="80%">{{ state.room_name }}</td>
-                   <td width="20%">{{ state.score }}</td>
+                   <td width="80%"><span id="room_name">{{ state.room_name }}</span></td>
+                   <td width="20%"><span id="score">{{ state.score }}</span></td>
                </tr>
                <tr>
                    <td colspan="2"><hr/></td>
                </tr>
                <tr>
                    <td colspan="2">
-                    <div id="screen" style=" overflow-y: scroll">   
+                    <div style=" overflow-y: scroll; height: 600px;"  id="screen">   
                         Loading...
                     </div>
                     <div id="command_submitted" style="display: none;">Processing...</div>
@@ -60,7 +80,7 @@
        </td>
        <td valign="top" width="400">
            <a href="{% url "restart_story" session.story.id %}">Restart</a>
-           <div id="history">
+           <div id="history" style=" overflow-y: scroll;  height: 600px;">   
                 Loading...
            </div>
        </td>     

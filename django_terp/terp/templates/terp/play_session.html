@@ -1,7 +1,7 @@
-<ul>
+<ul id="history_ul">
     {% for h in history %}
     <li>
         {% if h.id == state.id %}<b>{{ h.move }}: {{ h.room_name }} ({{ h.score }}) [{{ h.command }}]</b>{% else %}
-        <a href="#" onClick="load_state({{ h.id }});">{{ h.move }}: {{ h.room_name }} ({{ h.score }}) [{{ h.command }}]{% endif %}</a>
+        <a href="#" class="history_link" id="history_{{ h.id }}" onClick="load_state({{ h.id }});">{{ h.move }}: {{ h.room_name }} ({{ h.score }}) [{{ h.command }}]{% endif %}</a>
      </li>
     {% endfor %}</ul> 

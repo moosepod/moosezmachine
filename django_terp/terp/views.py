@@ -1,8 +1,10 @@
+import json
 from tempfile import NamedTemporaryFile
 
 from django.shortcuts import render
 from django.views.generic import TemplateView,FormView,RedirectView,View
 from django.shortcuts import get_object_or_404,render
+from django.http import HttpResponse
 from django.urls import reverse
 
 from terp.models import StoryRecord,StorySession,get_default_user,StoryState
@@ -80,7 +82,7 @@ class PlaySessionHistoryView(TemplateView):
         session = get_object_or_404(StorySession, pk=session_id)
 
         return {'session': session,
-                'history': StoryState.objects.all().order_by('move')}
+                'history': StoryState.objects.all().order_by('-move')}
 
 class PlaySessionInitialView(TemplateView):
     template_name = 'terp/play_command.html'
@@ -110,8 +112,9 @@ class PlaySessionCommandView(View):
         if command:
             state = state.generate_next_state(command=command)
 
-        return render(request,
-                'terp/play_command.html', 
-                {'session': session,
-                'history': [state],
-                'state': state})
+        return HttpResponse(json.dumps({'move': state.move,
+                           'room_name': state.room_name,
+                           'score': state.score,
+                           'state_id': state.id,
+                           'command': state.command,
+                           'text': state.text}))
