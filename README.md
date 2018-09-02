@@ -1,3 +1,8 @@
+(notes) 
+Alternate new path!
+- ZMachine interpreter using Godot for a frontend
+- Conceptually have a "infinite revert", skein type approach
+
 # moosezmachine
 
 moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) based off the Z-Machine Standards Document version 1.1 (http://inform-fiction.org/zmachine/standards/z1point1/sect03.html)
