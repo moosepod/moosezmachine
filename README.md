@@ -2,6 +2,11 @@
 Alternate new path!
 - ZMachine interpreter using Godot for a frontend
 - Conceptually have a "infinite revert", skein type approach
+- Probably switch away from python at some point, but lets me get started
+
+Starting points:
+- Connect python at all
+- Build up screen model
 
 # moosezmachine
 
