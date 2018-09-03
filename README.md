@@ -1,12 +1,12 @@
-(notes) 
-Alternate new path!
-- ZMachine interpreter using Godot for a frontend
-- Conceptually have a "infinite revert", skein type approach
-- Probably switch away from python at some point, but lets me get started
+# Goals
 
-Starting points:
-- Connect python at all
-- Build up screen model
+- Make zmachine interpreter
+- In python3
+- Using SDL
+- Play at least up to V5 games
+- Package using pyinstaller (http://www.pyinstaller.org/)
+- Instead of save/restore, include tree-based history system
+- Possibly include mapping tool
 
 # moosezmachine
 
