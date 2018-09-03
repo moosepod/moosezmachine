@@ -5,7 +5,7 @@
   - Load state should also load score, etc
   - When entering historical command, BRANCH
   - Disable SAVE
-  - Disable RESTORE
+  - Disable RESTORE 
 
 PHASES
 
