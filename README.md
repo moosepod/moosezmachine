@@ -4,6 +4,7 @@
 - In python3
 - Using SDL
 - Play at least up to V5 games
+- Retro-style emulator (C64,Apple 2, etc)
 - Package using pyinstaller (http://www.pyinstaller.org/)
 - Instead of save/restore, include tree-based history system
 - Possibly include mapping tool
