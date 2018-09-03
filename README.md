@@ -2,12 +2,16 @@
 
 - Make zmachine interpreter
 - In python3
-- Using SDL
+- Using pygame
 - Play at least up to V5 games
 - Retro-style emulator (C64,Apple 2, etc)
 - Package using pyinstaller (http://www.pyinstaller.org/)
 - Instead of save/restore, include tree-based history system
 - Possibly include mapping tool
+
+# setup
+
+- You will need to install pygame (https://www.pygame.org)
 
 # moosezmachine
 
