@@ -1,3 +1,14 @@
+# Goals
+
+- Make zmachine interpreter
+- In python3
+- Using SDL
+- Play at least up to V5 games
+- Retro-style emulator (C64,Apple 2, etc)
+- Package using pyinstaller (http://www.pyinstaller.org/)
+- Instead of save/restore, include tree-based history system
+- Possibly include mapping tool
+
 # moosezmachine
 
 moosezmachine is a Python 3 implementation of a Z-Machine (Z-code interpreter) based off the Z-Machine Standards Document version 1.1 (http://inform-fiction.org/zmachine/standards/z1point1/sect03.html)
