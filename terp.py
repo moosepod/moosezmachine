@@ -15,7 +15,7 @@ def initialize(settings):
     """ Initialize and open the window """
     pygame.init()
     screen = pygame.display.set_mode(settings['dimensions'])
-    font = pygame.font.SysFont("courier", 12)
+    font = pygame.font.SysFont("courier", 14)
     return screen, font
 
 def loop(screen,font,settings):
@@ -36,7 +36,7 @@ def loop(screen,font,settings):
                 (0,1),
                 settings['char_dimensions'],
                 BLACK_COLOR,
-                BLUE_COLOR)
+                WHITE_COLOR)
 
     while not done:
         for event in pygame.event.get():
