@@ -21,8 +21,8 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from curses_terp import CursesInputStream,CursesOutputStream,STDOUTOutputStream,\
-                        FileInputStream,FileStreamEmptyException,FileOutputStream
+from curses_terp import CursesInputStream,CursesOutputStream
+from generic_terp import STDOUTOutputStream,FileInputStream,FileStreamEmptyException,FileOutputStream
 
 STATUS_BAR_HEIGHT = 1
 STORY_TOP_MARGIN = 1
@@ -36,9 +36,6 @@ class RunState(Enum):
     WAITING_TO_QUIT          = 1
     PROMPT_FOR_SAVE          = 2
     PROMPT_FOR_RESTORE       = 3
-
-class ConfigException(Exception):
-    pass
 
 class Tracer(object):
     """ Handles logging instructions during a playthrough """
@@ -277,7 +274,7 @@ class MainLoop(object):
             self.zmachine.story.rng.enter_predictable_mode(int(self.seed))
 
         if self.raw:
-            output_stream = STDOUTOutputStream(story,status)
+            output_stream = STDOUTOutputStream()
         else:
             output_stream = CursesOutputStream(story,status)
 
