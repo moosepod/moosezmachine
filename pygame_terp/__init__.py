@@ -50,6 +50,12 @@ class PygameWrapper(object):
         pygame.display.flip()
 
         return True
+    
+    def print(self,txt):
+        self.main_window.print_text(txt)
+
+    def print_new_line(self):
+        self.main_window.new_line()
 
 class PygameInputStream(InputStream):
     def __init__(self):
@@ -66,38 +72,17 @@ class PygameOutputStream(OutputStream):
         """ Redraw this screen """
         pass
 
-    def flush(self):
-        lines = []
-
-        for block in self.buffer.split('\n'):
-            # If the line fits, just add it as is. Otherwise use the textwrap
-            # tool to wrap. We don't use textwrap on every line because it will strip trailing spaces
-            if len(block) < self.width:
-                lines.append(block)
-            else:
-                for line in textwrap.wrap(block,self.width-1): # Formatting works better with a 1-character buffer on right
-                    lines.append(line)
-
-        first_line=True
-        for line in lines:
-            if not first_line:
-                self.window.addstr('\n')
-            self.window.addstr(line.encode('ascii','replace')) # Strip out unicode that won't behave properly in curses
-            first_line=False
-
-        if self.buffer.endswith('\n') and first_line:
-            self.window.addstr('\n')
-
-        self.buffer=''
-
     def new_line(self):
-        self.buffer += '\n'
+        #self.buffer += '\n'
+        self.pygame_wrapper.print_new_line()
         
     def print_str(self,txt):
-        self.buffer += txt
+        #self.buffer += txt
+        self.pygame_wrapper.print(txt)
 
     def print_char(self,txt):
-        self.buffer += txt
+        #self.buffer += txt
+        self.pygame_wrapper.print(txt)
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if score_mode:
