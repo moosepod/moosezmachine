@@ -91,26 +91,19 @@ class Terp(object):
             if self.tracer:
                 self.tracer.log_instruction(self.zmachine.last_instruction)
 
-    def key_pressed(self,ch,input_stream,output_streams):
+    def text_entered(self,text,input_stream,output_streams):
         if self.state in (RunState.RUNNING,RunState.PROMPT_FOR_SAVE,RunState.PROMPT_FOR_RESTORE):
-            if input_stream.waiting_for_line:
-                input_stream.char_pressed('%s' % chr(ch))
-
-                # If the end result of the press is the end of the input line,
-                # start recording, using the entered line as the command
-                if input_stream.line_done:
-                    if self.state == RunState.PROMPT_FOR_SAVE:
-                        self.handle_save(input_stream.text)
-                        input_stream.reset()
-                    elif self.state == RunState.PROMPT_FOR_RESTORE:
-                        self.handle_restore(input_stream.text)
-                        input_stream.reset()
-                    else:
-                        output_streams.command_entered(input_stream.text)
-                        output_streams.flush()
-                        if self.tracer:
-                            self.tracer.start_command(input_stream.text)
-
+            if self.state == RunState.PROMPT_FOR_SAVE:
+                self.handle_save(text)
+                input_stream.reset()
+            elif self.state == RunState.PROMPT_FOR_RESTORE:
+                self.handle_restore(text)
+                input_stream.reset()
+            else:
+                output_streams.command_entered(text)
+                output_streams.flush()
+                if self.tracer:
+                    self.tracer.start_command(text)
         elif self.state == RunState.WAITING_TO_QUIT:
             self.run()
 
@@ -178,25 +171,18 @@ class MainLoop(object):
         counter = 0
         timer = 0
         while True:
-            input_stream = self.zmachine.input_streams.active_stream
-            if not ui.tick(input_stream.waiting_for_line):
-                break
-
             try:
-                # Check for keypress on defined interval or when we're waiting for a line in the terp
-                if counter == INPUT_BREAK_FREQUENCY or input_stream.waiting_for_line:
-                    ch = ui.last_char_pressed
-                    counter = 0
-                else:
-                    counter+=1
-                    ch = None
+                input_stream = self.zmachine.input_streams.active_stream
 
-                was_waiting_for_line = input_stream.waiting_for_line
-                if ch == None:
+                if not ui.tick():
+                    break
+
+                if input_stream.entered_text_buffer:
+                    terp.text_entered(input_stream.entered_text_buffer, input_stream, self.zmachine.output_streams)
+
+                if not input_stream.waiting_for_line:
                     if terp.state == RunState.RUNNING:
-                        terp.idle(input_stream)
-                else:
-                    terp.key_pressed(ch,input_stream,self.zmachine.output_streams)            
+                        terp.idle(input_stream)                
             except (QuitException,RestartException) as e:
                 self.zmachine.output_streams.flush()
                 raise e

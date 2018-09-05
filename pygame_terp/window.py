@@ -26,6 +26,12 @@ class TextWindow(object):
         self.cursor_row = 0
         self.cursor_col = 0
 
+        # used for text entry
+        self.cursor_visible = False
+        self.cursor_absolute_position = 0
+        self.cursor_min_length = 0 # When text reading starts, represents place we can't backspace past
+        self.entered_text_buffer = ''
+
         # Assume a monospace font and use 0 as the placeholder
         self.text_width,self.text_height = self.font.size("0" * self.size[1])
         self.text_width /= self.size[1] # Average size
@@ -63,6 +69,43 @@ Bounds:      %s
         self.buffer += '\n'
         self.flush()
 
+    def enable_keypress(self):
+        """ Start this window accepting user input """
+        # Add a space after the prompt -- we'll start collecting text after this point
+        self.lines[-1] += ' '
+        # Setup cursor
+        self.cursor_visible = True
+        self.cursor_min_length = sum([len(l) for l in self.lines])
+        self.cursor_absolute_position = self.cursor_min_length
+        self.entered_text_buffer = ''
+
+        
+
+    def disable_keypress(self):
+        """ Stop window from handling user input """
+        self.cursor_visible = True
+
+    def handle_keypress(self,key):
+        """ Handle a key typed to this window. Return True if we should keep processing, False if a line has been completed. """
+        if len(key) == 0:
+            return True
+
+        if self.cursor_visible:
+            if ord(key) == 8: # If backspace and we aren't at start point of buffer, remove one char
+                if self.cursor_absolute_position > self.cursor_min_length:
+                    self.lines[-1] = self.lines[-1][0:-1]
+                    self.entered_text_buffer = self.entered_text_buffer[0:-1]
+                    self.cursor_absolute_position-=1
+            elif ord(key) == 13:
+                # Hit return, count it as an entered command and return
+                return False 
+            else:
+                self.print_text(key)
+                self.cursor_absolute_position+=1
+                self.entered_text_buffer += key
+
+            return True
+
     def _add_row(self):
         self.cursor_row += 1
         if self.cursor_row >= len(self.lines):
@@ -99,15 +142,16 @@ Bounds:      %s
         return (self.margin_left+(self.text_width*col),
                 self.margin_top+(self.text_height*row))
 
-    def draw(self,show_cursor=False):
+    def draw(self):
+        """ Call to draw this text window to the ui window """
         pygame.draw.rect(self.screen, self.background_color, self.bounds)
         for idx,line in enumerate(self.lines):
             text = self.font.render(line, True, self.foreground_color)
             x,y = self._get_x_y_from_pos(self.position[0], self.position[1]+idx)
             self.screen.blit(text,(x,y))
         
-        if show_cursor:
-            x,y = self._get_x_y_from_pos(len(self.lines[-1])+1, len(self.lines))
+        if self.cursor_visible:
+            x,y = self._get_x_y_from_pos(len(self.lines[-1]), len(self.lines))
             cursor_rect = pygame.Rect(x,y,
                                      self.text_width,self.text_height)
             pygame.draw.rect(self.screen, self.foreground_color, cursor_rect)
