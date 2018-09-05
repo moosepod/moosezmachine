@@ -94,7 +94,7 @@ Bounds:      %s
             self.add_row()
         self.buffer=''
 
-    def draw(self):
+    def draw(self,delta,show_cursor=False):
         pygame.draw.rect(self.screen, self.background_color, self.bounds)
         for idx,line in enumerate(self.lines):
             text = self.font.render(line, True, self.foreground_color)

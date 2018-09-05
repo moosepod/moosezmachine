@@ -177,7 +177,7 @@ class MainLoop(object):
 
         counter = 0
         timer = 0
-        while pygame_wrapper.tick():
+        while pygame_wrapper.tick(waiting_for_text=self.zmachine.input_streams.active_stream.waiting_for_line):
             input_stream = self.zmachine.input_streams.active_stream
             try:
                 if terp.state == RunState.RUNNING:

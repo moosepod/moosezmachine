@@ -1,4 +1,7 @@
 import pygame
+
+import pygame.time
+
 from pygame_terp.window import TextWindow
 
 from zmachine.interpreter import Story,Interpreter,OutputStream,OutputStreams,Memory,QuitException,\
@@ -36,9 +39,9 @@ class PygameWrapper(object):
                     BLACK_COLOR,
                     WHITE_COLOR)
     
-    def tick(self):
+    def tick(self,waiting_for_text=False):
         """ Run tick of game loop. Return False if game should quit, True if keep running """
-        text = self.font.render("Hello, World", True, (0, 128, 0))
+        elapsed = pygame.time.tick()       
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -47,8 +50,8 @@ class PygameWrapper(object):
                 return False
 
         self.screen.fill(WHITE_COLOR)
-        self.status_line_window.draw()
-        self.main_window.draw()
+        self.status_line_window.draw(elapsed)
+        self.main_window.draw(elapsed,waiting_for_text)
         pygame.display.flip()
 
         return True
