@@ -17,7 +17,9 @@ class PygameWrapper(object):
         pygame.init()
         self.char_dimensions = settings['char_dimensions']
         self.screen = pygame.display.set_mode(settings['dimensions'])
-        self.font = pygame.font.SysFont("courier", 14)
+
+        # Use built-in mono font
+        self.font =  pygame.font.Font("pygame_terp/VeraMono.ttf", 12)
         
         self.status_line_window = TextWindow("Status",
                     self.screen,
