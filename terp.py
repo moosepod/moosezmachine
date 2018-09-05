@@ -16,7 +16,7 @@ from zmachine.text import ZTextException
 from zmachine.memory import BitArray,MemoryException
 from zmachine.instructions import InstructionException
 
-from pygame_terp import PygameWrapper,PygameOutputStream,PygameInputStream
+from pygame_terp import PygameUI
 from generic_terp import STDOUTOutputStream,ConfigException,FileStreamEmptyException
 
 SETTINGS = {'dimensions': (640,480),
@@ -127,7 +127,7 @@ class MainLoop(object):
         self.story_filename = story_filename
 
     def loop(self):
-        pygame_wrapper=PygameWrapper(SETTINGS)
+        ui=PygameUI(SETTINGS)
 
         if self.seed != None:
             self.zmachine.story.rng.enter_predictable_mode(int(self.seed))
@@ -135,7 +135,7 @@ class MainLoop(object):
         if self.raw:
             output_stream = STDOUTOutputStream()
         else:
-            output_stream = PygameOutputStream(pygame_wrapper)
+            output_stream = ui
 
         self.zmachine.output_streams.set_screen_stream(output_stream)
         self.output_stream=output_stream
@@ -157,7 +157,7 @@ class MainLoop(object):
             transcript_stream.print_str('--- Game started at %s ----\n\n' % datetime.datetime.now())
             transcript_stream.flush()
 
-        self.zmachine.input_streams.keyboard_stream = PygameInputStream()
+        self.zmachine.input_streams.keyboard_stream = ui
         self.zmachine.input_streams.select_stream(InputStreams.KEYBOARD)
 
         # If provided with a command file, load it as the file stream and select it by default
@@ -177,12 +177,26 @@ class MainLoop(object):
 
         counter = 0
         timer = 0
-        while pygame_wrapper.tick(waiting_for_text=self.zmachine.input_streams.active_stream.waiting_for_line):
+        while True:
             input_stream = self.zmachine.input_streams.active_stream
+            if not ui.tick(input_stream.waiting_for_line):
+                break
+
             try:
-                if terp.state == RunState.RUNNING:
-                    terp.idle(input_stream)
-               
+                # Check for keypress on defined interval or when we're waiting for a line in the terp
+                if counter == INPUT_BREAK_FREQUENCY or input_stream.waiting_for_line:
+                    ch = ui.last_char_pressed
+                    counter = 0
+                else:
+                    counter+=1
+                    ch = None
+
+                was_waiting_for_line = input_stream.waiting_for_line
+                if ch == None:
+                    if terp.state == RunState.RUNNING:
+                        terp.idle(input_stream)
+                else:
+                    terp.key_pressed(ch,input_stream,self.zmachine.output_streams)            
             except (QuitException,RestartException) as e:
                 self.zmachine.output_streams.flush()
                 raise e

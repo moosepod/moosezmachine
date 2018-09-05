@@ -6,7 +6,7 @@ class TextWindow(object):
                     position, size,
                      foreground_color, background_color,
                      margin_top=5,margin_left=5,
-                     debug=True):
+                     debug=False):
         """ Width/height is in characters.
         
             We maintain a line buffer of all text for scrolling. This should be capped at some point """
@@ -94,9 +94,21 @@ Bounds:      %s
             self.add_row()
         self.buffer=''
 
-    def draw(self,delta,show_cursor=False):
+    def _get_x_y_from_pos(self, col,row):
+        """ Given a column and row, return the x/y location """ 
+        return (self.margin_left+(self.text_width*col),
+                self.margin_top+(self.text_height*row))
+
+    def draw(self,show_cursor=False):
         pygame.draw.rect(self.screen, self.background_color, self.bounds)
         for idx,line in enumerate(self.lines):
             text = self.font.render(line, True, self.foreground_color)
-            self.screen.blit(text,(self.margin_left+(self.text_width*self.position[0]),
-                               self.margin_top+(self.text_height*(self.position[1]+idx))))
+            x,y = self._get_x_y_from_pos(self.position[0], self.position[1]+idx)
+            self.screen.blit(text,(x,y))
+        
+        if show_cursor:
+            x,y = self._get_x_y_from_pos(len(self.lines[-1])+1, len(self.lines))
+            cursor_rect = pygame.Rect(x,y,
+                                     self.text_width,self.text_height)
+            pygame.draw.rect(self.screen, self.foreground_color, cursor_rect)
+        
