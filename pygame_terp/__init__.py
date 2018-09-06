@@ -92,8 +92,6 @@ class PygameUI(InputStream,OutputStream):
                         self.waiting_for_line=False
 
         self.screen.fill(WHITE_COLOR)
-        self.status_line_window.draw()
-        self.main_window.draw()
         pygame.display.flip()
 
         return True
@@ -119,11 +117,13 @@ class PygameUI(InputStream,OutputStream):
             prints nothing """
         if self.output_window:
             self.output_window.print_text(txt)
+            self.refresh()
 
     def new_line(self):
         """ Print a newline to the current output window. If no window selected, does nothing """
         if self.output_window:
             self.main_window.new_line()
+            self.refresh()
 
     def print_char(self,txt):
         self.print_str(txt)
@@ -146,7 +146,8 @@ class PygameUI(InputStream,OutputStream):
         
     def refresh(self):
         """ Redraw this screen """
-        pass
+        if self.output_window:
+            self.output_window.draw()
 
     def show_status(self, room_name, score_mode=True,hours=0,minutes=0, score=0,turns=0):
         if score_mode:
@@ -157,4 +158,5 @@ class PygameUI(InputStream,OutputStream):
         status_format = '{:%d}{:>%d}' % (self.status_width-len(right_string)-1,len(right_string))
         status_message = status_format.format(room_name,right_string)
 
+        self.status_line_window.draw()
         self.status_line_window.set_text(status_message)

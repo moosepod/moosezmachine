@@ -118,7 +118,6 @@ Bounds:      %s
             self.lines.append('')
             self.scroll_window_bottom+=1
             self.scroll_window_top = max(0,self.scroll_window_bottom-self.size[ROWS])
-            print(self.scroll_window_top,' ',self.scroll_window_bottom)
 
     def flush(self):
         """ Flush the text buffer and display it as a series of lines, wrapping where necessary """
@@ -145,7 +144,8 @@ Bounds:      %s
         if self.buffer.endswith('\n') and first_line:
             self.add_row()
         self.buffer=''
-
+        self.draw()
+        
     def _get_x_y_from_pos(self, col,row):
         """ Given a column and row, return the x/y location """ 
         return (self.margin_left+(self.text_width*col),
