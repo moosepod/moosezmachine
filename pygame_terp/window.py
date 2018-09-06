@@ -152,9 +152,11 @@ Bounds:      %s
         """ Flush the text buffer and display it as a series of lines, wrapping where necessary """
         lines = []
 
-        width = self.size[COLS]
+        # Append new buffer to last stored line
+        total_buffer = self.lines[-1] + self.buffer
 
-        for block in self.buffer.split('\n'):
+        width = self.size[COLS]
+        for block in total_buffer.split('\n'):
             # If the line fits, just add it as is. Otherwise use the textwrap
             # tool to wrap. We don't use textwrap on every line because it will strip trailing spaces
             if len(block) < width:
@@ -168,9 +170,9 @@ Bounds:      %s
             if not first_line:
                 self._add_row()
             first_line=False
-            self.lines[self.cursor_row] += line
-
-        if self.buffer.endswith('\n') and first_line:
+            self.lines[self.cursor_row] = line
+ 
+        if total_buffer.endswith('\n') and first_line:
             self.add_row()
         self.buffer=''
         self.draw()
