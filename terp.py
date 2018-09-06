@@ -20,7 +20,7 @@ from pygame_terp import PygameUI
 from generic_terp import STDOUTOutputStream,ConfigException,FileStreamEmptyException
 
 SETTINGS = {'dimensions': (640,480),
-            'char_dimensions': (80,40),
+            'char_dimensions': (80,30),
             'font_name': 'courier',
             'font_size': 12}
 

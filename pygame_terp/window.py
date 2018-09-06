@@ -1,6 +1,9 @@
 import pygame
 import textwrap
 
+COLS=0
+ROWS=1
+
 class TextWindow(object):
     def __init__(self,name, screen, font, 
                     position, size,
@@ -20,8 +23,11 @@ class TextWindow(object):
         self.margin_top = margin_top
         self.margin_left = margin_left
 
-        self.lines = ['' * self.size[1]]
+        self.lines = ['' * self.size[COLS]]
         self.buffer = ''
+
+        self.scroll_window_top = 0
+        self.scroll_window_bottom = len(self.lines)
 
         self.cursor_row = 0
         self.cursor_col = 0
@@ -33,13 +39,13 @@ class TextWindow(object):
         self.entered_text_buffer = ''
 
         # Assume a monospace font and use 0 as the placeholder
-        self.text_width,self.text_height = self.font.size("0" * self.size[1])
-        self.text_width /= self.size[1] # Average size
+        self.text_width,self.text_height = self.font.size("0" * self.size[COLS])
+        self.text_width /= self.size[COLS] # Average size
 
         self.bounds = pygame.Rect(margin_left + (self.text_width*self.position[0]),
                                   margin_top + (self.text_height*self.position[1]),
-                                  (self.text_width*self.size[0]),
-                                  (self.text_height*self.size[1]))
+                                  (self.text_width*self.size[COLS]),
+                                  (self.text_height*self.size[ROWS]))
 
         if debug:
             print("""Initializing window %s
@@ -110,6 +116,9 @@ Bounds:      %s
         self.cursor_row += 1
         if self.cursor_row >= len(self.lines):
             self.lines.append('')
+            self.scroll_window_bottom+=1
+            self.scroll_window_top = max(0,self.scroll_window_bottom-self.size[ROWS])
+            print(self.scroll_window_top,' ',self.scroll_window_bottom)
 
     def flush(self):
         """ Flush the text buffer and display it as a series of lines, wrapping where necessary """
@@ -145,13 +154,14 @@ Bounds:      %s
     def draw(self):
         """ Call to draw this text window to the ui window """
         pygame.draw.rect(self.screen, self.background_color, self.bounds)
-        for idx,line in enumerate(self.lines):
+        line_window = self.lines[self.scroll_window_top:self.scroll_window_bottom]
+        for idx,line in enumerate(line_window):
             text = self.font.render(line, True, self.foreground_color)
             x,y = self._get_x_y_from_pos(self.position[0], self.position[1]+idx)
             self.screen.blit(text,(x,y))
         
         if self.cursor_visible:
-            x,y = self._get_x_y_from_pos(len(self.lines[-1]), len(self.lines))
+            x,y = self._get_x_y_from_pos(len(line_window[-1]), len(line_window))
             cursor_rect = pygame.Rect(x,y,
                                      self.text_width,self.text_height)
             pygame.draw.rect(self.screen, self.foreground_color, cursor_rect)
