@@ -4,6 +4,9 @@ import textwrap
 COLS=0
 ROWS=1
 
+BACKSPACE_KEY = 8
+RETURN_KEY = 13
+
 class TextWindow(object):
     def __init__(self,name, screen, font, 
                     position, size,
@@ -28,6 +31,7 @@ class TextWindow(object):
 
         self.scroll_window_top = 0
         self.scroll_window_bottom = len(self.lines)
+        self.scroll_window_lines = []
 
         self.cursor_row = 0
         self.cursor_col = 0
@@ -95,14 +99,17 @@ Bounds:      %s
         """ Handle a key typed to this window. Return True if we should keep processing, False if a line has been completed. """
         if len(key) == 0:
             return True
+        
+        # Whenever we start typing scroll to the bottom
+        self.scroll_bottom() 
 
         if self.cursor_visible:
-            if ord(key) == 8: # If backspace and we aren't at start point of buffer, remove one char
+            if ord(key) == BACKSPACE_KEY: # If backspace and we aren't at start point of buffer, remove one char
                 if self.cursor_absolute_position > self.cursor_min_length:
                     self.lines[-1] = self.lines[-1][0:-1]
                     self.entered_text_buffer = self.entered_text_buffer[0:-1]
                     self.cursor_absolute_position-=1
-            elif ord(key) == 13:
+            elif ord(key) == RETURN_KEY:
                 # Hit return, count it as an entered command and return
                 return False 
             else:
@@ -119,11 +126,33 @@ Bounds:      %s
             self.scroll_window_bottom+=1
             self.scroll_window_top = max(0,self.scroll_window_bottom-self.size[ROWS])
 
+    def scroll_up(self):
+        if self.scroll_window_top > 0:
+            self.scroll_window_top -= 1
+            self.scroll_window_bottom -= 1
+            self.draw()
+    
+    def scroll_down(self):
+        if self.scroll_window_bottom < len(self.lines):
+            self.scroll_window_top += 1
+            self.scroll_window_bottom += 1
+            self.draw()
+
+    def scroll_top(self):
+        self.scroll_window_top=0
+        self.scroll_window_bottom=self.scroll_window_top+self.size[ROWS]
+        self.draw()
+
+    def scroll_bottom(self):
+        self.scroll_window_bottom=len(self.lines)
+        self.scroll_window_top=self.scroll_window_bottom-self.size[ROWS]
+        self.draw()
+
     def flush(self):
         """ Flush the text buffer and display it as a series of lines, wrapping where necessary """
         lines = []
 
-        width = self.size[0]
+        width = self.size[COLS]
 
         for block in self.buffer.split('\n'):
             # If the line fits, just add it as is. Otherwise use the textwrap
@@ -145,7 +174,7 @@ Bounds:      %s
             self.add_row()
         self.buffer=''
         self.draw()
-        
+
     def _get_x_y_from_pos(self, col,row):
         """ Given a column and row, return the x/y location """ 
         return (self.margin_left+(self.text_width*col),
@@ -160,7 +189,7 @@ Bounds:      %s
             x,y = self._get_x_y_from_pos(self.position[0], self.position[1]+idx)
             self.screen.blit(text,(x,y))
         
-        if self.cursor_visible:
+        if self.cursor_visible and self.scroll_window_bottom == len(self.lines):
             x,y = self._get_x_y_from_pos(len(line_window[-1]), len(line_window))
             cursor_rect = pygame.Rect(x,y,
                                      self.text_width,self.text_height)

@@ -82,7 +82,19 @@ class PygameUI(InputStream,OutputStream):
             if event.type == pygame.QUIT:
                 return False
             elif event.type == pygame.KEYDOWN:
-                if self.input_window:
+                if event.key == pygame.K_PAGEUP:
+                    if self.output_window:
+                        self.output_window.scroll_up()
+                elif event.key == pygame.K_PAGEDOWN:
+                    if self.output_window:
+                        self.output_window.scroll_down()
+                elif event.key == pygame.K_HOME:
+                    if self.output_window:
+                        self.output_window.scroll_top()
+                elif event.key == pygame.K_END:
+                    if self.output_window:
+                        self.output_window.scroll_end()
+                elif self.input_window:
                     # Window will handle keypress and update the internal buffer
                     # If not return/enter char, returns True. Otherwise False.
                     # On success, store the entered line which will then be returned in 
@@ -91,7 +103,6 @@ class PygameUI(InputStream,OutputStream):
                         self.entered_text_buffer = self.input_window.entered_text_buffer
                         self.waiting_for_line=False
 
-        self.screen.fill(WHITE_COLOR)
         pygame.display.flip()
 
         return True
@@ -146,6 +157,8 @@ class PygameUI(InputStream,OutputStream):
         
     def refresh(self):
         """ Redraw this screen """
+        self.screen.fill(WHITE_COLOR)
+        self.status_line_window.draw()
         if self.output_window:
             self.output_window.draw()
 
@@ -158,5 +171,5 @@ class PygameUI(InputStream,OutputStream):
         status_format = '{:%d}{:>%d}' % (self.status_width-len(right_string)-1,len(right_string))
         status_message = status_format.format(room_name,right_string)
 
-        self.status_line_window.draw()
         self.status_line_window.set_text(status_message)
+        self.status_line_window.draw()

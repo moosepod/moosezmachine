@@ -162,6 +162,7 @@ class MainLoop(object):
 
         terp = Terp(self.zmachine,self.story_filename,tracer=self.tracer)
         terp.run()
+        ui.refresh()
         self.terp = terp
 
         #if self.save_path:
